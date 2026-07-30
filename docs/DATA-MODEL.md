@@ -25,9 +25,9 @@ will crash or silently render `undefined` for two of the three stories.
 
 Fields present on every entry: `id`, `title`, `url`, `category`, `couple`, `location`, `span`.
 
-Photos created at runtime through the Content Manager (see below) add a ninth field,
-`isFeatured`, that none of the seed entries have — so the photo shape is not even consistent
-within a single running session, let alone across the codebase.
+Seed entries have 7 fields. Photos created at runtime through the Content Manager (see below)
+add an eighth field, `isFeatured`, that none of the seed entries have — so the photo shape is not
+even consistent within a single running session, let alone across the codebase.
 
 ### `INITIAL_FILMS` — 3 entries (`film-1`, `film-2`, `film-3`)
 
@@ -108,13 +108,18 @@ Local files present in `public/images/` (verified with `ls`):
 - `hero_royal.jpg`
 - `luxury_camera.jpg`
 
-`INITIAL_STORIES`, `INITIAL_PHOTOS`, and `INITIAL_FILMS` reference these four local files
-repeatedly (e.g. `/images/hero_royal.jpg` is reused as `story-1`'s cover, `photo-1`'s image, and
-`film-1`'s thumbnail) and otherwise point at `https://images.unsplash.com/photo-...` URLs for
-every other image. **Third-party dependency risk:** every hotlinked Unsplash URL is outside this
-project's control — Unsplash can rate-limit, deprecate, or 404 any of these URLs at any time, and
-the site has no fallback or caching layer, so a portion of the gallery, story galleries, and film
-thumbnails can go blank without any code change on this side.
+Only three of these four are referenced by the content modules. `INITIAL_STORIES`,
+`INITIAL_PHOTOS`, and `INITIAL_FILMS` reference `bridal_portrait.jpg`, `destination_wedding.jpg`,
+and `hero_royal.jpg` repeatedly (e.g. `/images/hero_royal.jpg` is reused as `story-1`'s cover,
+`photo-1`'s image, and `film-1`'s thumbnail) and otherwise point at
+`https://images.unsplash.com/photo-...` URLs for every other image. `luxury_camera.jpg` is **not**
+referenced anywhere in `src/data/weddingData.js` — it is a UI asset used only by
+`src/components/SplashScreen.jsx` (the branded splash screen shown on load), entirely outside the
+content-module data described in this document. Phase 1 should not treat it as content requiring
+migration into a story/photo/film row. **Third-party dependency risk:** every hotlinked Unsplash
+URL is outside this project's control — Unsplash can rate-limit, deprecate, or 404 any of these
+URLs at any time, and the site has no fallback or caching layer, so a portion of the gallery,
+story galleries, and film thumbnails can go blank without any code change on this side.
 
 ## Target schema
 
