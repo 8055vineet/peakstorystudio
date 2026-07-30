@@ -5,9 +5,10 @@ This is an inventory of every file in `src/components/`. It complements
 together from `src/App.jsx`; this document describes each component in isolation — its props,
 its own local state, and what it pulls in.
 
-Every component is a plain function component (`export default function Name(...)`). None of
-them are class components, none use `React.memo`, and none define their own custom hooks
-beyond consuming `useScrollReveal`.
+Every component is a plain function component (`export default function Name(...)`), with one
+exception: `ErrorBoundary` is a class component, because `getDerivedStateFromError` and
+`componentDidCatch` have no hook equivalent. None use `React.memo`, and none define their own
+custom hooks beyond consuming `useScrollReveal`.
 
 ## Component inventory
 
@@ -21,6 +22,7 @@ beyond consuming `useScrollReveal`.
 | `ColorGradingSlider` | Before/after drag-comparison slider contrasting a "raw" vs. "cinema graded" treatment of one portrait image. | none | `sliderPos` (0–100, default 50), `containerWidth` (from `ResizeObserver`) | Browser `ResizeObserver` API; mouse/touch drag handlers (drag state itself lives in a `useRef`, not `useState`); `data-cursor="DRAG SLIDER"` (see `CustomCursor`); reuses the same `/images/bridal_portrait.jpg` for both layers. |
 | `ContentManagerModal` | Admin "Studio Content Manager" modal with three tabs: add a single photo, publish a wedding story, and export/copy JSON. Submissions are pushed back into `App.jsx` state (and thus `localStorage`), not into `src/data/weddingData.js`. | `isOpen`, `onClose`, `onAddPhoto`, `onAddStory` | `activeTab`, `photoUrl`, `previewUrl`, `photoTitle`, `category`, `couple`, `location`, `storyTitle`, `storyCover`, `storyCouple`, `storyLocation`, `storyDate`, `storySummary`, `copied` (14 `useState`) | Browser `FileReader` API (`readAsDataURL`) for local file uploads; `handleCopyJSON` only toggles `copied` for 3 seconds — it never calls `navigator.clipboard`, so the "Copy Data to Clipboard" button does not actually copy anything. |
 | `CustomCursor` | Replaces the OS cursor (desktop/`lg`-breakpoint only) with a dot-plus-label ring that reads whichever hovered element sets a `data-cursor` attribute. | none | `pos` ({x, y}), `cursorText`, `isHovered`, `isVisible` (4 `useState`) | Global `window` `mousemove`/`mouseover` listeners plus a `document` `mouseleave` listener; reads the `data-cursor` attribute set by `FilmsGallery`, `FeaturedStories`, `HorizontalGallery`, `ColorGradingSlider`, `PhotoGallery`, and `FilmStrip` (see "Shared patterns" below); hidden entirely below the `lg` breakpoint. |
+| `ErrorBoundary` | Catches render-time errors anywhere below it and shows a recovery screen (heading, explanation, reload button) instead of unmounting the tree to a blank page (PS-010). | `children` | `hasError` (boolean, set via `getDerivedStateFromError`) | None beyond React; the codebase's only class component — `getDerivedStateFromError`/`componentDidCatch` have no hook equivalent; wraps `<App />` in `src/main.jsx`. |
 | `FeaturedStories` | Grid of wedding-story cards; clicking a card opens `StoryDetailModal` for that story. | `stories`, `onOpenLightbox`, `onOpenVideo` | `selectedStory` (null or a story object) | `ScrollReveal` (staggers each card by `index * 150ms`); `StoryDetailModal` (mounted conditionally once a card is selected); `data-cursor="EXPLORE ALBUM"`. |
 | `FilmStrip` | Infinitely-scrolling "behind the lens" marquee of 6 analog-camera frame cards; the scroll is a CSS animation, not user-driven. | none | none | A `btsFrames` array of 6 items is **hardcoded inline** in this component (see "Components with hardcoded data"); relies on the `animate-marquee` keyframe defined in `src/index.css`; `data-cursor="VIEW FRAME"`; renders `[...btsFrames, ...btsFrames]` (the list twice) to make the loop seamless. |
 | `FilmsGallery` | 3-column grid of wedding-film thumbnails; clicking one calls `onOpenVideoModal` with that film's embed URL. | `films`, `onOpenVideoModal` | none | `ScrollReveal`; `data-cursor="PLAY FILM"`; unlike `FilmStrip`/`HorizontalGallery`, `films` is passed in as a prop from `App.jsx` (ultimately sourced from `src/data/weddingData.js`), not hardcoded here. |
