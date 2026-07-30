@@ -542,6 +542,8 @@ Both derive from the approved spec, so they are one task.
 | Booking form reports success unconditionally; submissions are discarded | High | `src/components/BookingForm.jsx` | 2 |
 | Uploaded images stored as base64 in localStorage; exceeds the ~5 MB quota | High | `src/components/ContentManagerModal.jsx` | 3 |
 | Export Config JSON button sets a "Copied!" label but copies nothing | High | `src/components/ContentManagerModal.jsx` | 3 |
+| Rules of Hooks violation: `useState` is called after an early conditional `return null`, so hook order is not stable across renders. Works today only because the parents mount and unmount these components rather than re-rendering them with a falsy prop; it will break under React's stricter compiler or if a parent starts rendering them unconditionally | High | `src/components/LightboxModal.jsx:5-8`, `src/components/StoryDetailModal.jsx:5-6` | 1 |
+| "Download ZIP" button is a non-functional stub that fires a browser `alert()` | Medium | `src/components/ClientGalleryModal.jsx:59` | 6 |
 | No routing; no shareable or indexable per-wedding URLs | High | app-wide | 5 |
 | Modals do not trap focus, lock body scroll, or close on Escape | Medium | all modals except `src/components/LightboxModal.jsx` | 3 |
 | No error boundary; a render throw blanks the page | Medium | `src/App.jsx` | 1 |
