@@ -233,9 +233,18 @@ if (existsSync(componentsDoc)) {
   }
 }
 
-// Check 3: cited source paths exist
+// Check 3: cited source paths exist.
+//
+// Only "living" documentation is checked. Design docs under docs/superpowers/
+// (specs and plans) are point-in-time artifacts that legitimately describe paths
+// a future phase will create — e.g. the Phase 1 spec names src/lib/supabase.js
+// before it exists. Holding them to present-tense accuracy would make this gate
+// permanently red, and a permanently red gate gets ignored.
+const isLivingDoc = (file) =>
+  !relative(ROOT, file).startsWith(join('docs', 'superpowers'));
+
 const SRC_PATH = /\b(src\/[A-Za-z0-9_\-./]+\.(?:jsx?|css))/g;
-for (const file of markdownFiles) {
+for (const file of markdownFiles.filter(isLivingDoc)) {
   const text = readFileSync(file, 'utf8');
   for (const match of text.matchAll(SRC_PATH)) {
     if (!existsSync(join(ROOT, match[1]))) {
@@ -281,15 +290,27 @@ Expected: `exit=1`.
 
 - [ ] **Step 3: Prove check 3 catches a bad path**
 
-Temporarily append a deliberately wrong path to the spec, run the checker, then revert:
+Check 3 only inspects living documentation, so the probe must be a living doc — not a file under `docs/superpowers/`. Create a scratch document, confirm the harness catches it, then delete it.
+
+Note that the probe file must be created and removed by these commands rather than written into this plan, so that no bad path string survives in a checked document. Use a temporary file, not the spec.
 
 ```bash
-printf '\nBogus reference to src/components/DoesNotExist.jsx\n' >> docs/superpowers/specs/2026-07-30-end-to-end-platform-design.md
-npm run check:docs 2>&1 | grep "DoesNotExist" && echo "check 3 works"
-git checkout -- docs/superpowers/specs/2026-07-30-end-to-end-platform-design.md
+printf 'Bogus reference to src/components/NoSuchComponent.jsx\n' > docs/__harness-selftest.md
+npm run check:docs 2>&1 | grep "NoSuchComponent" && echo "check 3 works"
+rm docs/__harness-selftest.md
+git status --short
 ```
 
-Expected: prints a `cites a missing source path` line for `DoesNotExist.jsx`, then `check 3 works`. Confirm the revert with `git status --short` showing the spec unmodified.
+Expected: prints a `cites a missing source path` line naming `docs/__harness-selftest.md`, then `check 3 works`. After the `rm`, `git status --short` must show no trace of the probe file.
+
+- [ ] **Step 3b: Confirm design docs are exempt**
+
+Run:
+```bash
+npm run check:docs 2>&1 | grep -c "docs/superpowers" || echo "0 — design docs correctly exempt"
+```
+
+Expected: `0 — design docs correctly exempt`. The spec references `src/lib/supabase.js`, which Phase 1 has not created yet; if this reports a non-zero count, the `isLivingDoc` filter is not working.
 
 - [ ] **Step 4: Commit**
 
