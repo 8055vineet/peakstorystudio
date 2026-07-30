@@ -42,7 +42,7 @@ are 9 actual state declarations, listed below):
 | `photos` | Array of photo objects, seeded from `INITIAL_PHOTOS` in `src/data/weddingData.js` | Yes — key `peak_story_photos` | `PhotoGallery` and `ClientGalleryModal` (read); default `imagesList` for the lightbox when none is supplied; `ContentManagerModal` appends new entries via `handleAddPhoto` |
 | `user` | `null`, or an object such as `{ role, name, ... }` set by a successful login | Yes — key `peak_story_user` (the key is removed with `localStorage.removeItem` when the user logs out) | `Navbar` (renders the admin/client badge and sign-out control); `ClientGalleryModal` (gates its content on `user` being present); set via `handleLoginSuccess` from `AuthModal`, cleared via `handleLogout` |
 | `lightboxState` | `{ isOpen, activeUrl, activeIndex, imagesList }` for the fullscreen image viewer | No | `LightboxModal`; opened via `handleOpenLightbox` from `FeaturedStories` and `PhotoGallery` |
-| `videoModalUrl` | A video embed URL, or `null` when no video modal is open | No | Renders the inline video-iframe modal defined directly in `App.jsx`; set via `onOpenFilmModal`/`onOpenVideo` callbacks from `Hero`, `FeaturedStories`, and `FilmsGallery` |
+| `videoModalUrl` | A video embed URL, or `null` when no video modal is open | No | Renders the inline video-iframe modal defined directly in `App.jsx`; set via the `onOpenFilmModal` (`Hero`), `onOpenVideo` (`FeaturedStories`), and `onOpenVideoModal` (`FilmsGallery`) callbacks |
 | `contentManagerOpen` | Boolean visibility flag for the "add your own content" modal | No | `ContentManagerModal`; opened from `Navbar`, `PhotoGallery`, and `Footer` |
 | `authModalOpen` | Boolean visibility flag for the sign-in modal | No | `AuthModal`; opened from `Navbar` |
 | `clientGalleryOpen` | Boolean visibility flag for the private client proofing modal | No | `ClientGalleryModal`; opened from `Navbar`, and set to `true` automatically inside `handleLoginSuccess` when a client (as opposed to admin) logs in |
@@ -117,9 +117,14 @@ All content is static data imported directly from `src/data/weddingData.js` (`IN
 `INITIAL_PHOTOS`, `INITIAL_FILMS`, `TESTIMONIALS`) — there is no CMS and no API call involved
 in populating the page on load. User-added content (photos and stories submitted through
 `ContentManagerModal`) is written to the `stories` and `photos` state in `App.jsx`, which is
-then persisted to `localStorage` (`peak_story_stories`, `peak_story_photos`) and merged in
-ahead of the static seed data on next load — it never leaves the browser. There is no network
-layer anywhere in the app: no `fetch`, no API client, no server. For where this is going, see
+then persisted to `localStorage` (`peak_story_stories`, `peak_story_photos`). On the next load,
+`src/App.jsx:27-43` reads that key back with `saved ? JSON.parse(saved) : INITIAL_STORIES` (and
+the equivalent for `photos`): when the key exists, its contents become the entire `stories`/
+`photos` state and `INITIAL_STORIES`/`INITIAL_PHOTOS` are ignored outright. This is a total
+override, not a merge — the static seed data and any `localStorage` contents are never combined,
+and once a browser has written that key, `src/data/weddingData.js` stops being consulted for that
+piece of state on that browser until the key is cleared. It never leaves the browser. There is no
+network layer anywhere in the app: no `fetch`, no API client, no server. For where this is going, see
 the backend and hosting plan in
 `docs/superpowers/specs/2026-07-30-end-to-end-platform-design.md`.
 

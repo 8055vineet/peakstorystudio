@@ -111,15 +111,21 @@ Local files present in `public/images/` (verified with `ls`):
 Only three of these four are referenced by the content modules. `INITIAL_STORIES`,
 `INITIAL_PHOTOS`, and `INITIAL_FILMS` reference `bridal_portrait.jpg`, `destination_wedding.jpg`,
 and `hero_royal.jpg` repeatedly (e.g. `/images/hero_royal.jpg` is reused as `story-1`'s cover,
-`photo-1`'s image, and `film-1`'s thumbnail) and otherwise point at
-`https://images.unsplash.com/photo-...` URLs for every other image. `luxury_camera.jpg` is **not**
+`photo-1`'s image, and `film-1`'s thumbnail). `INITIAL_STORIES` and `INITIAL_PHOTOS` otherwise
+point at `https://images.unsplash.com/photo-...` URLs for every other image, but `INITIAL_FILMS`
+(`src/data/weddingData.js:131-159`) does not — all three of its `thumbnail` values are local
+`/images/...` paths, with zero Unsplash URLs. `luxury_camera.jpg` is **not**
 referenced anywhere in `src/data/weddingData.js` — it is a UI asset used only by
 `src/components/SplashScreen.jsx` (the branded splash screen shown on load), entirely outside the
 content-module data described in this document. Phase 1 should not treat it as content requiring
 migration into a story/photo/film row. **Third-party dependency risk:** every hotlinked Unsplash
 URL is outside this project's control — Unsplash can rate-limit, deprecate, or 404 any of these
-URLs at any time, and the site has no fallback or caching layer, so a portion of the gallery,
-story galleries, and film thumbnails can go blank without any code change on this side.
+URLs at any time, and the site has no fallback or caching layer, so a portion of the gallery and
+story galleries can go blank without any code change on this side. The same risk also applies
+outside the content modules entirely: `src/components/FilmStrip.jsx:9-11` and
+`src/components/HorizontalGallery.jsx:25,31` hardcode their own `images.unsplash.com` hotlinks
+independent of `weddingData.js` (see `PS-015` in `docs/KNOWN-ISSUES.md`), so the real surface
+Phase 1's migration needs to account for is larger than the content modules alone.
 
 ## Target schema
 

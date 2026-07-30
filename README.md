@@ -23,9 +23,9 @@ was added in that Node release, so an older Node will fail on `npm run check:doc
 | Script | Command | What it does |
 | --- | --- | --- |
 | `npm run dev` | `vite` | Starts the Vite dev server at `http://localhost:3000` with hot reload. |
-| `npm run build` | `vite build` | Produces a production build in `dist/`. |
+| `npm run build` | `vite build` | Produces a production build in `dist/`. **Note:** `dist/` is both committed to git and listed in `.gitignore` (`PS-019` in [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md)), so running this leaves tracked files modified and untracked ignored files behind; clean up with `git checkout -- dist/` then `git clean -fx dist/`. |
 | `npm run preview` | `vite preview` | Serves the built `dist/` output locally to sanity-check a production build. |
-| `npm run lint` | `vite build` | **Currently runs a production build, not a linter.** There is no ESLint configuration in this repository yet, so `npm run lint` does not check code style or catch lint errors — it only proves the app still builds. A real ESLint config is planned for Phase 1. |
+| `npm run lint` | `vite build` | **Currently runs a production build, not a linter.** There is no ESLint configuration in this repository yet, so `npm run lint` does not check code style or catch lint errors — it only proves the app still builds. A real ESLint config is planned for Phase 1. Because this **is** `vite build`, it has the same `dist/` side effect as `npm run build` above (`PS-019`) — clean up the same way. |
 | `npm run check:docs` | `node scripts/check-docs.mjs` | Verifies the docs stay consistent with the codebase: required docs exist, every component is documented, cited source paths exist, and every relative markdown link resolves. |
 
 ## Project layout

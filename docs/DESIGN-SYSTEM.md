@@ -46,13 +46,13 @@ in `tailwind.config.js`.
 `gold-400` is not dead by the letter of the grep, but it is dead in spirit: its only two uses are
 both a small `<Sparkles>` icon tint — `text-gold-400` in
 `src/components/HorizontalGallery.jsx:71` and `src/components/ColorGradingSlider.jsx:83` — never
-a background, border, or text color for actual content. With three of the four `gold` shades
-completely unused and the fourth reduced to decorating one icon twice, the entire gold ramp is
+a background, border, or text color for actual content. With two of the three `gold` shades
+completely unused and the third reduced to decorating one icon twice, the entire gold ramp is
 effectively vestigial. It is not, and never became, a real accent color for this site.
 
-The site's real color identity is two tones, not the five-family palette the config implies:
+The site's real color identity is two tones, not the four-family palette the config implies:
 **oxblood** (`pitch-900`, `#3D0C1A`) as the near-universal text/border/accent color — it appears
-422 times across 21 of the 24 files in `src/components/` plus `src/App.jsx` — laid over **warm
+422 times across 20 of the 23 files in `src/components/` plus `src/App.jsx` — laid over **warm
 off-white** (`offwhite-100`, `#faf9f6` and `offwhite-50`, `#ffffff`) as the page background.
 Everything else in the palette (the deeper `pitch-950`/`pitch-800` shades, the `charcoal` grays,
 `offwhite-200`/`offwhite-300`) plays a supporting role — secondary text, hover darkening, subtle
@@ -69,7 +69,8 @@ Three font families are configured in `tailwind.config.js` under `theme.extend.f
 | Plus Jakarta Sans | `font-sans` | UI and body copy (also Tailwind's default `sans-serif` fallback, so most unstyled text renders in it implicitly) |
 
 `font-cinzel` appears 41 times and `font-garamond` 31 times across `src/components`; `font-sans`
-is set explicitly only twice (`src/App.jsx`'s root wrapper and `Navbar`'s nav-link text) since it
+is set explicitly only twice (`src/App.jsx`'s root wrapper and
+`src/components/HorizontalGallery.jsx:72`'s "Editorial Showcase" label) since it
 is Tailwind's default and therefore the ambient body face everywhere else.
 
 **One heading pattern repeats across nine of the site's ten top-level page sections.** Every
@@ -110,7 +111,7 @@ definitions would otherwise inflate every count by one).
 | `logoPulse` (`src/index.css:118`) | `animate-logo-pulse` | 0 | **unused** |
 | `splashFadeOut` (`src/index.css:128`) | `animate-splash-out` | 0 | **unused** |
 | `progressFill` (`src/index.css:138`) | `animate-progress-fill` | 0 | **unused** |
-| `float` (`tailwind.config.js`, `theme.extend.keyframes`) | `animate-float` | 1 | in use — `Footer.jsx` |
+| `float` (`tailwind.config.js`, `theme.extend.keyframes`) | `animate-float` | 1 | in use — `AboutSection.jsx` |
 | *(none — reuses Tailwind's built-in `pulse` keyframe)* | `animate-pulse-slow` | 0 | **unused** |
 
 `src/index.css` also defines non-`@keyframes` utility classes that are part of the same

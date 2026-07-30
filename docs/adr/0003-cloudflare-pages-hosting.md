@@ -9,7 +9,7 @@ Accepted
 Peak Story Studio is a commercial site — a photography studio taking paid bookings, not a
 portfolio or hobby project — and the stated budget is effectively zero: only the domain itself
 is expected to cost money (see the constraints table in
-[the end-to-end platform design spec](../superpowers/specs/2026-07-30-end-to-end-platform-design.md#context)).
+[the end-to-end platform design spec](../superpowers/specs/2026-07-30-end-to-end-platform-design.md#1-context)).
 A hosting choice has to hold up under real commercial use while staying on a free tier.
 
 ## Decision

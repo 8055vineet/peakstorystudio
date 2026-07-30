@@ -8,7 +8,7 @@ Accepted
 
 The stated priority is a working, live site that can take real inquiries — not a rebuild. The
 existing app is a Vite + React 18 + Tailwind single-page application of roughly 3,200 lines
-across 26 components, and it already renders the full site correctly; the gap is entirely
+across 23 components, and it already renders the full site correctly; the gap is entirely
 missing backend behavior (persistence, real auth, real inquiry handling), not the frontend
 framework.
 
@@ -17,7 +17,7 @@ framework.
 Add the backend (Supabase, per [ADR 0002](0002-supabase-as-backend.md)) additively on top of the
 current app, and keep the Vite SPA as-is rather than rebuilding on Next.js now.
 
-Alternative considered and rejected: **migrating all 26 components to Next.js now.** This would
+Alternative considered and rejected: **migrating all 23 components to Next.js now.** This would
 delay the stated priority — working inquiries and a live site — behind a framework rewrite, and
 it is not a mechanical port. Several existing pieces read `window`/`document` directly and assume
 a browser-only render: the splash screen (`src/components/SplashScreen.jsx`), the custom cursor

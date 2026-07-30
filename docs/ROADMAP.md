@@ -11,8 +11,7 @@ with work half-finished.
 
 ## Current position
 
-**Phase 0 — Documentation baseline** is in progress, on branch
-`phase-0/documentation-baseline`.
+**Phase 0 — Documentation baseline** is complete, tagged `v0.1`.
 
 ## Phase and version table
 
@@ -30,7 +29,7 @@ with work half-finished.
 Hosting is **Cloudflare Pages**. See the
 [Decisions section of the spec](superpowers/specs/2026-07-30-end-to-end-platform-design.md#2-decisions)
 for the full rationale and the rejected alternatives; the choice is also recorded as an ADR
-(`docs/adr/0003-cloudflare-pages-hosting.md`, added in a later Phase 0 task).
+(`docs/adr/0003-cloudflare-pages-hosting.md`).
 
 For why the phases are ordered this way — including why inquiries (Phase 2) precede admin
 tooling (Phase 3), why deployment (Phase 4) precedes SEO (Phase 5), and why the client portal

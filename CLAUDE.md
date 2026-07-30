@@ -36,8 +36,11 @@ task notes) rather than silently fixing or silently working around it.
   broken once, and it's a known issue, not a pattern to copy: `SectionDivider` receives
   `color`/`bgColor` as raw hex strings (`#faf9f6`, `#ffffff`) from `src/App.jsx` instead of
   Tailwind classes, even though both values exactly duplicate existing tokens
-  (`offwhite-100`, `offwhite-50`). Do not extend this pattern to new call sites, and fixing it
-  is a legitimate small cleanup if you're already touching `SectionDivider` or `App.jsx`.
+  (`offwhite-100`, `offwhite-50`). It is tracked as `PS-020` in
+  [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md), planned for Phase 3. Do not extend this pattern
+  to new call sites, and do not fix it early outside that phase without saying so (per
+  "Before changing anything" above) — the same scheduling rule applies to this issue as to
+  every other row in that register.
 - Components stay presentational. All cross-cutting state (content, session, modal visibility)
   lives in `src/App.jsx` and is passed down as props; a component's own local state should never
   need to escape that component (e.g. `Navbar`'s `scrolled`, `AuthModal`'s form fields). This
@@ -48,14 +51,18 @@ task notes) rather than silently fixing or silently working around it.
 ## Commands
 
 - `npm run dev` — Vite dev server at `http://localhost:3000`.
-- `npm run build` — production build into `dist/`.
+- `npm run build` — production build into `dist/`. **Note:** `dist/` is both committed to git
+  and listed in `.gitignore` (`PS-019` in [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md)), so this
+  leaves tracked files modified and untracked ignored files behind; clean up with
+  `git checkout -- dist/` then `git clean -fx dist/`.
 - `npm run check:docs` — verifies required docs exist, every component in `src/components` is
   documented in `docs/COMPONENTS.md`, every `src/...` path cited in a doc actually exists, and
   every relative markdown link resolves. Run this after any change that touches components or
   docs.
 - `npm run lint` currently runs `vite build`, not a linter — there is no ESLint config yet, so it
   only proves the app still builds. Do not treat a clean `npm run lint` as a style or correctness
-  check. A real lint setup is planned for Phase 1.
+  check. A real lint setup is planned for Phase 1. Because it **is** `vite build`, it has the
+  same `dist/` side effect noted under `npm run build` above (`PS-019`) — clean up the same way.
 
 ## Documentation duties
 

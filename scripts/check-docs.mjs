@@ -84,6 +84,10 @@ for (const file of markdownFiles) {
   for (const match of text.matchAll(MD_LINK)) {
     const raw = match[1].trim();
     if (/^(https?:|mailto:|tel:|#)/.test(raw)) continue;
+    // Only the path portion is validated below; a `#fragment` on a relative link is
+    // stripped and never checked against the target file's actual headings. A link to
+    // an existing file with a stale/wrong anchor (e.g. a renamed heading) will pass this
+    // gate silently — this check cannot catch a broken in-page anchor, only a broken path.
     const target = raw.split('#')[0];
     if (!target) continue;
     if (!existsSync(resolve(dirname(file), target))) {
