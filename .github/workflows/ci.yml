@@ -27,7 +27,7 @@ jobs:
         run: |
           set -o pipefail
           npm ci 2>&1 | tee /tmp/step.log || {
-            echo "::error::npm ci failed :: $(tail -c 1200 /tmp/step.log | tr '\n' '⏎')"
+            echo "::error::npm ci failed :: $(grep -iE "error|missing|not in sync|failed" /tmp/step.log | head -c 1200 | tr "\n" "⏎")"
             exit 1
           }
 
@@ -35,7 +35,7 @@ jobs:
         run: |
           set -o pipefail
           npm run lint 2>&1 | tee /tmp/step.log || {
-            echo "::error::lint failed :: $(tail -c 1200 /tmp/step.log | tr '\n' '⏎')"
+            echo "::error::lint failed :: $(grep -iE "error|missing|not in sync|failed" /tmp/step.log | head -c 1200 | tr "\n" "⏎")"
             exit 1
           }
 
@@ -43,7 +43,7 @@ jobs:
         run: |
           set -o pipefail
           npm test 2>&1 | tee /tmp/step.log || {
-            echo "::error::tests failed :: $(tail -c 1200 /tmp/step.log | tr '\n' '⏎')"
+            echo "::error::tests failed :: $(grep -iE "error|missing|not in sync|failed" /tmp/step.log | head -c 1200 | tr "\n" "⏎")"
             exit 1
           }
 
@@ -51,7 +51,7 @@ jobs:
         run: |
           set -o pipefail
           npm run check:docs 2>&1 | tee /tmp/step.log || {
-            echo "::error::check:docs failed :: $(tail -c 1200 /tmp/step.log | tr '\n' '⏎')"
+            echo "::error::check:docs failed :: $(grep -iE "error|missing|not in sync|failed" /tmp/step.log | head -c 1200 | tr "\n" "⏎")"
             exit 1
           }
 
@@ -59,6 +59,6 @@ jobs:
         run: |
           set -o pipefail
           npm run build 2>&1 | tee /tmp/step.log || {
-            echo "::error::build failed :: $(tail -c 1200 /tmp/step.log | tr '\n' '⏎')"
+            echo "::error::build failed :: $(grep -iE "error|missing|not in sync|failed" /tmp/step.log | head -c 1200 | tr "\n" "⏎")"
             exit 1
           }
