@@ -13,7 +13,10 @@
     "lint": "eslint . --max-warnings=2",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset"
   },
   "dependencies": {
     "canvas-confetti": "^1.9.4",
