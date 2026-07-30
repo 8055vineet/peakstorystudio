@@ -4,7 +4,7 @@
 
 **Goal:** Give the project real linting, real tests, and a crash barrier, then fix the two robustness defects those tools expose — so that Phase 1b's backend code is gated from its first line.
 
-**Architecture:** Test infrastructure first (Vitest + React Testing Library), then the Rules of Hooks fix with tests proving behaviour is preserved, then ESLint — whose `react-hooks/rules-of-hooks` rule permanently guards that fix from regressing. Error boundary and data extraction follow, then CI wires all four gates together.
+**Architecture:** Test infrastructure first (Vitest + React Testing Library), then ESLint together with the violations it finds — including a Rules of Hooks defect that is statically detectable but, as measured, not reliably reproducible at runtime, so the linter rather than a test is its gate. Error boundary and data extraction follow, then CI wires all four gates together.
 
 **Tech Stack:** Vitest, @testing-library/react, jsdom, ESLint 9 flat config with eslint-plugin-react-hooks, GitHub Actions. All additions are devDependencies — no new runtime dependency.
 
@@ -17,7 +17,7 @@
 - **Conventional Commits** for every commit.
 - **`dist/` is committed to git AND listed in `.gitignore`** (issue `PS-019`). Do not run `npm run build` casually. If you must, clean up afterwards with `git checkout -- dist/` then `git clean -fx dist/`.
 - **Tests live in `src/components/__tests__/`**, never co-located as `src/components/*.test.jsx`. Reason: `scripts/check-docs.mjs` scans `src/components/*.jsx` and requires every match to be documented in `docs/COMPONENTS.md`; a co-located test file would be mistaken for an undocumented component. Task 1 also hardens the harness against this, but the convention stands.
-- **Any new file in `src/components/` must be added to `docs/COMPONENTS.md` in the same task**, or `npm run check:docs` fails. This applies to Task 4's `ErrorBoundary.jsx`.
+- **Any new file in `src/components/` must be added to `docs/COMPONENTS.md` in the same task**, or `npm run check:docs` fails. This applies to Task 3's `ErrorBoundary.jsx`.
 - **Do not repeat fabricated content.** Per `CLAUDE.md`, never add press credentials, awards, statistics, or testimonials attributed to real people. Test fixtures must use obviously-fictional names.
 
 ---
@@ -42,7 +42,7 @@
 | `package.json` (modify) | Real `lint` script, `test` scripts, version `0.1.0` |
 | `docs/*` (modify) | Keep documentation true as the code changes |
 
-**Ordering rationale:** tests before the hooks fix, so the fix is provably behaviour-preserving; ESLint after the fix, so it lands green and thereafter prevents regression; CI last, once there are four real gates to run.
+**Ordering rationale:** test infrastructure first, so later tasks have regression cover. ESLint and the hooks fix are one task because the linter is what proves the defect exists — an earlier split assumed a runtime test could show it red-before, and measurement disproved that (see Task 2's preamble). CI last, once there are four real gates to run.
 
 ---
 
@@ -104,7 +104,7 @@ In `package.json` `scripts`, add:
     "test:watch": "vitest",
 ```
 
-Leave `lint` alone for now — Task 3 replaces it.
+Leave `lint` alone for now — Task 2 replaces it.
 
 - [ ] **Step 5: Write the first test**
 
@@ -193,214 +193,34 @@ for an undocumented component."
 
 ---
 
-## Task 2: Fix the Rules of Hooks violation (PS-006)
-
-**Files:**
-- Modify: `src/components/LightboxModal.jsx`
-- Modify: `src/components/StoryDetailModal.jsx`
-- Create: `src/components/__tests__/LightboxModal.test.jsx`
-- Create: `src/components/__tests__/StoryDetailModal.test.jsx`
-
-**Interfaces:**
-- Consumes: `npm test` from Task 1.
-- Produces: two components whose hooks run unconditionally, which Task 3's ESLint rule then locks in.
-
-**Context — what is wrong.** Both components call `useState` *after* an early conditional `return null`:
-
-- `src/components/LightboxModal.jsx:5` — `if (!activeImage) return null;` precedes `useState` at lines 7–8.
-- `src/components/StoryDetailModal.jsx:5` — `if (!story) return null;` precedes `useState` at line 6.
-
-React requires the same hooks to run in the same order on every render of a component instance. This works today only because both parents mount and unmount these components (`{selectedStory && <StoryDetailModal …/>}`) rather than keeping them mounted and toggling the prop. It breaks the moment a parent renders one unconditionally — and React's compiler treats it as an error regardless.
-
-**The fix is to move the hooks above the guard, not to remove the guard.** The guard must stay: both components are rendered conditionally elsewhere and must tolerate a falsy prop.
-
-- [ ] **Step 1: Write failing tests**
-
-Create `src/components/__tests__/LightboxModal.test.jsx`:
-
-```jsx
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import LightboxModal from '../LightboxModal';
-
-const photos = [
-  { url: '/images/one.jpg', title: 'First Frame' },
-  { url: '/images/two.jpg', title: 'Second Frame' },
-];
-
-describe('LightboxModal', () => {
-  it('renders nothing when there is no active image', () => {
-    const { container } = render(
-      <LightboxModal activeImage="" activeIndex={0} imagesList={[]} onClose={vi.fn()} />
-    );
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it('stays mounted across a falsy-to-truthy prop change without a hook-order error', () => {
-    const onClose = vi.fn();
-    const { rerender, container } = render(
-      <LightboxModal activeImage="" activeIndex={0} imagesList={photos} onClose={onClose} />
-    );
-    expect(container).toBeEmptyDOMElement();
-
-    rerender(
-      <LightboxModal activeImage="/images/one.jpg" activeIndex={0} imagesList={photos} onClose={onClose} />
-    );
-    expect(screen.getByAltText('First Frame')).toBeInTheDocument();
-  });
-
-  it('shows the position counter when several images are supplied', () => {
-    render(
-      <LightboxModal activeImage="/images/one.jpg" activeIndex={0} imagesList={photos} onClose={vi.fn()} />
-    );
-    expect(screen.getByText('(1 / 2)')).toBeInTheDocument();
-  });
-});
-```
-
-Create `src/components/__tests__/StoryDetailModal.test.jsx`:
-
-```jsx
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
-import StoryDetailModal from '../StoryDetailModal';
-
-const story = {
-  title: 'A Harbour Wedding',
-  couple: 'Test Couple',
-  location: 'Test Harbour',
-  date: 'March 2026',
-  summary: 'A fictional story used only in tests.',
-  coverImage: '/images/cover.jpg',
-  fullGallery: ['/images/cover.jpg', '/images/second.jpg'],
-  tags: ['Test'],
-};
-
-describe('StoryDetailModal', () => {
-  it('renders nothing without a story', () => {
-    const { container } = render(
-      <StoryDetailModal story={null} onClose={vi.fn()} onSelectImage={vi.fn()} onOpenVideo={vi.fn()} />
-    );
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it('stays mounted across a null-to-present prop change without a hook-order error', () => {
-    const props = { onClose: vi.fn(), onSelectImage: vi.fn(), onOpenVideo: vi.fn() };
-    const { rerender, container } = render(<StoryDetailModal story={null} {...props} />);
-    expect(container).toBeEmptyDOMElement();
-
-    rerender(<StoryDetailModal story={story} {...props} />);
-    expect(screen.getByText('A Harbour Wedding')).toBeInTheDocument();
-  });
-
-  it('reports the gallery size', () => {
-    render(
-      <StoryDetailModal story={story} onClose={vi.fn()} onSelectImage={vi.fn()} onOpenVideo={vi.fn()} />
-    );
-    expect(screen.getByText(/Full Album Gallery \(2 Photographs\)/)).toBeInTheDocument();
-  });
-});
-```
-
-- [ ] **Step 2: Run the tests and observe the failure**
-
-Run: `npm test`
-
-Expected: the "stays mounted across a … prop change" test in each file FAILS. React throws "Rendered more hooks than during the previous render" — the first render returned before reaching the hooks, the second reached them. That error is the bug, reproduced.
-
-Record the exact error text in your report. If these tests pass instead, stop and report it — it would mean the components are not what this plan describes.
-
-- [ ] **Step 3: Fix `LightboxModal`**
-
-In `src/components/LightboxModal.jsx`, move the guard below every hook. All three hooks (`useState` ×2, `useEffect`) must run first. The head of the component becomes:
-
-```jsx
-export default function LightboxModal({ activeImage, activeIndex, imagesList, onClose }) {
-  const [currentIndex, setCurrentIndex] = useState(activeIndex || 0);
-  const [isZoomed, setIsZoomed] = useState(false);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowLeft' && imagesList?.length) {
-        setCurrentIndex((prev) => (prev > 0 ? prev - 1 : imagesList.length - 1));
-      }
-      if (e.key === 'ArrowRight' && imagesList?.length) {
-        setCurrentIndex((prev) => (prev < imagesList.length - 1 ? prev + 1 : 0));
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [imagesList, onClose]);
-
-  if (!activeImage) return null;
-
-  const currentPhoto = imagesList && imagesList[currentIndex] ? imagesList[currentIndex] : { url: activeImage };
-  const imageUrl = currentPhoto.url || activeImage;
-```
-
-Keep the rest of the component exactly as it is. Note that `currentPhoto` and `imageUrl` stay *below* the guard — they read `activeImage` and are not hooks, so they must not run when the component renders nothing.
-
-- [ ] **Step 4: Fix `StoryDetailModal`**
-
-In `src/components/StoryDetailModal.jsx`, the head becomes:
-
-```jsx
-export default function StoryDetailModal({ story, onClose, onSelectImage, onOpenVideo }) {
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
-
-  if (!story) return null;
-
-  const images = story.fullGallery || [story.coverImage];
-```
-
-`images` must stay below the guard — it dereferences `story`.
-
-- [ ] **Step 5: Run the tests again**
-
-Run: `npm test`
-
-Expected: all tests pass, including the two that previously failed with the hook-order error.
-
-- [ ] **Step 6: Verify the other gates**
-
-Run:
-```bash
-npm run check:docs; echo "exit=$?"
-git status --short
-```
-Expected: `check:docs passed`, `exit=0`, and only the four intended files modified or added.
-
-- [ ] **Step 7: Commit**
-
-```bash
-git add src/components/LightboxModal.jsx src/components/StoryDetailModal.jsx src/components/__tests__/LightboxModal.test.jsx src/components/__tests__/StoryDetailModal.test.jsx
-git commit -m "fix: run hooks before the early return in two modals
-
-PS-006. LightboxModal and StoryDetailModal called useState after a
-conditional 'return null', so hook order was not stable across renders.
-It worked only because their parents mount and unmount them rather than
-re-rendering with a falsy prop.
-
-Hooks now run unconditionally and the guard follows them. Tests cover
-the previously-broken case: a component that stays mounted while its
-prop goes from falsy to truthy."
-```
-
----
-
-## Task 3: Real ESLint (PS-011, part 1)
+## Task 2: ESLint, and the violations it finds (PS-011 and PS-006)
 
 **Files:**
 - Create: `eslint.config.js`
 - Modify: `package.json`
-- Possibly modify: source files ESLint flags
+- Modify: `src/components/LightboxModal.jsx`
+- Modify: `src/components/StoryDetailModal.jsx`
+- Create: `src/components/__tests__/LightboxModal.test.jsx`
+- Create: `src/components/__tests__/StoryDetailModal.test.jsx`
+- Possibly modify: other source files ESLint flags
 
 **Interfaces:**
-- Consumes: the fixed components from Task 2.
-- Produces: `npm run lint` that genuinely lints; `react-hooks/rules-of-hooks` permanently guards Task 2's fix.
+- Consumes: `npm test` from Task 1.
+- Produces: `npm run lint` that genuinely lints, and two components whose hooks run unconditionally.
 
-**Context:** `package.json` currently has `"lint": "vite build"` — it builds and lints nothing, and as a side effect dirties `dist/`. ESLint 9 uses flat config in `eslint.config.js`.
+### Why this task merges linting with a bug fix
+
+**Read this before starting — it explains the shape of the task and why an earlier attempt was abandoned.**
+
+`PS-006` records a Rules of Hooks violation: `src/components/LightboxModal.jsx:5` and `src/components/StoryDetailModal.jsx:5` both call `useState` *after* an early conditional `return null`. React requires the same hooks in the same order on every render of an instance.
+
+A first attempt tried to prove this with a runtime test — render with a falsy prop, rerender with a truthy one, expect "Rendered more hooks than during the previous render". **That test passes against the broken code, so it is not proof of anything.** The reason is precise: the guard is the very first statement, so on a falsy render zero hooks execute and the fiber's `memoizedState` stays `null`. React's dispatcher check (`current.memoizedState === null`) then treats the following render as a fresh mount rather than an update, so there is no previous hook list to overrun and no crash. The reverse order (truthy then falsy) was also measured and does not throw either.
+
+The conclusion is that this defect is **statically detectable and not reliably reproducible at runtime.** The correct gate is therefore ESLint's `react-hooks/rules-of-hooks` rule, which flags it with certainty. That is why linting and the fix are one task: installing the linter produces the red state, and fixing the components turns it green.
+
+The component tests in this task are still required, but their job is different: they prove the reordering did not change rendering behaviour. Do not write them as red-before proof — write them as behaviour tests that pass before and after.
+
+**Do not weaken this into "just fix the lint errors."** The two component fixes are the point; the linter is how you know they are needed and how they stay fixed.
 
 - [ ] **Step 1: Install ESLint and plugins**
 
@@ -478,26 +298,201 @@ In `package.json`, change `"lint": "vite build"` to:
     "lint": "eslint .",
 ```
 
-- [ ] **Step 4: Run ESLint and record every violation**
+- [ ] **Step 4: Run ESLint and record every violation — this is the red state**
 
 Run: `npm run lint`
 
-Record the complete output in your report. Expect real findings — the codebase has never been linted. A known one: `src/components/ClientGalleryModal.jsx` imports `Share2` but never renders it, which `no-unused-vars` flags.
+Record the COMPLETE output in your report. This is the most important evidence in the task.
 
-**Do not disable rules to make errors disappear.** Fix the code. The only acceptable configuration change is if a rule is genuinely wrong for this codebase, and then you must justify it in your report.
+You must see `react-hooks/rules-of-hooks` errors naming `src/components/LightboxModal.jsx` and `src/components/StoryDetailModal.jsx` — something of the form "React Hook useState is called conditionally. React Hooks must be called in the exact same order in every component render."
 
-- [ ] **Step 5: Fix every violation**
+**If those two errors do NOT appear, stop and report BLOCKED.** It would mean the rule is not active, and the fix in Step 6 would be unverified. Do not proceed by fixing the components anyway.
 
-Work through them. Guidance for the likely categories:
+Expect other findings too — the codebase has never been linted. A known one: `src/components/ClientGalleryModal.jsx` imports `Share2` but never renders it.
+
+- [ ] **Step 5: Fix the non-hooks violations**
+
+Work through everything except the two hooks errors, which Step 6 owns. Guidance by category:
+
 - **Unused imports or variables** — delete them. They are dead weight.
-- **`react-hooks/exhaustive-deps` warnings** — these are warnings, not errors. Do NOT restructure component logic to satisfy them in this task; that risks behaviour changes with no test coverage. Record them in your report; they become a follow-up issue in Task 6.
-- **`react/no-unescaped-entities`** — fix by escaping, or disable the rule for the specific line with a justification comment.
+- **`react-hooks/exhaustive-deps`** — these are warnings, not errors. Do NOT restructure component logic to satisfy them here; that risks behaviour changes with no test coverage. Record them in your report; they become a tracked issue in the final task of this phase.
+- **`react/no-unescaped-entities`** — fix by escaping, or disable for the specific line with a justification comment.
 
-If a fix would change runtime behaviour rather than delete dead code, stop and report it instead of guessing.
+**Never disable a rule to make an error disappear.** Fix the code. If a fix would change runtime behaviour rather than delete dead code, stop and report it instead of guessing.
 
-- [ ] **Step 6: Confirm the hooks rule protects Task 2's fix**
+- [ ] **Step 6: Fix the two hooks violations**
 
-Prove the rule is live by temporarily reintroducing the bug:
+Move the hooks above the guard in each component. **The guard stays** — both components are rendered conditionally by their parents and must still return `null` for a falsy prop. You are moving the hooks, not deleting the guard.
+
+In `src/components/LightboxModal.jsx`, all three hooks (`useState` ×2, `useEffect`) run first:
+
+```jsx
+export default function LightboxModal({ activeImage, activeIndex, imagesList, onClose }) {
+  const [currentIndex, setCurrentIndex] = useState(activeIndex || 0);
+  const [isZoomed, setIsZoomed] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft' && imagesList?.length) {
+        setCurrentIndex((prev) => (prev > 0 ? prev - 1 : imagesList.length - 1));
+      }
+      if (e.key === 'ArrowRight' && imagesList?.length) {
+        setCurrentIndex((prev) => (prev < imagesList.length - 1 ? prev + 1 : 0));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [imagesList, onClose]);
+
+  if (!activeImage) return null;
+
+  const currentPhoto = imagesList && imagesList[currentIndex] ? imagesList[currentIndex] : { url: activeImage };
+  const imageUrl = currentPhoto.url || activeImage;
+```
+
+In `src/components/StoryDetailModal.jsx`:
+
+```jsx
+export default function StoryDetailModal({ story, onClose, onSelectImage, onOpenVideo }) {
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  if (!story) return null;
+
+  const images = story.fullGallery || [story.coverImage];
+```
+
+**Non-hook derivations must stay below the guard.** `currentPhoto` and `imageUrl` read `activeImage`; `images` dereferences `story`. If they move above the guard they will run when the component should render nothing, and `images` will throw on a null story.
+
+Change nothing else in either component — no markup, no class names, no behaviour.
+
+- [ ] **Step 7: Confirm the linter is now green**
+
+Run: `npm run lint; echo "lint=$?"`
+
+Expected: `lint=0` and no output. The two `rules-of-hooks` errors from Step 4 are gone. This is the red-to-green transition that proves the fix.
+
+- [ ] **Step 8: Write behaviour tests for the two components**
+
+These prove the reordering did not change rendering. They are expected to pass — they are regression cover, not red-before proof.
+
+Create `src/components/__tests__/LightboxModal.test.jsx`:
+
+```jsx
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import LightboxModal from '../LightboxModal';
+
+const photos = [
+  { url: '/images/one.jpg', title: 'First Frame' },
+  { url: '/images/two.jpg', title: 'Second Frame' },
+];
+
+describe('LightboxModal', () => {
+  it('renders nothing when there is no active image', () => {
+    const { container } = render(
+      <LightboxModal activeImage="" activeIndex={0} imagesList={[]} onClose={vi.fn()} />
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('renders the active image with its title as alt text', () => {
+    render(
+      <LightboxModal activeImage="/images/one.jpg" activeIndex={0} imagesList={photos} onClose={vi.fn()} />
+    );
+    expect(screen.getByAltText('First Frame')).toBeInTheDocument();
+  });
+
+  it('shows the position counter when several images are supplied', () => {
+    render(
+      <LightboxModal activeImage="/images/one.jpg" activeIndex={0} imagesList={photos} onClose={vi.fn()} />
+    );
+    expect(screen.getByText('(1 / 2)')).toBeInTheDocument();
+  });
+
+  it('survives a prop change in both directions while staying mounted', () => {
+    const onClose = vi.fn();
+    const { rerender, container } = render(
+      <LightboxModal activeImage="" activeIndex={0} imagesList={photos} onClose={onClose} />
+    );
+    expect(container).toBeEmptyDOMElement();
+
+    rerender(
+      <LightboxModal activeImage="/images/one.jpg" activeIndex={0} imagesList={photos} onClose={onClose} />
+    );
+    expect(screen.getByAltText('First Frame')).toBeInTheDocument();
+
+    rerender(
+      <LightboxModal activeImage="" activeIndex={0} imagesList={photos} onClose={onClose} />
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+```
+
+Create `src/components/__tests__/StoryDetailModal.test.jsx`:
+
+```jsx
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import StoryDetailModal from '../StoryDetailModal';
+
+const story = {
+  title: 'A Harbour Wedding',
+  couple: 'Test Couple',
+  location: 'Test Harbour',
+  date: 'March 2026',
+  summary: 'A fictional story used only in tests.',
+  coverImage: '/images/cover.jpg',
+  fullGallery: ['/images/cover.jpg', '/images/second.jpg'],
+  tags: ['Test'],
+};
+
+describe('StoryDetailModal', () => {
+  it('renders nothing without a story', () => {
+    const { container } = render(
+      <StoryDetailModal story={null} onClose={vi.fn()} onSelectImage={vi.fn()} onOpenVideo={vi.fn()} />
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('renders the story title and couple', () => {
+    render(
+      <StoryDetailModal story={story} onClose={vi.fn()} onSelectImage={vi.fn()} onOpenVideo={vi.fn()} />
+    );
+    expect(screen.getByText('A Harbour Wedding')).toBeInTheDocument();
+  });
+
+  it('reports the gallery size', () => {
+    render(
+      <StoryDetailModal story={story} onClose={vi.fn()} onSelectImage={vi.fn()} onOpenVideo={vi.fn()} />
+    );
+    expect(screen.getByText(/Full Album Gallery \(2 Photographs\)/)).toBeInTheDocument();
+  });
+
+  it('survives a prop change in both directions while staying mounted', () => {
+    const props = { onClose: vi.fn(), onSelectImage: vi.fn(), onOpenVideo: vi.fn() };
+    const { rerender, container } = render(<StoryDetailModal story={null} {...props} />);
+    expect(container).toBeEmptyDOMElement();
+
+    rerender(<StoryDetailModal story={story} {...props} />);
+    expect(screen.getByText('A Harbour Wedding')).toBeInTheDocument();
+
+    rerender(<StoryDetailModal story={null} {...props} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+```
+
+- [ ] **Step 9: Run the tests**
+
+Run: `npm test`
+
+Expected: all tests pass — the 2 from Task 1 plus the 8 added here, 10 total.
+
+- [ ] **Step 10: Prove the rule guards the fix**
+
+Confirm `react-hooks/rules-of-hooks` will catch a regression, by reintroducing the bug and restoring it:
 
 ```bash
 cp src/components/StoryDetailModal.jsx /tmp/sdm-backup.jsx
@@ -505,8 +500,10 @@ node -e "
 const fs=require('fs');
 const p='src/components/StoryDetailModal.jsx';
 let s=fs.readFileSync(p,'utf8');
-s=s.replace('  const [activeImageIndex, setActiveImageIndex] = useState(0);\n\n  if (!story) return null;','  if (!story) return null;\n  const [activeImageIndex, setActiveImageIndex] = useState(0);');
-fs.writeFileSync(p,s);
+const fixed='  const [activeImageIndex, setActiveImageIndex] = useState(0);\n\n  if (!story) return null;';
+const broken='  if (!story) return null;\n  const [activeImageIndex, setActiveImageIndex] = useState(0);';
+if (!s.includes(fixed)) { console.error('PATTERN NOT FOUND — check the fix shape'); process.exit(1); }
+fs.writeFileSync(p, s.replace(fixed, broken));
 "
 npm run lint 2>&1 | grep -i "rules-of-hooks" && echo "rules-of-hooks is live"
 cp /tmp/sdm-backup.jsx src/components/StoryDetailModal.jsx
@@ -514,9 +511,9 @@ rm /tmp/sdm-backup.jsx
 git diff --stat src/components/StoryDetailModal.jsx
 ```
 
-Expected: a `react-hooks/rules-of-hooks` error, then `rules-of-hooks is live`, then an EMPTY `git diff --stat` proving the file was restored exactly. If the diff is not empty, restore with `git checkout -- src/components/StoryDetailModal.jsx`.
+Expected: a `react-hooks/rules-of-hooks` error, then `rules-of-hooks is live`, then an EMPTY `git diff --stat` proving the file was restored byte-for-byte. If the diff is not empty, restore with `git checkout -- src/components/StoryDetailModal.jsx`.
 
-- [ ] **Step 7: Verify all gates**
+- [ ] **Step 11: Verify all gates**
 
 Run:
 ```bash
@@ -525,26 +522,36 @@ npm test
 npm run check:docs; echo "docs=$?"
 git status --short
 ```
-Expected: `lint=0`, all tests passing, `docs=0`, and only intended files changed.
+Expected: `lint=0`, all tests passing, `docs=0`.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 12: Commit**
 
 ```bash
 git add eslint.config.js package.json package-lock.json
+git add src/components/LightboxModal.jsx src/components/StoryDetailModal.jsx
+git add src/components/__tests__/LightboxModal.test.jsx src/components/__tests__/StoryDetailModal.test.jsx
 git add -u src/
-git commit -m "build: replace the fake lint script with real ESLint
+git commit -m "build: add real ESLint and fix the violations it found
 
-PS-011. 'npm run lint' ran 'vite build' — it linted nothing and dirtied
-the committed dist/ directory as a side effect.
+PS-011: 'npm run lint' ran 'vite build' — it linted nothing and dirtied
+the committed dist/ directory as a side effect. Replaced with ESLint 9
+flat config plus the React and react-hooks plugins.
 
-Adds ESLint 9 flat config with the React and react-hooks plugins.
-react-hooks/rules-of-hooks now permanently guards the fix made in the
-previous commit."
-```
+PS-006: the linter immediately flagged what a runtime test could not.
+LightboxModal and StoryDetailModal called useState after a conditional
+'return null', so hook order was not stable across renders. Hooks now
+run unconditionally and the guard follows them.
+
+The hook-order defect is statically detectable but not reliably
+reproducible at runtime: with the guard as the first statement, zero
+hooks run on a falsy render, so React leaves memoizedState null and
+treats the next render as a fresh mount rather than an update. Both
+prop-change directions were measured and neither throws. The added
+component tests are therefore behaviour cover for the reordering;
+react-hooks/rules-of-hooks is the gate that keeps the fix in place."
 
 ---
-
-## Task 4: Error boundary (PS-010)
+## Task 3: Error boundary (PS-010)
 
 **Files:**
 - Create: `src/components/ErrorBoundary.jsx`
@@ -734,7 +741,7 @@ a cause it cannot know."
 
 ---
 
-## Task 5: Move hardcoded image data into the data module (PS-015)
+## Task 4: Move hardcoded image data into the data module (PS-015)
 
 **Files:**
 - Modify: `src/data/weddingData.js`
@@ -873,7 +880,7 @@ field renamed, no entry reordered, no URL changed."
 
 ---
 
-## Task 6: CI, issue register, and version
+## Task 5: CI, issue register, and version
 
 **Files:**
 - Create: `.github/workflows/ci.yml`
@@ -960,7 +967,7 @@ CI itself cannot be verified without pushing, and nothing is pushed in this phas
 
 In `docs/KNOWN-ISSUES.md`, move `PS-006`, `PS-010`, `PS-011`, and `PS-015` out of the open table and into the Resolved section, each with a one-line note on how it was resolved. Follow the format the existing Resolved entries use.
 
-Add any `react-hooks/exhaustive-deps` warnings you recorded in Task 3 as a new issue row, using the next free `PS-` id, severity Low, planned phase 3. These are real but require behaviour-changing refactors that belong with the component work in Phase 3, not here.
+Add any `react-hooks/exhaustive-deps` warnings you recorded in Task 2 as a new issue row, using the next free `PS-` id, severity Low, planned phase 3. These are real but require behaviour-changing refactors that belong with the component work in Phase 3, not here.
 
 - [ ] **Step 5: Update the command documentation**
 
@@ -1009,9 +1016,9 @@ go-live, so the manifest was claiming a release that does not exist."
 ## Notes for the executor
 
 - **Every task ends green on four gates.** `npm run lint`, `npm test`, `npm run check:docs`, and a clean `git status --short`. If any is red, the task is not finished.
-- **Task 2's tests must fail before the fix.** That failure is the bug reproduced. If they pass before you change anything, stop and report — the code is not what this plan describes.
+- **Task 2's ESLint run is the red state.** The two `react-hooks/rules-of-hooks` errors must appear in Step 4 before you fix anything. If they do not, stop — the fix would be unverified.
 - **Never disable a lint rule to make an error go away.** Fix the code, or report why the rule is wrong for this codebase.
-- **`exhaustive-deps` warnings are out of scope here.** Record them; Task 6 files them as an issue for Phase 3. Chasing them now means behaviour-changing refactors without adequate test coverage.
-- **Avoid `npm run build`.** `dist/` is committed and gitignored (`PS-019`), so a build creates spurious diffs. If you run one, clean up with `git checkout -- dist/` then `git clean -fx dist/`. After Task 3, `npm run lint` no longer builds, so this stops being a trap.
-- **Do not touch `src/data/weddingData.js` content in Tasks 1–4.** Task 5 owns it, and it is a pure move.
+- **`exhaustive-deps` warnings are out of scope here.** Record them; the final task files them as an issue for Phase 3. Chasing them now means behaviour-changing refactors without adequate test coverage.
+- **Avoid `npm run build`.** `dist/` is committed and gitignored (`PS-019`), so a build creates spurious diffs. If you run one, clean up with `git checkout -- dist/` then `git clean -fx dist/`. After Task 2, `npm run lint` no longer builds, so this stops being a trap.
+- **Do not touch `src/data/weddingData.js` content in Tasks 1–4.** Task 4 owns it, and it is a pure move.
 - **Nothing is pushed in this phase.** CI is configured but unverified until the branch reaches GitHub. Report that honestly.
