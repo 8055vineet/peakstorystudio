@@ -49,11 +49,15 @@ const markdownFiles = [
 const componentsDoc = join(ROOT, 'docs/COMPONENTS.md');
 if (existsSync(componentsDoc)) {
   const text = readFileSync(componentsDoc, 'utf8');
-  const components = readdirSync(join(ROOT, 'src/components'))
-    .filter((f) => f.endsWith('.jsx'))
+  const components = readdirSync(join(ROOT, 'src/components'), { recursive: true })
+    // Test files are not components; they live in __tests__/ by convention
+    // and would otherwise be demanded as undocumented components.
+    .filter((f) => f.endsWith('.jsx') && !f.endsWith('.test.jsx'))
     .map((f) => f.replace(/\.jsx$/, ''));
   for (const name of components) {
-    if (!text.includes(name)) fail(`COMPONENTS.md does not document: ${name}`);
+    // Require an exact, backtick-delimited mention so a substring match
+    // (e.g. a component named `Nav` inside "Navbar") can't pass silently.
+    if (!text.includes(`\`${name}\``)) fail(`COMPONENTS.md does not document: ${name}`);
   }
 }
 

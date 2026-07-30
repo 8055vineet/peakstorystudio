@@ -54,7 +54,7 @@ export default function BookingForm() {
             </div>
 
             <h2 className="font-cinzel text-3xl sm:text-5xl font-bold tracking-tight leading-tight text-pitch-900">
-              LET'S CREATE YOUR <br />
+              LET&apos;S CREATE YOUR <br />
               <span className="font-garamond italic font-normal">MASTERPIECE</span>
             </h2>
 

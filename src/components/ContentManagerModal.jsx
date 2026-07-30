@@ -17,7 +17,7 @@ export default function ContentManagerModal({ isOpen, onClose, onAddPhoto, onAdd
   const [storyCover, setStoryCover] = useState('');
   const [storyCouple, setStoryCouple] = useState('');
   const [storyLocation, setStoryLocation] = useState('');
-  const [storyDate, setStoryDate] = useState('');
+  const [storyDate] = useState('');
   const [storySummary, setStorySummary] = useState('');
 
   // Export State
@@ -370,7 +370,7 @@ export default function ContentManagerModal({ isOpen, onClose, onAddPhoto, onAdd
                 <FileText className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="font-bold mb-1">Developer Mode: Export Config</p>
-                  <p>Because you are currently saving data to your browser's local storage, you can export all your changes here as a JSON file and paste them into <code className="bg-white px-1 py-0.5 rounded text-xs border border-blue-100">src/data/weddingData.js</code> to make them permanent.</p>
+                  <p>Because you are currently saving data to your browser&apos;s local storage, you can export all your changes here as a JSON file and paste them into <code className="bg-white px-1 py-0.5 rounded text-xs border border-blue-100">src/data/weddingData.js</code> to make them permanent.</p>
                 </div>
               </div>
 

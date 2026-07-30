@@ -33,7 +33,7 @@ export default function AboutSection() {
                 Vogue Fine Art Choice
               </p>
               <p className="font-garamond text-xs text-charcoal-700 italic mt-0.5">
-                "Recognized worldwide for cinema quality framing & discreet documentary execution."
+                &ldquo;Recognized worldwide for cinema quality framing & discreet documentary execution.&rdquo;
               </p>
             </div>
           </ScrollReveal>
@@ -49,7 +49,7 @@ export default function AboutSection() {
 
             <ScrollReveal delay={200}>
               <h2 className="font-cinzel text-3xl sm:text-5xl font-bold tracking-tight leading-tight text-pitch-900">
-                WE DON'T JUST SNAP PICTURES. <br />
+                WE DON&apos;T JUST SNAP PICTURES. <br />
                 <span className="font-garamond italic font-normal">WE PRESERVE HEIRLOOMS.</span>
               </h2>
             </ScrollReveal>
@@ -100,7 +100,7 @@ export default function AboutSection() {
                 </span>
                 <div className="flex flex-wrap items-center gap-6 opacity-80">
                   <span className="font-cinzel text-lg font-bold tracking-[0.2em] text-pitch-900">VOGUE</span>
-                  <span className="font-cinzel text-lg font-bold tracking-[0.2em] text-pitch-900">HARPER'S BAZAAR</span>
+                  <span className="font-cinzel text-lg font-bold tracking-[0.2em] text-pitch-900">HARPER&apos;S BAZAAR</span>
                   <span className="font-cinzel text-lg font-bold tracking-[0.2em] text-pitch-900">FILMFARE</span>
                   <span className="font-cinzel text-lg font-bold tracking-[0.2em] text-pitch-900">WEDMEGOOD</span>
                 </div>

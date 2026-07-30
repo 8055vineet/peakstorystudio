@@ -76,7 +76,7 @@ export default function Testimonials({ testimonials }) {
             <Quote className="w-12 h-12 text-pitch-900/20 mx-auto mb-6" />
 
             <p className="font-garamond text-2xl sm:text-3xl text-pitch-900 italic leading-relaxed mb-8 font-light">
-              "{testimonials[activeIdx].quote}"
+              &ldquo;{testimonials[activeIdx].quote}&rdquo;
             </p>
 
             <div className="space-y-1">

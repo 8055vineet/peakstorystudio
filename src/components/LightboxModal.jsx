@@ -2,13 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 
 export default function LightboxModal({ activeImage, activeIndex, imagesList, onClose }) {
-  if (!activeImage) return null;
-
   const [currentIndex, setCurrentIndex] = useState(activeIndex || 0);
   const [isZoomed, setIsZoomed] = useState(false);
-
-  const currentPhoto = imagesList && imagesList[currentIndex] ? imagesList[currentIndex] : { url: activeImage };
-  const imageUrl = currentPhoto.url || activeImage;
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -23,6 +18,11 @@ export default function LightboxModal({ activeImage, activeIndex, imagesList, on
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [imagesList, onClose]);
+
+  if (!activeImage) return null;
+
+  const currentPhoto = imagesList && imagesList[currentIndex] ? imagesList[currentIndex] : { url: activeImage };
+  const imageUrl = currentPhoto.url || activeImage;
 
   const handlePrev = () => {
     if (imagesList?.length) {

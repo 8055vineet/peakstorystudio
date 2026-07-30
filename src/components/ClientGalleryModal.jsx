@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Heart, Download, CheckCircle2, Sparkles, Image as ImageIcon, Share2 } from 'lucide-react';
+import { X, Heart, Download, CheckCircle2, Sparkles, Image as ImageIcon } from 'lucide-react';
 
 export default function ClientGalleryModal({ isOpen, onClose, user, photos }) {
   const [favorites, setFavorites] = useState(() => photos.slice(0, 3).map(p => p.id)); // Seed favorites from the first 3 photos so ids always match the real photo id format

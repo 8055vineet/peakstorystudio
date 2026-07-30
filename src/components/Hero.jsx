@@ -50,7 +50,7 @@ export default function Hero({ onOpenBooking, onOpenFilmModal }) {
         {/* Subheading */}
         <ScrollReveal delay={200}>
           <p className="font-garamond text-xl sm:text-2xl md:text-3xl text-charcoal-700 max-w-3xl mx-auto font-light italic leading-relaxed mb-10">
-            "We document handpicked elements & fleeting emotions packed with love, rendering your wedding as an enduring royal classic."
+            &ldquo;We document handpicked elements & fleeting emotions packed with love, rendering your wedding as an enduring royal classic.&rdquo;
           </p>
         </ScrollReveal>
 

@@ -59,19 +59,23 @@ task notes) rather than silently fixing or silently working around it.
   documented in `docs/COMPONENTS.md`, every `src/...` path cited in a doc actually exists, and
   every relative markdown link resolves. Run this after any change that touches components or
   docs.
-- `npm run lint` currently runs `vite build`, not a linter — there is no ESLint config yet, so it
-  only proves the app still builds. Do not treat a clean `npm run lint` as a style or correctness
-  check. A real lint setup is planned for Phase 1. Because it **is** `vite build`, it has the
-  same `dist/` side effect noted under `npm run build` above (`PS-019`) — clean up the same way.
+- `npm run lint` — runs ESLint (`eslint .`), including `eslint-plugin-react-hooks`. Treat a clean
+  run as a real style and correctness check; it exits non-zero on any error. The two current
+  `react-hooks/exhaustive-deps` warnings in `src/hooks/useScrollReveal.js` are tracked as
+  `PS-021` (planned Phase 3) and do not fail the run — do not silence them with a rule
+  disable to make the output look cleaner.
+- `npm test` — runs the Vitest suite once (`vitest run`); this is what CI runs. Use
+  `npm run test:watch` (`vitest`) for local development.
 
 ## Documentation duties
 
-`npm run check:docs` enforces documentation accuracy mechanically and will run in CI from
-Phase 1 onward. Any change that adds, removes, or renames a component in `src/components` must
-update [docs/COMPONENTS.md](docs/COMPONENTS.md) in the same change — the harness fails the build
-otherwise. The same check also fails on a source path cited in a doc that no longer exists, or a
-relative markdown link that no longer resolves, so update the relevant doc whenever a change
-moves or removes something another doc points at.
+`npm run check:docs` enforces documentation accuracy mechanically and runs in CI on every push
+and pull request, alongside `npm run lint`, `npm test`, and `npm run build` — see
+[.github/workflows/ci.yml](.github/workflows/ci.yml). Any change that adds, removes, or renames a
+component in `src/components` must update [docs/COMPONENTS.md](docs/COMPONENTS.md) in the same
+change — the harness fails the build otherwise. The same check also fails on a source path cited
+in a doc that no longer exists, or a relative markdown link that no longer resolves, so update the
+relevant doc whenever a change moves or removes something another doc points at.
 
 ## Git
 
