@@ -18,7 +18,9 @@ with work half-finished.
 | Version | Phase | Deliverable | Definition of done | Runs on |
 | --- | --- | --- | --- | --- |
 | **v0.1** | 0 — Documentation baseline | Document the frontend as it exists. No behaviour changes. | A new engineer can run and understand the app from the docs alone | local |
-| **v0.2** | 1 — Backend foundation | Local Supabase, schema, migrations, content moved to Postgres, data-access layer | App renders identically but from the database; static fallback still works | local |
+| **v0.2a** | 1a — Quality foundation | Real ESLint and a Vitest suite; an error boundary around the app; the PS-006 Rules-of-Hooks fix in `LightboxModal`/`StoryDetailModal` | `npm run lint` and `npm test` are meaningful gates; a render throw shows a recovery screen instead of a blank page | local |
+| **v0.2b** | 1b — Backend foundation | Local Supabase, schema, migrations, content moved to Postgres, data-access layer | App renders identically but from the database; static fallback still works | local |
+| **v0.2** | 1 — Quality and backend foundation | Umbrella tag for Phase 1 as a whole, reached once both 1a and 1b have merged | Combines the 1a and 1b deliverables and definitions of done above | local |
 | **v0.3** | 2 — Inquiries real | Booking form persists; Edge Function emails studio and couple; `wa.me` button; spam protection | A submitted inquiry is in the database, in the studio inbox, and acknowledged to the couple | local |
 | **v0.4** | 3 — Admin: auth, CMS, media | Supabase Auth for admin; real CRUD; image uploads; leads dashboard | A wedding can be added and photos uploaded with no code edit and no `localStorage` | local |
 | **v0.5** | 4 — First deploy | Hosted Supabase project; Cloudflare Pages deploy; CI/CD; preview deploys | Site reachable on `*.pages.dev`, `noindex` set, deploys on merge | Cloudflare Pages |
