@@ -25,13 +25,21 @@ import { X } from 'lucide-react';
 
 export default function App() {
   const [stories, setStories] = useState(() => {
-    const saved = localStorage.getItem('peak_story_stories');
-    return saved ? JSON.parse(saved) : INITIAL_STORIES;
+    try {
+      const saved = localStorage.getItem('peak_story_stories');
+      return saved ? JSON.parse(saved) : INITIAL_STORIES;
+    } catch {
+      return INITIAL_STORIES;
+    }
   });
-  
+
   const [photos, setPhotos] = useState(() => {
-    const saved = localStorage.getItem('peak_story_photos');
-    return saved ? JSON.parse(saved) : INITIAL_PHOTOS;
+    try {
+      const saved = localStorage.getItem('peak_story_photos');
+      return saved ? JSON.parse(saved) : INITIAL_PHOTOS;
+    } catch {
+      return INITIAL_PHOTOS;
+    }
   });
 
   useEffect(() => {
@@ -43,8 +51,12 @@ export default function App() {
   }, [photos]);
 
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('peak_story_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('peak_story_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
   });
 
   useEffect(() => {

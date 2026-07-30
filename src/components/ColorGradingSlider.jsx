@@ -1,10 +1,27 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Sparkles, SlidersHorizontal } from 'lucide-react';
 
 export default function ColorGradingSlider() {
   const [sliderPos, setSliderPos] = useState(50);
+  const [containerWidth, setContainerWidth] = useState(0);
   const containerRef = useRef(null);
   const isDragging = useRef(false);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const updateWidth = () => {
+      setContainerWidth(containerRef.current.offsetWidth);
+    };
+
+    const resizeObserver = new ResizeObserver(updateWidth);
+    updateWidth();
+    resizeObserver.observe(containerRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   const handleMove = (clientX) => {
     if (!containerRef.current) return;
@@ -76,7 +93,7 @@ export default function ColorGradingSlider() {
               src="/images/bridal_portrait.jpg"
               alt="Raw Unedited Shot"
               className="absolute inset-0 w-full h-full object-cover filter brightness-90 saturate-50 contrast-90 grayscale-[30%]"
-              style={{ width: containerRef.current ? `${containerRef.current.offsetWidth}px` : '100%' }}
+              style={{ width: containerWidth ? `${containerWidth}px` : '100%' }}
             />
             <div className="absolute top-4 left-4 bg-offwhite-50 text-pitch-900 text-[10px] uppercase tracking-widest font-bold px-3 py-1 rounded-full border border-pitch-900/20 shadow-md z-10">
               Raw Camera File
