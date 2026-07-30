@@ -57,9 +57,18 @@ if (existsSync(componentsDoc)) {
   }
 }
 
-// Check 3: cited source paths exist
+// Check 3: cited source paths exist.
+//
+// Only "living" documentation is checked. Design docs under docs/superpowers/
+// (specs and plans) are point-in-time artifacts that legitimately describe paths
+// a future phase will create — e.g. the Phase 1 spec names src/lib/supabase.js
+// before it exists. Holding them to present-tense accuracy would make this gate
+// permanently red, and a permanently red gate gets ignored.
+const isLivingDoc = (file) =>
+  !relative(ROOT, file).startsWith(join('docs', 'superpowers'));
+
 const SRC_PATH = /\b(src\/[A-Za-z0-9_\-./]+\.(?:jsx?|css))/g;
-for (const file of markdownFiles) {
+for (const file of markdownFiles.filter(isLivingDoc)) {
   const text = readFileSync(file, 'utf8');
   for (const match of text.matchAll(SRC_PATH)) {
     if (!existsSync(join(ROOT, match[1]))) {
