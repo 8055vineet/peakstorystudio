@@ -50,7 +50,10 @@ const componentsDoc = join(ROOT, 'docs/COMPONENTS.md');
 if (existsSync(componentsDoc)) {
   const text = readFileSync(componentsDoc, 'utf8');
   const components = readdirSync(join(ROOT, 'src/components'))
-    .filter((f) => f.endsWith('.jsx'))
+    // Test files are not components. They live in __tests__/ by convention
+    // (not scanned, since readdirSync is not recursive), but a co-located
+    // *.test.jsx would otherwise be demanded as an undocumented component.
+    .filter((f) => f.endsWith('.jsx') && !f.endsWith('.test.jsx'))
     .map((f) => f.replace(/\.jsx$/, ''));
   for (const name of components) {
     if (!text.includes(name)) fail(`COMPONENTS.md does not document: ${name}`);
