@@ -52,8 +52,24 @@ const { error: updErr } = await anon.from('weddings').update({ title: 'hacked' }
 const { data: afterUpd } = await service.from('weddings').select('title').eq('slug', slugPub).single();
 check('anon cannot update weddings', Boolean(updErr) || afterUpd.title === 'Probe Published');
 
-const { data: inqRead, error: inqReadErr } = await anon.from('inquiries').select('id');
-check('anon cannot read inquiries', Boolean(inqReadErr) || (inqRead && inqRead.length === 0));
+// Seed a probe inquiry the test controls. Without this, "anon cannot read
+// inquiries" would be vacuously true whenever the table happens to be empty,
+// regardless of what the policy says — the same class of bug the weddings
+// checks above avoid by seeding first.
+const inqProbeEmail = 'rls-probe@example.com';
+await service.from('inquiries').delete().eq('email', inqProbeEmail);
+const { error: inqSeedErr } = await service
+  .from('inquiries')
+  .insert({ name: 'RLS Probe', email: inqProbeEmail, phone: '000-000-0000' });
+if (inqSeedErr) { console.error('could not seed probe inquiry:', inqSeedErr.message); process.exit(2); }
+
+// Assert positively that the row exists and service-role can see it, so a
+// silent seeding failure can't masquerade as the anon check below passing.
+const { data: inqServiceRead } = await service.from('inquiries').select('id').eq('email', inqProbeEmail);
+check('service role can read the seeded inquiry', Array.isArray(inqServiceRead) && inqServiceRead.length === 1);
+
+const { data: inqRead, error: inqReadErr } = await anon.from('inquiries').select('id').eq('email', inqProbeEmail);
+check('anon cannot read inquiries', Boolean(inqReadErr) || (Array.isArray(inqRead) && inqRead.length === 0));
 
 const { error: inqInsErr } = await anon
   .from('inquiries')
@@ -61,6 +77,7 @@ const { error: inqInsErr } = await anon
 check('anon cannot insert inquiries', Boolean(inqInsErr));
 
 await service.from('weddings').delete().in('slug', [slugPub, slugDraft, 'rls-probe-anon-write']);
+await service.from('inquiries').delete().eq('email', inqProbeEmail);
 
 console.log(failures.length ? `\n${failures.length} RLS check(s) FAILED` : '\nall RLS checks passed');
 process.exit(failures.length ? 1 : 0);
