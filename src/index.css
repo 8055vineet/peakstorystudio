@@ -1,0 +1,192 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+/* Fine-art tactile paper grain overlay */
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 99;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #f5f3ee;
+}
+::-webkit-scrollbar-thumb {
+  background: #d5cfc2;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #0a0a0a;
+}
+
+/* Glassmorphic & Card utilities */
+.glass-panel-light {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(10, 10, 10, 0.08);
+}
+
+.minimal-card {
+  background: #ffffff;
+  border: 1px solid rgba(10, 10, 10, 0.08);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
+}
+
+.minimal-card:hover {
+  border-color: rgba(10, 10, 10, 0.3);
+  box-shadow: 0 16px 40px -5px rgba(0, 0, 0, 0.09);
+}
+
+/* Infinite Marquee Animation for Film Strip */
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: flex;
+  width: 200%;
+  animation: marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Scroll reveal fade-up */
+@keyframes scrollFadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scrollFadeLeft {
+  from { opacity: 0; transform: translateX(-30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes scrollFadeRight {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-scroll-up {
+  animation: scrollFadeUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scroll-left {
+  animation: scrollFadeLeft 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-scroll-right {
+  animation: scrollFadeRight 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Splash screen logo pulse */
+@keyframes logoPulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.04); }
+}
+
+.animate-logo-pulse {
+  animation: logoPulse 2s ease-in-out infinite;
+}
+
+/* Splash screen fade out */
+@keyframes splashFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.animate-splash-out {
+  animation: splashFadeOut 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Progress bar fill animation for testimonials */
+@keyframes progressFill {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+.animate-progress-fill {
+  animation: progressFill 5s linear forwards;
+}
+
+/* Image blur-up progressive loading */
+.img-blur-up {
+  filter: blur(12px);
+  transform: scale(1.02);
+  transition: filter 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.img-blur-up.loaded {
+  filter: blur(0px);
+  transform: scale(1);
+}
+
+/* Image zoom on hover */
+.img-zoom-container {
+  overflow: hidden;
+}
+.img-zoom-container img {
+  transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.img-zoom-container:hover img {
+  transform: scale(1.05);
+}
+
+/* Horizontal gallery scroll snap */
+.horizontal-scroll {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.horizontal-scroll::-webkit-scrollbar {
+  display: none;
+}
+.horizontal-scroll > * {
+  scroll-snap-align: center;
+}
+
+/* SVG wave section dividers */
+.section-wave {
+  display: block;
+  width: 100%;
+  height: auto;
+  line-height: 0;
+}
+
+.section-wave svg {
+  display: block;
+  width: 100%;
+}
+
+/* Smooth scroll for entire page */
+html {
+  scroll-behavior: smooth;
+}
