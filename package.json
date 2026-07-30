@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "check:docs": "node scripts/check-docs.mjs",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=2",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

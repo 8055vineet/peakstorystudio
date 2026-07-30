@@ -7,9 +7,11 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 export default [
   { ignores: ['dist/**', 'node_modules/**'] },
   {
-    // .mjs is included so scripts/check-docs.mjs is actually linted; without
-    // it that file matches no rules block and is silently skipped.
-    files: ['**/*.{js,jsx,mjs}'],
+    // .mjs is included so scripts/check-docs.mjs is actually linted, and .cjs
+    // so tool configs written in CommonJS are covered too; without them
+    // those files match no rules block and are silently skipped. TypeScript
+    // (.ts/.tsx) is deliberately excluded — out of scope for this project.
+    files: ['**/*.{js,jsx,mjs,cjs}'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
