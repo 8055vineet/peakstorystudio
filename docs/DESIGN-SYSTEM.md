@@ -165,7 +165,7 @@ There is no `prefers-reduced-motion` handling anywhere in the codebase — not i
 not in `tailwind.config.js`, and not as an inline media query or JS check in any component
 (`grep -rn "prefers-reduced-motion" src` and the project root both return nothing). Every
 animation cataloged above — the splash-screen camera sequence, the 13 `animate-fade-in` entrance
-transitions, the `animate-marquee` film-strip scroll, the `animate-float` footer element, scroll
+transitions, the `animate-marquee` film-strip scroll, the `animate-float` element in `AboutSection`, scroll
 reveal transforms driven by `useScrollReveal`, and the locally injected `fillProgress`/
 `hide-scrollbar` styles — plays unconditionally for every visitor regardless of their OS-level
 reduced-motion preference. This is a plain accessibility gap, not a style choice: nothing in the
