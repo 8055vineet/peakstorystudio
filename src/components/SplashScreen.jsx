@@ -42,7 +42,7 @@ export default function SplashScreen({ onComplete }) {
       gain.connect(ctx.destination);
 
       noise.start();
-    } catch (e) {
+    } catch {
       // Quiet fail if browser blocks autoplay audio
     }
   };

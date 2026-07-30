@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { X, MapPin, Calendar, Sparkles, Play, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function StoryDetailModal({ story, onClose, onSelectImage, onOpenVideo }) {
-  if (!story) return null;
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  if (!story) return null;
 
   const images = story.fullGallery || [story.coverImage];
 
@@ -47,7 +48,7 @@ export default function StoryDetailModal({ story, onClose, onSelectImage, onOpen
                 {story.title}
               </h2>
               <p className="font-garamond text-xl text-charcoal-700 italic">
-                "{story.summary}"
+                &ldquo;{story.summary}&rdquo;
               </p>
             </div>
 
