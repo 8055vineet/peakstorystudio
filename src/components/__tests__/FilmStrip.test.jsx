@@ -11,7 +11,7 @@ describe('FilmStrip', () => {
     expect(screen.getAllByAltText(firstLocation)).toHaveLength(2);
   });
 
-  it('sources its frames from weddingData rather than a local array', () => {
+  it('exports FILM_STRIP_FRAMES as a non-empty array of frame objects with title, location, and img', () => {
     expect(Array.isArray(FILM_STRIP_FRAMES)).toBe(true);
     expect(FILM_STRIP_FRAMES.length).toBeGreaterThan(0);
     for (const frame of FILM_STRIP_FRAMES) {
