@@ -1,16 +1,8 @@
 import React from 'react';
 import { Camera } from 'lucide-react';
+import { FILM_STRIP_FRAMES } from '../data/weddingData';
 
 export default function FilmStrip() {
-  const btsFrames = [
-    { title: "KODAK 400TX", location: "JODHPUR PALACE", img: "/images/hero_royal.jpg" },
-    { title: "LEICA M11", location: "AMALFI COAST", img: "/images/destination_wedding.jpg" },
-    { title: "HASSELBLAD", location: "CITY PALACE", img: "/images/bridal_portrait.jpg" },
-    { title: "CINEMA 35MM", location: "UDAIPUR LAKE", img: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=800" },
-    { title: "KODAK PORTRA", location: "FLORENCE", img: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&q=80&w=800" },
-    { title: "ARRI ALEXA", location: "GOA BEACH", img: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=800" },
-  ];
-
   return (
     <section className="py-16 bg-pitch-950 text-offwhite-50 overflow-hidden border-t border-b border-pitch-900">
       
@@ -25,7 +17,7 @@ export default function FilmStrip() {
       {/* Film Reel Frame Strip */}
       <div className="relative flex overflow-x-hidden">
         <div className="animate-marquee flex items-center space-x-6">
-          {[...btsFrames, ...btsFrames].map((frame, i) => (
+          {[...FILM_STRIP_FRAMES, ...FILM_STRIP_FRAMES].map((frame, i) => (
             <div
               key={i}
               className="relative shrink-0 w-72 bg-pitch-900 border border-white/10 rounded-xl p-3 shadow-2xl group cursor-pointer"

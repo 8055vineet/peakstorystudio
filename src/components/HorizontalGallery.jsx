@@ -1,38 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
-
-const galleryItems = [
-  {
-    id: 1,
-    image: '/images/hero_royal.jpg',
-    title: 'Royal Palace Symphony',
-    location: 'Jodhpur Palace'
-  },
-  {
-    id: 2,
-    image: '/images/destination_wedding.jpg',
-    title: 'Sunset Serenade',
-    location: 'Amalfi Coast'
-  },
-  {
-    id: 3,
-    image: '/images/bridal_portrait.jpg',
-    title: 'Regal Heritage',
-    location: 'City Palace, Udaipur'
-  },
-  {
-    id: 4,
-    image: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=1200',
-    title: 'Golden Hour Embrace',
-    location: 'Jaipur'
-  },
-  {
-    id: 5,
-    image: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=1200',
-    title: 'Candlelit Celebration',
-    location: 'Goa'
-  }
-];
+import { EDITORIAL_GALLERY } from '../data/weddingData';
 
 export default function HorizontalGallery() {
   const scrollRef = useRef(null);
@@ -99,7 +67,7 @@ export default function HorizontalGallery() {
         className="flex overflow-x-auto hide-scrollbar snap-x snap-mandatory px-4 md:px-8 space-x-6 md:space-x-8 pb-12 cursor-grab active:cursor-grabbing"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
-        {galleryItems.map((item) => (
+        {EDITORIAL_GALLERY.map((item) => (
           <div 
             key={item.id}
             className="flex-shrink-0 w-[80vw] md:w-[60vw] lg:w-[45vw] snap-center group"

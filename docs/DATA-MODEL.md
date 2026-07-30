@@ -9,7 +9,7 @@ reference Phase 1's migration work reads before designing the real schema (see
 
 ## Content modules
 
-`src/data/weddingData.js` has exactly four exports. Counts below were obtained by reading the
+`src/data/weddingData.js` has exactly six exports. Counts below were obtained by reading the
 file directly and counting object literals in each array (not by trusting any prior estimate).
 
 ### `INITIAL_STORIES` — 3 entries (`story-1`, `story-2`, `story-3`)
@@ -37,6 +37,19 @@ Fields present on every entry: `id`, `title`, `couple`, `location`, `duration`, 
 ### `TESTIMONIALS` — 3 entries (ids `1`, `2`, `3`)
 
 Fields present on every entry: `id`, `quote`, `couple`, `event`.
+
+### `FILM_STRIP_FRAMES` — 6 entries
+
+Fields present on every entry: `title`, `location`, `img`. Consumed by
+`src/components/FilmStrip.jsx`, the "behind the lens" marquee. Moved here from a `const`
+declared inside the component body (see `PS-015` below and in `docs/KNOWN-ISSUES.md`).
+
+### `EDITORIAL_GALLERY` — 5 entries
+
+Fields present on every entry: `id` (number), `image`, `title`, `location`. Consumed by
+`src/components/HorizontalGallery.jsx`, the horizontal-scroll "editorial showcase" carousel.
+Moved here from a module-scope `const` in that component file (see `PS-015` below and in
+`docs/KNOWN-ISSUES.md`).
 
 ## Field-level problems
 
@@ -121,11 +134,13 @@ content-module data described in this document. Phase 1 should not treat it as c
 migration into a story/photo/film row. **Third-party dependency risk:** every hotlinked Unsplash
 URL is outside this project's control — Unsplash can rate-limit, deprecate, or 404 any of these
 URLs at any time, and the site has no fallback or caching layer, so a portion of the gallery and
-story galleries can go blank without any code change on this side. The same risk also applies
-outside the content modules entirely: `src/components/FilmStrip.jsx:9-11` and
-`src/components/HorizontalGallery.jsx:25,31` hardcode their own `images.unsplash.com` hotlinks
-independent of `weddingData.js` (see `PS-015` in `docs/KNOWN-ISSUES.md`), so the real surface
-Phase 1's migration needs to account for is larger than the content modules alone.
+story galleries can go blank without any code change on this side. `FILM_STRIP_FRAMES` and
+`EDITORIAL_GALLERY` (both in `src/data/weddingData.js`, described above) each hotlink several
+more `images.unsplash.com` URLs of their own — until `PS-015` was resolved these lived hardcoded
+inside `src/components/FilmStrip.jsx` and `src/components/HorizontalGallery.jsx` respectively,
+independent of this data module; they have since been moved here, so the full set of Unsplash
+hotlinks Phase 1's migration needs to account for is now entirely contained in the content
+modules described in this document (see `PS-015` in `docs/KNOWN-ISSUES.md`).
 
 ## Target schema
 
