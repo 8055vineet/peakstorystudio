@@ -15,7 +15,7 @@ the audit; see the task report for the verification evidence.
 | PS-001 | Any client PIN unlocks every client's photos; no per-client scoping | Critical | `src/components/AuthModal.jsx`, `src/components/ClientGalleryModal.jsx` | 6 |
 | PS-002 | Fabricated press credentials ("AS FEATURED IN" Vogue, Harper's Bazaar, Filmfare, WedMeGood; "Vogue Fine Art Choice" badge) and real Bollywood celebrities named as clients | Critical (legal) | `src/components/AboutSection.jsx`, `src/data/weddingData.js` | 7 |
 | PS-003 | Booking form reports success unconditionally; submissions are discarded | High | `src/components/BookingForm.jsx` | 2 |
-| PS-004 | Uploaded images stored as base64 in localStorage; exceeds the ~5 MB quota | High | `src/components/ContentManagerModal.jsx` | 3 |
+| PS-004 | Uploaded images stored as base64 in localStorage; exceeds the ~5 MB quota | High | `src/components/ContentManagerModal.jsx` (base64 conversion), `src/App.jsx:50` (oversized write) | 3 |
 | PS-005 | Export Config JSON button sets a "Copied!" label but copies nothing | High | `src/components/ContentManagerModal.jsx` | 3 |
 | PS-006 | Rules of Hooks violation: `useState` is called after an early conditional `return null`, so hook order is not stable across renders. Works today only because the parents mount and unmount these components rather than re-rendering them with a falsy prop; it will break under React's stricter compiler or if a parent starts rendering them unconditionally | High | `src/components/LightboxModal.jsx:5-8`, `src/components/StoryDetailModal.jsx:5-6` | 1 |
 | PS-007 | "Download ZIP" button is a non-functional stub that fires a browser `alert()` | Medium | `src/components/ClientGalleryModal.jsx:59` | 6 |
@@ -49,6 +49,18 @@ Bollywood actress and actor who are themselves a real married couple — present
 client testimonial. None of this is sourced or substantiated anywhere in the repository. On a
 live commercial site this is a false-endorsement and false-advertising exposure, independent of
 whether the underlying photography claims are true.
+
+**PS-004 — base64 uploads exceed the localStorage quota.** The two files play distinct roles.
+`ContentManagerModal.jsx`'s `handleFileUpload` reads the chosen file with
+`FileReader.readAsDataURL`, producing a full base64 data URL that is stored directly on the new
+photo object — that file contains no `localStorage` reference itself. `App.jsx` is where the
+quota is actually at risk: its `photos` state (seeded from `INITIAL_PHOTOS` plus anything added
+through the Content Manager) is written to `localStorage` on every change via
+`localStorage.setItem('peak_story_photos', JSON.stringify(photos))` at `src/App.jsx:50`. A
+handful of base64-encoded photos is enough to approach or exceed the ~5 MB per-origin quota,
+at which point that `setItem` call throws and silently stops persisting new photos. An engineer
+fixing this needs both files: the upload path that creates the oversized string, and the
+storage path that fails to hold it.
 
 **PS-006 — Rules of Hooks violation.** In both files, an unconditional early return
 (`if (!activeImage) return null;` in `LightboxModal.jsx`, `if (!story) return null;` in

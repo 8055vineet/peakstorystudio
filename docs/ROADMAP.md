@@ -27,11 +27,10 @@ with work half-finished.
 | **v0.7** | 6 — Client proofing portal | Per-client galleries, magic-link auth, persisted favourites, high-res downloads | A couple signs in and sees only their own photographs | Cloudflare Pages |
 | **v1.0** | 7 — Domain cutover and go-live | Truthful-content pass, domain, DNS, SSL, backups, privacy policy, analytics, monitoring, performance and accessibility pass; `noindex` removed | Site live on the studio domain, monitored, backed up, nothing fabricated | studio domain |
 
-Hosting is **Cloudflare Pages**, not Vercel: Vercel's Hobby tier forbids commercial use, and
-this is a commercial site, whereas Cloudflare Pages permits commercial use on its free tier
-with unlimited bandwidth — material for an image-heavy site. See the
+Hosting is **Cloudflare Pages**. See the
 [Decisions section of the spec](superpowers/specs/2026-07-30-end-to-end-platform-design.md#2-decisions)
-for the full comparison against the rejected alternatives.
+for the full rationale and the rejected alternatives; the choice is also recorded as an ADR
+(`docs/adr/0003-cloudflare-pages-hosting.md`, added in a later Phase 0 task).
 
 For why the phases are ordered this way — including why inquiries (Phase 2) precede admin
 tooling (Phase 3), why deployment (Phase 4) precedes SEO (Phase 5), and why the client portal
