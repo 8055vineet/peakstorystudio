@@ -6,8 +6,24 @@ const WEDDING_SELECT = `
   wedding_photos (sort_order, media:media_id (storage_path))
 `;
 
+// '2024-11-01' -> 'November 2024', the display string the components render.
+// Split rather than constructing a Date: parsing a date-only string yields UTC
+// midnight, and reading it back with local getters shifts the month boundary in
+// any timezone west of Greenwich.
+const MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+function formatEventDate(value) {
+  if (!value) return '';
+  const [year, month] = String(value).split('-');
+  const name = MONTHS[Number(month) - 1];
+  return name ? `${name} ${year}` : '';
+}
+
 function toWedding(row) {
-  const gallery = (row.wedding_photos ?? [])
+  const fullGallery = (row.wedding_photos ?? [])
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order)
     .map((wp) => wp.media?.storage_path)
@@ -19,12 +35,13 @@ function toWedding(row) {
     title: row.title,
     couple: row.couple,
     location: row.location,
+    date: formatEventDate(row.event_date),
     eventDate: row.event_date,
     summary: row.summary,
     coverImage: row.cover?.storage_path ?? '',
     videoUrl: row.video_url,
     tags: row.tags ?? [],
-    gallery,
+    fullGallery,
   };
 }
 
