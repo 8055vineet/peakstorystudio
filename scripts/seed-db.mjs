@@ -24,11 +24,19 @@ const slugify = (s) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 // "November 2024" -> 2024-11-01. Unparseable -> null, never a guess.
+//
+// Formats from local components rather than via toISOString(): the parse
+// produces local midnight, and converting that to UTC shifts the date
+// backwards a full day in any timezone east of Greenwich.
 function toDate(value) {
   if (!value) return null;
   const parsed = Date.parse(`1 ${value}`);
   if (Number.isNaN(parsed)) return null;
-  return new Date(parsed).toISOString().slice(0, 10);
+  const d = new Date(parsed);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 // "4:32 mins" -> 272. Unparseable -> null.
