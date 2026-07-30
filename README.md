@@ -92,6 +92,7 @@ all content from `src/data/weddingData.js` regardless of what `.env.local` conta
 ## Deployment
 
 Not yet deployed. Per [docs/ROADMAP.md](docs/ROADMAP.md), the site first deploys to
-**Cloudflare Pages** in Phase 4, and moves to a custom studio domain in Phase 7. See
-[docs/adr/0003-cloudflare-pages-hosting.md](docs/adr/0003-cloudflare-pages-hosting.md) for why
-Cloudflare Pages was chosen over Vercel and Netlify.
+**Cloudflare Pages** in Phase 4, and moves to a custom studio domain in Phase 7. The choice of
+host was deliberate, not a default — see
+[docs/adr/0003-cloudflare-pages-hosting.md](docs/adr/0003-cloudflare-pages-hosting.md) for the
+full comparison against the alternatives that were considered and rejected.
