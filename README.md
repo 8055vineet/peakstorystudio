@@ -15,8 +15,8 @@ npm install
 npm run dev      # http://localhost:3000, opens automatically
 ```
 
-Requires **Node 20.11 or newer** — `scripts/check-docs.mjs` uses `import.meta.dirname`, which
-was added in that Node release, so an older Node will fail on `npm run check:docs`.
+Requires **Node 22 or newer** — the test toolchain (`jsdom`, `@testing-library/jest-dom`) requires
+Node 22+, so an older Node will fail `npm test` (and `npm ci` will refuse to install at all).
 
 ## Scripts
 
