@@ -34,7 +34,7 @@ export default class ErrorBoundary extends React.Component {
             Something went wrong
           </h1>
           <p className="font-garamond text-lg text-charcoal-700 italic">
-            This page stopped loading before it finished. Reloading usually fixes it.
+            Something on this page failed to display. Reloading may fix it.
           </p>
           <button
             onClick={() => window.location.reload()}
