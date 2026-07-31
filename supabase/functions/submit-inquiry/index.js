@@ -7,6 +7,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2.111.0';
 import { validateInquiry } from '../_shared/inquiry-validation.js';
+import { verifyTurnstile } from '../_shared/turnstile.js';
 
 const allowedOrigins = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
   .split(',')
@@ -142,6 +143,25 @@ function isHoneypotTripped(website) {
   return true;
 }
 
+function clientIp(req) {
+  // x-forwarded-for is a comma-separated chain; the first entry is the client.
+  const forwarded = req.headers.get('x-forwarded-for');
+  if (forwarded) {
+    const first = forwarded.split(',')[0].trim();
+    if (first) return first;
+  }
+  return req.headers.get('cf-connecting-ip') ?? req.headers.get('x-real-ip') ?? '';
+}
+
+async function hashIp(ip) {
+  const salt = Deno.env.get('RATE_LIMIT_SALT') ?? '';
+  const bytes = new TextEncoder().encode(`${salt}:${ip}`);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin') ?? '';
 
@@ -193,9 +213,20 @@ Deno.serve(async (req) => {
     return json(200, { ok: true, id: crypto.randomUUID() }, origin);
   }
 
-  const { valid, fields, value } = validateInquiry(payload, { today: today() });
-  if (!valid) {
-    return json(400, { ok: false, error: 'VALIDATION_FAILED', fields }, origin);
+  const ip = clientIp(req);
+
+  const captcha = await verifyTurnstile(payload?.turnstileToken, ip, {
+    secret: Deno.env.get('TURNSTILE_SECRET_KEY'),
+  });
+  if (!captcha.ok) {
+    if (captcha.reason === 'NOT_CONFIGURED') {
+      // Fail closed. An unconfigured captcha must never silently become an
+      // open form; Cloudflare's published test keys make local setup free.
+      console.error('submit-inquiry: TURNSTILE_SECRET_KEY is not set');
+      return json(500, { ok: false, error: 'CAPTCHA_NOT_CONFIGURED' }, origin);
+    }
+    console.log('submit-inquiry: captcha rejected', captcha.reason);
+    return json(403, { ok: false, error: 'CAPTCHA_FAILED' }, origin);
   }
 
   const db = createClient(
@@ -205,6 +236,38 @@ Deno.serve(async (req) => {
     // request at a time.
     { auth: { persistSession: false } },
   );
+
+  // Fail open. With no readable IP, hashing a constant would drop every
+  // visitor into one shared bucket and start turning paying customers away —
+  // worse than admitting spam, which Turnstile has already filtered.
+  if (ip) {
+    const windowMinutes = Number(Deno.env.get('INQUIRY_RATE_WINDOW_MINUTES') ?? '60');
+    const maxRequests = Number(Deno.env.get('INQUIRY_RATE_LIMIT') ?? '5');
+    const { data: limit, error: limitError } = await db
+      .rpc('consume_inquiry_rate_limit', {
+        p_ip_hash: await hashIp(ip),
+        p_max_requests: Number.isFinite(maxRequests) && maxRequests > 0 ? maxRequests : 5,
+        p_window: `${Number.isFinite(windowMinutes) && windowMinutes > 0 ? windowMinutes : 60} minutes`,
+      })
+      .single();
+
+    if (limitError) {
+      console.error('submit-inquiry: rate limit check failed', limitError.message);
+    } else if (limit && limit.allowed === false) {
+      return json(
+        429,
+        { ok: false, error: 'RATE_LIMITED', retryAfterSeconds: limit.retry_after_seconds },
+        origin,
+      );
+    }
+  } else {
+    console.warn('submit-inquiry: no client IP available, skipping rate limit');
+  }
+
+  const { valid, fields, value } = validateInquiry(payload, { today: today() });
+  if (!valid) {
+    return json(400, { ok: false, error: 'VALIDATION_FAILED', fields }, origin);
+  }
 
   const { data, error } = await db
     .from('inquiries')
