@@ -221,16 +221,19 @@ Deno.serve(async (req) => {
     .single();
 
   if (error) {
-    // This is the one path where a lead is genuinely lost, so log everything
-    // that could help the studio follow up by hand: the fuller Postgres error
-    // (message alone drops the code, details, and hint that say what actually
-    // went wrong) and enough of the submission to call the couple back. A
-    // generic code goes to the browser — database errors can carry schema
-    // detail that is not the public's to see.
+    // This is the one path where a lead is genuinely lost, so log what lets the
+    // studio follow up by hand: the Postgres code and hint that say what went
+    // wrong, and the three fields needed to call the couple back.
+    //
+    // error.details is deliberately omitted. On a constraint violation Postgres
+    // sets it to "Failing row contains (...)" — the entire row, including
+    // whatever the couple wrote in the free-text message. The three fields named
+    // below are meant to be the privacy boundary of this log, and including
+    // details would quietly make that untrue. From Phase 4 these lines go to
+    // hosted log storage, so what lands here is what leaves the machine.
     console.error('submit-inquiry: insert failed', {
       code: error.code,
       message: error.message,
-      details: error.details,
       hint: error.hint,
       submission: { name: value.name, email: value.email, phone: value.phone },
     });
