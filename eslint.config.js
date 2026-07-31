@@ -5,8 +5,12 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default [
-  // .superpowers/ is git-ignored scratch space for planning artefacts and
-  // throwaway verification scripts; linting it fails the build on files that
+  // .superpowers/ holds planning artefacts and throwaway verification
+  // scripts, never shipped code. Only .superpowers/sdd/** is actually
+  // git-ignored, via a nested .gitignore the tooling writes there;
+  // .superpowers/ itself is not covered by the repo's top-level .gitignore.
+  // ESLint ignores the whole tree regardless of that distinction, since none
+  // of it is source code and linting it would fail the build on files that
   // are never shipped.
   { ignores: ['dist/**', 'node_modules/**', '.superpowers/**'] },
   {
