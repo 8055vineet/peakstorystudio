@@ -682,12 +682,14 @@ git commit -m "feat: add the shared inquiry validation rules"
 
 | Status | Body | Meaning |
 | --- | --- | --- |
-| 200 | `{ ok: true, id: "<uuid>" }` | Stored |
-| 200 | `{ ok: true, id: null }` | Honeypot tripped; silently discarded |
+| 200 | `{ ok: true, id: "<uuid>" }` | Stored — or the honeypot tripped, deliberately indistinguishable |
 | 400 | `{ ok: false, error: "MALFORMED_REQUEST" }` | Body was not JSON |
 | 400 | `{ ok: false, error: "VALIDATION_FAILED", fields: { ... } }` | Per-field messages |
 | 405 | `{ ok: false, error: "METHOD_NOT_ALLOWED" }` | Not POST |
+| 413 | `{ ok: false, error: "PAYLOAD_TOO_LARGE" }` | Body exceeded 64 KB |
 | 500 | `{ ok: false, error: "SERVER_ERROR" }` | Insert failed |
+
+**The body-size guard comes first, immediately after the method check and before anything reads the body.** An unbounded body exhausts the worker's memory, and the supervisor then cancels *other* in-flight requests — a couple submitting at that moment gets an opaque network failure. `req.text()` does not help, because it buffers the whole body before you can measure it; read the stream and abort past the cap. Later tasks add checks in front of validation, but none of them may come before this one.
 
 - [ ] **Step 1: Write the function**
 
@@ -962,7 +964,9 @@ git commit -m "feat: add the submit-inquiry Edge Function"
 - Produces: `verifyTurnstile(token, remoteIp, { secret, fetchImpl })` returning `{ ok: true }` or `{ ok: false, reason }` where `reason` is one of `NOT_CONFIGURED`, `MISSING_TOKEN`, `VERIFY_UNAVAILABLE`, `REJECTED`.
 - Adds two response codes to the contract: `403 { ok: false, error: "CAPTCHA_FAILED" }` and `429 { ok: false, error: "RATE_LIMITED", retryAfterSeconds: N }`, plus `500 { ok: false, error: "CAPTCHA_NOT_CONFIGURED" }`.
 
-**Ordering inside the function:** honeypot, then Turnstile, then rate limit, then validation, then insert. Turnstile precedes the rate limit so that a flood of bot traffic is rejected before it can consume a real visitor's budget, and validation runs last so a spammer learns nothing about the field rules.
+**Ordering inside the function:** body-size guard, then honeypot, then Turnstile, then rate limit, then validation, then insert. The size guard stays first — a rate limiter placed after the body has been read cannot prevent an oversized body from exhausting the worker. Turnstile precedes the rate limit so that a flood of bot traffic is rejected before it can consume a real visitor's budget, and validation runs last so a spammer learns nothing about the field rules.
+
+**`ALLOWED_ORIGINS` is not a write control and must not be described as one.** A `POST` carrying a disallowed `Origin` still writes the row; CORS only governs whether a browser may read the response, and a non-browser client ignores it entirely. Turnstile is the only thing that actually constrains who can submit. Note also that the local Kong gateway rewrites `access-control-allow-origin` to `*` on `/functions/v1/*`, so CORS behaviour cannot be observed through port 54321 — hit the edge runtime directly to test it.
 
 - [ ] **Step 1: Write the failing Turnstile tests**
 
@@ -2799,7 +2803,7 @@ Report in the task report what you saw, including anything that looked wrong eve
   | ID | Issue | Severity | Location | Planned phase |
   | --- | --- | --- | --- | --- |
   | `PS-026` | The booking form requires a firm wedding date and venue, so a couple still choosing either cannot inquire at all | Medium | `supabase/functions/_shared/inquiry-validation.js`, `src/components/BookingForm.jsx` | 7 |
-  | `PS-027` | `ALLOWED_ORIGINS` unset makes the `submit-inquiry` function accept any origin; harmless locally, must be set before the site is public | Low | `supabase/functions/submit-inquiry/index.js` | 4 |
+  | `PS-027` | `ALLOWED_ORIGINS` restricts only what a browser may read, not who may write — a POST from any origin still stores a row, so it must not be relied on as origin enforcement at deploy | Low | `supabase/functions/submit-inquiry/index.js` | 4 |
   | `PS-028` | Studio phone, email, and postal address are unconfirmed, inherited from the seeded template | Medium | `src/data/contact.js` | 7 |
 
   Write the wording in the register's own voice rather than pasting these cells verbatim; what matters is that the identifiers, severities, locations, and planned phases match.
