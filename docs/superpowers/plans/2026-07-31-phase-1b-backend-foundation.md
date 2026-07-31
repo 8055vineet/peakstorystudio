@@ -1291,30 +1291,88 @@ Apply the same shape to `photos` with `useGalleryPhotos()` and the `peak_story_p
 
 Import `DATA_SOURCE` from `../lib/dataSource` and keep the `INITIAL_STORIES`/`INITIAL_PHOTOS` imports, which the localStorage initialisers still need.
 
-- [ ] **Step 7: Verify both data sources render**
+- [ ] **Step 7: Verify both data sources render identically**
 
-Static path — the default, requiring no database:
-```bash
-npm run dev
+This is the real test of the phase, and it must be automated: `npm run dev` never exits, so running it in the foreground stalls. Start it detached, poll the port, drive it headlessly with the Playwright already installed in Phase 1a, then compare.
+
+Write this throwaway comparison script to `/tmp/compare-sources.mjs`:
+
+```javascript
+import { chromium } from 'playwright';
+
+const outPath = process.argv[2];
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1440, height: 2400 } });
+const errors = [];
+page.on('pageerror', (e) => errors.push(String(e.message)));
+page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+
+await page.goto('http://localhost:3000', { waitUntil: 'networkidle', timeout: 60000 });
+await page.waitForTimeout(4000); // splash screen runs ~2.5s
+
+const snapshot = await page.evaluate(() => {
+  const textsUnder = (id, sel) =>
+    [...(document.querySelector(id)?.querySelectorAll(sel) ?? [])]
+      .map((n) => n.textContent.trim()).filter(Boolean);
+  return {
+    storyTitles: textsUnder('#stories', 'h3'),
+    filmTitles: textsUnder('#films', 'h3'),
+    galleryImageCount: document.querySelectorAll('#gallery img').length,
+    storyImageCount: document.querySelectorAll('#stories img').length,
+    filmImageCount: document.querySelectorAll('#films img').length,
+    testimonialQuote: document.querySelector('section blockquote, section p.italic')?.textContent?.trim() ?? '',
+    bodyTextLength: document.body.innerText.length,
+  };
+});
+
+const fs = await import('node:fs');
+fs.writeFileSync(outPath, JSON.stringify({ snapshot, errors }, null, 2));
+console.log(outPath, 'written');
+await browser.close();
 ```
-Load `http://localhost:3000`, confirm the stories, films, gallery and testimonials all appear as before, then stop the server with `lsof -ti:3000 -sTCP:LISTEN | xargs -r kill`.
 
-Supabase path:
+Run it against each source in turn:
+
 ```bash
+# --- static (reference) ---
+rm -f .env.local
+nohup npm run dev > /tmp/dev-static.log 2>&1 &
+until curl -sf http://localhost:3000 >/dev/null; do sleep 1; done
+node /tmp/compare-sources.mjs /tmp/snap-static.json
+lsof -ti:3000 -sTCP:LISTEN | xargs -r kill
+
+# --- supabase ---
 eval "$(supabase status -o env | sed 's/^/export /')"
-cat > .env.local <<EOF
-VITE_SUPABASE_URL=$API_URL
-VITE_SUPABASE_ANON_KEY=$ANON_KEY
-VITE_DATA_SOURCE=supabase
-EOF
-npm run dev
-```
-Load the page again and confirm the same content renders — now from Postgres. Report any section that differs from the static render, since that means a query shape is wrong.
+printf 'VITE_SUPABASE_URL=%s\nVITE_SUPABASE_ANON_KEY=%s\nVITE_DATA_SOURCE=supabase\n' \
+  "$API_URL" "$ANON_KEY" > .env.local
+nohup npm run dev > /tmp/dev-supabase.log 2>&1 &
+until curl -sf http://localhost:3000 >/dev/null; do sleep 1; done
+node /tmp/compare-sources.mjs /tmp/snap-supabase.json
+lsof -ti:3000 -sTCP:LISTEN | xargs -r kill
 
-Then confirm `.env.local` is ignored, and stop the server:
+# --- compare ---
+node -e "
+const a=require('/tmp/snap-static.json'), b=require('/tmp/snap-supabase.json');
+console.log('static  :', JSON.stringify(a.snapshot));
+console.log('supabase:', JSON.stringify(b.snapshot));
+console.log('static errors  :', a.errors);
+console.log('supabase errors:', b.errors);
+const same=JSON.stringify(a.snapshot)===JSON.stringify(b.snapshot);
+console.log(same?'IDENTICAL':'DIFFERENT — investigate');
+"
+```
+
+Both snapshots must match and both error arrays must be empty. Paste both snapshots into your report verbatim.
+
+**A difference here is a real defect in a query shape, not something to paper over.** Do not edit a component to make the comparison pass — report the difference and stop.
+
+Note the environment variable names `supabase status -o env` emits may not be `API_URL`/`ANON_KEY`; check and substitute the real ones.
+
+Then confirm the key file is ignored and clean up:
 ```bash
 git check-ignore -v .env.local && echo "env ignored"
-lsof -ti:3000 -sTCP:LISTEN | xargs -r kill
+rm -f /tmp/compare-sources.mjs /tmp/snap-*.json /tmp/dev-*.log
+lsof -ti:3000 -sTCP:LISTEN | xargs -r kill 2>/dev/null || true
 ```
 
 - [ ] **Step 8: Verify gates and commit**
