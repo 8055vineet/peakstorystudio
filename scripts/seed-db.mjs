@@ -15,7 +15,9 @@ const URL = process.env.SUPABASE_URL;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!URL || !SERVICE) {
   console.error('Missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY.');
-  console.error(`Try: eval "$(supabase status -o env | sed 's/^/export /')"`);
+  console.error('Try:');
+  console.error(`  eval "$(supabase status -o env | sed 's/^/export /')"`);
+  console.error('  export SUPABASE_URL="$API_URL" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"');
   process.exit(2);
 }
 const db = createClient(URL, SERVICE, { auth: { persistSession: false } });

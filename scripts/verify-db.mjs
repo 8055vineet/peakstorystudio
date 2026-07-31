@@ -12,7 +12,11 @@ const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!URL || !ANON || !SERVICE) {
   console.error('Missing SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY.');
-  console.error(`Try: eval "$(supabase status -o env | sed 's/^/export /')"`);
+  console.error('Try:');
+  console.error(`  eval "$(supabase status -o env | sed 's/^/export /')"`);
+  console.error(
+    '  export SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"'
+  );
   process.exit(2);
 }
 
