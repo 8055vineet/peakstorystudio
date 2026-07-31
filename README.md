@@ -4,9 +4,10 @@ Cinematic wedding films and fine-art photography studio website.
 
 ## Status
 
-Phase 0 (v0.1) — documentation baseline. This repository is currently a frontend-only static
-site: there is no backend, no database, and no server-side code of any kind. See
-[docs/ROADMAP.md](docs/ROADMAP.md) for the full phase and version plan.
+Phase 1b (v0.2b) — backend foundation. The site is a Vite + React single-page app that can read
+its content from a local Supabase (Postgres) database — see [Local database](#local-database)
+below — or fall back to the static `src/data/weddingData.js` module, which remains the default.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the full phase and version plan.
 
 ## Quickstart
 
@@ -68,16 +69,25 @@ key is different: it bypasses RLS entirely and must never reach the browser or a
 │   ├── data/
 │   │   └── weddingData.js   # Static content: photos, films, testimonials, stories
 │   ├── hooks/
+│   │   ├── useContent.js       # Hooks components call for content (weddings, photos, films, testimonials)
 │   │   └── useScrollReveal.js
+│   ├── lib/
+│   │   ├── supabase.js         # The only module that constructs a Supabase client
+│   │   ├── dataSource.js        # Resolves VITE_DATA_SOURCE to 'static' or 'supabase'
+│   │   └── queries/             # Query functions useContent.js's hooks call
 │   ├── App.jsx          # Single stateful shell; owns content, session, and modal state
 │   ├── main.jsx         # Vite entry point; mounts <App /> into #root
 │   └── index.css        # Global styles and Tailwind layer
+├── supabase/
+│   └── migrations/     # Schema and Row Level Security, replayed by `npm run db:reset`
 ├── public/
 │   └── images/          # Static image assets served as-is
 ├── docs/                # Architecture, component, data-model, design-system, roadmap,
 │                         # known-issues docs, ADRs, and specs (see Documentation below)
 └── scripts/
-    └── check-docs.mjs   # Documentation consistency checker (see Scripts above)
+    ├── check-docs.mjs   # Documentation consistency checker (see Scripts above)
+    ├── seed-db.mjs      # Copies src/data/weddingData.js into Postgres
+    └── verify-db.mjs    # Asserts the RLS policies actually behave
 ```
 
 There is no router — the entire site is one page, and "navigation" is anchor-link scrolling
@@ -93,6 +103,9 @@ ownership.
 - **canvas-confetti** — fires a confetti effect on booking form submission
 - **Google Fonts** — Cinzel, Cormorant Garamond, and Plus Jakarta Sans, loaded via `<link>` tags
   in `index.html`
+- **Supabase** (`@supabase/supabase-js`) — optional local Postgres backend and Row Level Security,
+  added in Phase 1b; see [Local database](#local-database) above. The static
+  `src/data/weddingData.js` module remains the default data source.
 
 ## Documentation
 
@@ -116,9 +129,10 @@ Copy `.env.example` to `.env.local` and fill in values there:
 cp .env.example .env.local
 ```
 
-Never commit `.env.local` — it is gitignored. The variables it defines (Supabase project
-credentials and a data-source switch) are unused by the app until Phase 1; today the app reads
-all content from `src/data/weddingData.js` regardless of what `.env.local` contains.
+Never commit `.env.local` — it is gitignored. The variables it defines are Supabase project
+credentials and `VITE_DATA_SOURCE`, the data-source switch described in
+[Local database](#local-database) above. An environment with no Supabase credentials configured
+stays on the static `src/data/weddingData.js` module regardless of what `VITE_DATA_SOURCE` says.
 
 ## Deployment
 

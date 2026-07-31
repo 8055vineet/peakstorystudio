@@ -6,10 +6,15 @@ Conventions for any agent session working on Peak Story Studio. Read this before
 
 Peak Story Studio is a commercial wedding-photography studio site — a business taking paid
 bookings, not a portfolio or demo. Today it is a Vite + React 18 + Tailwind CSS single-page
-app with no router, no backend, and no database: all content is static data imported from
-`src/data/weddingData.js`, and `src/App.jsx` is the only stateful component of consequence. A
-Supabase backend, real inquiries, admin tooling, hosting, SEO, a client portal, and a truthful-
-content pass are being added incrementally, one phase per branch — see
+app with no router — "navigation" is anchor-link scrolling within one page. Since Phase 1b
+(`v0.2b`) it also has a local Supabase backend: a Postgres database in `supabase/migrations/`,
+Row Level Security, and a data-access layer (`src/lib/queries/`, `src/hooks/`) that components
+call through. Which source is authoritative — that database, or the static
+`src/data/weddingData.js` module — is chosen by `VITE_DATA_SOURCE`, and the default is still
+`static`; see [docs/DATA-MODEL.md](docs/DATA-MODEL.md) for the full shape of both. `src/App.jsx`
+remains the only stateful component of consequence. Real inquiries, admin tooling, hosting, SEO,
+a client portal, and a truthful-content pass are being added incrementally, one phase per
+branch — see
 [docs/ROADMAP.md](docs/ROADMAP.md) for the phase table and
 [docs/superpowers/specs/2026-07-30-end-to-end-platform-design.md](docs/superpowers/specs/2026-07-30-end-to-end-platform-design.md)
 for the full design and rationale behind that ordering.

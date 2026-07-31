@@ -11,7 +11,8 @@ with work half-finished.
 
 ## Current position
 
-**Phase 0 — Documentation baseline** is complete, tagged `v0.1`.
+**Phase 1a — Quality foundation** and **Phase 1b — Backend foundation** are complete, tagged
+`v0.2a` and `v0.2b` respectively.
 
 ## Phase and version table
 

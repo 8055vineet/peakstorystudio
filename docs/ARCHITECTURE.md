@@ -161,9 +161,12 @@ browser bundle: Postgres refuses anything the policies do not permit. See
 - **No routing.** There is no router of any kind (no `react-router` or equivalent dependency),
   so the entire site is one URL. Individual sections, galleries, and stories have no shareable
   or indexable address of their own — everything lives behind anchor-link scrolling on `/`.
-- **No error boundary.** No component in the tree implements `componentDidCatch` or an
-  equivalent boundary, so an unhandled render error anywhere in the tree takes down the whole
-  page rather than degrading one section.
+- **One top-level error boundary, not per-section.** `src/components/ErrorBoundary.jsx` (added
+  in Phase 1a, `v0.2a`) implements `getDerivedStateFromError` and `componentDidCatch`, and wraps
+  the entire tree at `src/main.jsx:9`, so an unhandled render error shows a recovery screen
+  instead of unmounting to a blank page. But it is a single boundary around all of `<App />`,
+  not one per section, so a render error in any one section still replaces the whole page with
+  the recovery screen rather than degrading just that section.
 - **Three independent scroll listeners**, each attaching its own `window.addEventListener('scroll', ...)`
   with no shared coordination: `src/components/Navbar.jsx` (toggles its background/shadow past
   a 40px scroll threshold), `src/components/ScrollProgressBar.jsx` (computes the reading-progress
