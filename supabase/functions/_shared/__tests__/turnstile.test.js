@@ -13,6 +13,13 @@ describe('verifyTurnstile', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
+  it('reports NOT_CONFIGURED when the secret is whitespace only', async () => {
+    const fetchImpl = respondWith({ success: true });
+    const result = await verifyTurnstile('token', '1.2.3.4', { secret: '   ', fetchImpl });
+    expect(result).toEqual({ ok: false, reason: 'NOT_CONFIGURED' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
   it('reports MISSING_TOKEN when the browser sent none', async () => {
     const fetchImpl = respondWith({ success: true });
     const result = await verifyTurnstile('', '1.2.3.4', { secret: 's', fetchImpl });
@@ -57,5 +64,19 @@ describe('verifyTurnstile', () => {
     const fetchImpl = vi.fn().mockRejectedValue(new Error('network down'));
     const result = await verifyTurnstile('tok', '', { secret: 'sec', fetchImpl });
     expect(result).toEqual({ ok: false, reason: 'VERIFY_UNAVAILABLE' });
+  });
+
+  it('reports VERIFY_UNAVAILABLE when the call aborts on timeout', async () => {
+    const abortError = new DOMException('The operation was aborted.', 'AbortError');
+    const fetchImpl = vi.fn().mockRejectedValue(abortError);
+    const result = await verifyTurnstile('tok', '', { secret: 'sec', fetchImpl });
+    expect(result).toEqual({ ok: false, reason: 'VERIFY_UNAVAILABLE' });
+  });
+
+  it('sends an abort signal so a hung siteverify call cannot hold the worker forever', async () => {
+    const fetchImpl = respondWith({ success: true });
+    await verifyTurnstile('tok', '1.2.3.4', { secret: 'sec', fetchImpl });
+    const [, init] = fetchImpl.mock.calls[0];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
   });
 });

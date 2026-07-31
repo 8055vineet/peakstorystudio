@@ -18,6 +18,14 @@ const allowedOrigins = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
 // 64 KB is generous headroom, not a tight fit.
 const MAX_BODY_BYTES = 64 * 1024;
 
+// Matches the 30-day retention consume_inquiry_rate_limit's prune step
+// assumes (see the Task 1 migration). That function raises if p_window
+// exceeds this, and an RPC error is treated as fail-open — so a window
+// configured past this ceiling would silently disable rate limiting entirely
+// rather than visibly failing. Clamping here, with a log, keeps that
+// misconfiguration visible instead of inferred from an empty ledger.
+const RATE_WINDOW_CEILING_MINUTES = 30 * 24 * 60;
+
 function corsHeaders(requestOrigin) {
   // This controls which origins a BROWSER will let its own JavaScript read
   // the response from — nothing more. It is not a write control: the insert
@@ -42,10 +50,14 @@ function corsHeaders(requestOrigin) {
   };
 }
 
-function json(status, body, requestOrigin) {
+function json(status, body, requestOrigin, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeaders(requestOrigin), 'Content-Type': 'application/json' },
+    headers: {
+      ...corsHeaders(requestOrigin),
+      'Content-Type': 'application/json',
+      ...extraHeaders,
+    },
   });
 }
 
@@ -144,17 +156,44 @@ function isHoneypotTripped(website) {
 }
 
 function clientIp(req) {
-  // x-forwarded-for is a comma-separated chain; the first entry is the client.
+  // cf-connecting-ip is the one header Cloudflare itself sets on every request
+  // that reaches it, overwriting whatever the client sent — so it is the only
+  // entry here a visitor cannot forge. x-real-ip is the equivalent set by some
+  // reverse proxies (not Cloudflare) under the same assumption: it names a
+  // header the proxy controls, not the client.
+  //
+  // x-forwarded-for is last, and read from the END of the chain rather than
+  // the start, because Cloudflare (and most proxies) APPEND the peer address
+  // to whatever x-forwarded-for the client already sent instead of replacing
+  // it — so element [0] is attacker-controlled and only the last element is
+  // the one the nearest trusted hop actually appended. Trusting [0] (the
+  // "naive" reading of "the first entry is the client") is exactly what let a
+  // spoofed x-forwarded-for defeat the rate limit: three requests carrying
+  // three different first-entries landed in three different buckets.
+  const cfConnecting = req.headers.get('cf-connecting-ip');
+  if (cfConnecting) return cfConnecting.trim();
+
+  const realIp = req.headers.get('x-real-ip');
+  if (realIp) return realIp.trim();
+
   const forwarded = req.headers.get('x-forwarded-for');
   if (forwarded) {
-    const first = forwarded.split(',')[0].trim();
-    if (first) return first;
+    const parts = forwarded.split(',').map((part) => part.trim()).filter(Boolean);
+    if (parts.length > 0) return parts[parts.length - 1];
   }
-  return req.headers.get('cf-connecting-ip') ?? req.headers.get('x-real-ip') ?? '';
+
+  return '';
 }
 
 async function hashIp(ip) {
   const salt = Deno.env.get('RATE_LIMIT_SALT') ?? '';
+  if (!salt) {
+    // Without a salt, ip_hash is sha256(":" + ip) — brute-forceable across the
+    // entire IPv4 space in seconds, which quietly falsifies the migration's
+    // claim that this table holds nothing that identifies a person on its
+    // own. This must be set to a real value before deploying.
+    console.error('submit-inquiry: RATE_LIMIT_SALT is not set; ip_hash is unsalted and brute-forceable');
+  }
   const bytes = new TextEncoder().encode(`${salt}:${ip}`);
   const digest = await crypto.subtle.digest('SHA-256', bytes);
   return Array.from(new Uint8Array(digest))
@@ -173,9 +212,10 @@ Deno.serve(async (req) => {
     return json(405, { ok: false, error: 'METHOD_NOT_ALLOWED' }, origin);
   }
 
-  // Body size guard. This must run before anything reads the body — including
-  // Task 4's rate limiting, added later in this same file — so an oversized
-  // body can never slip past whatever guard happens to run first.
+  // Body size guard. This must run before anything else — including the
+  // honeypot, Turnstile, validation, and rate limiting below — so an
+  // oversized body can never slip past whatever guard happens to run first.
+  // Nothing after this point may move ahead of it.
   //
   // content-length is a cheap fast path, not the control: it can be absent
   // under chunked transfer encoding, or simply wrong. The bounded stream read
@@ -215,6 +255,9 @@ Deno.serve(async (req) => {
 
   const ip = clientIp(req);
 
+  // Turnstile runs before validation (and before rate limiting) so a flood of
+  // bot traffic is rejected before it can consume a real visitor's rate-limit
+  // budget or reach the validator at all.
   const captcha = await verifyTurnstile(payload?.turnstileToken, ip, {
     secret: Deno.env.get('TURNSTILE_SECRET_KEY'),
   });
@@ -225,8 +268,37 @@ Deno.serve(async (req) => {
       console.error('submit-inquiry: TURNSTILE_SECRET_KEY is not set');
       return json(500, { ok: false, error: 'CAPTCHA_NOT_CONFIGURED' }, origin);
     }
+    if (captcha.reason === 'VERIFY_UNAVAILABLE') {
+      // Distinct from CAPTCHA_FAILED on purpose. A visitor who genuinely
+      // failed the check and a visitor whose check could never be run look
+      // identical from the outside unless this is split out — and the
+      // second case is the most expensive failure this system has: if
+      // Cloudflare has a bad hour, or the secret is mistyped, EVERY visitor
+      // hits this path, is told it's their verification that failed, and
+      // nothing in the logs distinguishes it from ordinary bot rejection.
+      // Still fails closed (the request is not admitted either way) — but a
+      // distinct code lets the form tell the couple to reach the studio
+      // directly instead of blaming them for failing a test they never took.
+      console.error('submit-inquiry: captcha verification unavailable', captcha.reason);
+      return json(503, { ok: false, error: 'CAPTCHA_UNAVAILABLE' }, origin);
+    }
     console.log('submit-inquiry: captcha rejected', captcha.reason);
     return json(403, { ok: false, error: 'CAPTCHA_FAILED' }, origin);
+  }
+
+  // Validation runs before the rate limit, not after. The brief that first
+  // wired these two in ordered validation last so "a spammer learns nothing
+  // about the field rules" — but those rules ship in the browser bundle
+  // (inquiry-validation.js is imported by the form itself), so they were
+  // never secret, and that reasoning does not hold up. What does hold up:
+  // running validation first means only a submission that would actually be
+  // stored spends any of the visitor's rate-limit budget. A couple who
+  // fumbles the form five times still gets a sixth try immediately, rather
+  // than losing an hour to a typo. Turnstile above still gates both, so a
+  // flood cannot reach the validator without solving a challenge first.
+  const { valid, fields, value } = validateInquiry(payload, { today: today() });
+  if (!valid) {
+    return json(400, { ok: false, error: 'VALIDATION_FAILED', fields }, origin);
   }
 
   const db = createClient(
@@ -241,13 +313,33 @@ Deno.serve(async (req) => {
   // visitor into one shared bucket and start turning paying customers away —
   // worse than admitting spam, which Turnstile has already filtered.
   if (ip) {
-    const windowMinutes = Number(Deno.env.get('INQUIRY_RATE_WINDOW_MINUTES') ?? '60');
+    const windowMinutesRaw = Deno.env.get('INQUIRY_RATE_WINDOW_MINUTES') ?? '60';
+    const windowMinutesParsed = Number(windowMinutesRaw);
+    let windowMinutes;
+    if (!Number.isFinite(windowMinutesParsed) || windowMinutesParsed <= 0) {
+      console.error(
+        `submit-inquiry: INQUIRY_RATE_WINDOW_MINUTES=${windowMinutesRaw} is not a positive number, using default of 60`,
+      );
+      windowMinutes = 60;
+    } else if (windowMinutesParsed > RATE_WINDOW_CEILING_MINUTES) {
+      // consume_inquiry_rate_limit raises if p_window exceeds this, and an
+      // RPC error is treated as fail-open below — so left unclamped, this
+      // misconfiguration would silently turn rate limiting off entirely,
+      // visible only as an empty ledger that looks identical to no traffic.
+      console.error(
+        `submit-inquiry: INQUIRY_RATE_WINDOW_MINUTES=${windowMinutesRaw} exceeds the ${RATE_WINDOW_CEILING_MINUTES}-minute (30-day) ceiling consume_inquiry_rate_limit enforces; clamping`,
+      );
+      windowMinutes = RATE_WINDOW_CEILING_MINUTES;
+    } else {
+      windowMinutes = windowMinutesParsed;
+    }
+
     const maxRequests = Number(Deno.env.get('INQUIRY_RATE_LIMIT') ?? '5');
     const { data: limit, error: limitError } = await db
       .rpc('consume_inquiry_rate_limit', {
         p_ip_hash: await hashIp(ip),
         p_max_requests: Number.isFinite(maxRequests) && maxRequests > 0 ? maxRequests : 5,
-        p_window: `${Number.isFinite(windowMinutes) && windowMinutes > 0 ? windowMinutes : 60} minutes`,
+        p_window: `${windowMinutes} minutes`,
       })
       .single();
 
@@ -258,15 +350,11 @@ Deno.serve(async (req) => {
         429,
         { ok: false, error: 'RATE_LIMITED', retryAfterSeconds: limit.retry_after_seconds },
         origin,
+        { 'Retry-After': String(limit.retry_after_seconds) },
       );
     }
   } else {
     console.warn('submit-inquiry: no client IP available, skipping rate limit');
-  }
-
-  const { valid, fields, value } = validateInquiry(payload, { today: today() });
-  if (!valid) {
-    return json(400, { ok: false, error: 'VALIDATION_FAILED', fields }, origin);
   }
 
   const { data, error } = await db
