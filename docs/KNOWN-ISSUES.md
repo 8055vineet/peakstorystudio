@@ -32,6 +32,8 @@ the audit; see the task report for the verification evidence.
 | PS-021 | Two `react-hooks/exhaustive-deps` warnings in `useScrollReveal`'s effect: the cleanup reads `ref.current`, which may have changed by the time it runs, and the dependency array omits `options`, which the effect body actually reads. Left unfixed deliberately — a correct fix means reworking how the hook takes its options argument, a behaviour-changing refactor that belongs with the component work in Phase 3, not a mechanical lint fix | Low | `src/hooks/useScrollReveal.js:23`, `src/hooks/useScrollReveal.js:26` | 3 |
 | PS-022 | `ContentManagerModal`'s "Add Wedding Story" tab has no date input at all — `storyDate` is declared with `const [storyDate] = useState('');` and its setter is never called, so the value is permanently `''`. Every story published through the Content Manager therefore falls through to the hardcoded `date: storyDate \|\| '2025'` fallback, so all user-published stories are dated "2025" regardless of when they actually happened. | Medium | `src/components/ContentManagerModal.jsx:20`, `src/components/ContentManagerModal.jsx:78` | 3 |
 | PS-023 | `FILM_STRIP_FRAMES` (6 entries) and `EDITORIAL_GALLERY` (5 entries) stay static after the Phase 1b migration — they have no table in the approved schema, so `VITE_DATA_SOURCE=supabase` still reads them from the JavaScript file while every other collection comes from Postgres. Migrating them needs a schema decision the approved spec does not cover: the film-strip entries carry a camera/film-stock label rather than a wedding, so they are not simply more `gallery_photos`. Both are decorative strips whose editing story only matters once the CMS exists. | Low | `src/data/weddingData.js`, `src/components/FilmStrip.jsx`, `src/components/HorizontalGallery.jsx` | 3 |
+| PS-024 | The Content Manager modal is a silent no-op on the `supabase` path: `setStories`/`setPhotos` write the `localStories`/`localPhotos` state, but the rendered `stories`/`photos` read the database-backed `weddingData`/`galleryData` instead, and the matching `localStorage` write effects early-return in this mode. An admin adds a wedding story or photo, the modal reports success, and the entry appears nowhere and persists nowhere. Dormant today because `VITE_DATA_SOURCE` defaults to `static`; real from the moment anyone flips the flag ahead of Phase 3, which replaces this modal with real CRUD. | Medium | `src/App.jsx:43,62,120-126` | 3 |
+| PS-025 | `media` rows are unconditionally world-readable (`media_read_all` has no predicate), regardless of the `status` of the wedding or gallery photo that references them. The parent row is correctly hidden while in `draft`, but its cover image's `storage_path`/`alt_text` is readable by the anon key regardless. Matches the approved spec exactly (spec section 5.3), so this is a design consequence, not a deviation, and impact today is zero — every seeded row is `status='published'`. Becomes real once Phase 3 introduces a real `draft` state and Phase 3/4 make `storage_path` a real Supabase Storage URL, and matters most by Phase 6, whose deliverable is that a couple sees only their own photographs. | Medium | `supabase/migrations/20260730204126_row_level_security.sql:49-50` | 3 |
 
 ### Notes on selected rows
 
@@ -62,6 +64,30 @@ handful of base64-encoded photos is enough to approach or exceed the ~5 MB per-o
 at which point that `setItem` call throws and silently stops persisting new photos. An engineer
 fixing this needs both files: the upload path that creates the oversized string, and the
 storage path that fails to hold it.
+
+**PS-024 — Content Manager is a silent no-op on the `supabase` path.** Filed from the Phase 1b
+final review. `src/App.jsx` derives `stories`/`photos` from `weddingData`/`galleryData` (the
+database) when `DATA_SOURCE === 'supabase'`, but `setStories`/`setPhotos` are still aliased to
+`setLocalStories`/`setLocalPhotos` unconditionally, and `handleAddStory`/`handleAddPhoto` call
+those setters. So on the supabase path a submission updates state nothing reads and a
+`localStorage` effect that itself early-returns in that mode — no page update, no
+`localStorage` write, no database write, yet `ContentManagerModal` reports success. The plan
+directed the read side of this (the database is authoritative) but never specified the write
+side, so this is a genuine gap, not a deviation. Not reachable today because `VITE_DATA_SOURCE`
+defaults to `static`; must not be forgotten if the flag is flipped before Phase 3 replaces this
+modal with real CRUD.
+
+**PS-025 — `media` is world-readable regardless of its parent's status.** Filed from the Phase
+1b final review. `supabase/migrations/20260730204126_row_level_security.sql`'s
+`media_read_all` policy is `for select using (true)` — no predicate — so while a draft
+wedding's own row and its `wedding_photos` join row are correctly hidden from the anon key, the
+`media` row holding its cover image's `storage_path` and `alt_text` is not. This matches the
+approved spec exactly (section 5.3's grant table gives `media` | anon | `SELECT` with no
+predicate), so it is a spec-level design consequence, not an implementer deviation, and impact
+today is zero — every seeded row is `status='published'`. It becomes real once Phase 3/4 make
+`storage_path` a real Supabase Storage URL and drafts become a normal state, and matters most by
+Phase 6, whose deliverable is that a couple sees only their own photographs. `docs/DATA-MODEL.md`
+carries the corresponding caveat next to its policy summary.
 
 ## Resolved
 

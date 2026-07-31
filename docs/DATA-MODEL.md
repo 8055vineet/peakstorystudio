@@ -174,7 +174,10 @@ When `VITE_DATA_SOURCE=supabase`, content is read from a local Postgres database
   Phase 2).
 - `20260730204126_row_level_security.sql` enables Row Level Security on all eight and defines the
   read/write policies (published content is world-readable; only an admin profile can write; the
-  anon key gets no access at all to `inquiries`).
+  anon key gets no access at all to `inquiries`). One exception: `media` has no `status` column of
+  its own and its `media_read_all` policy has no predicate, so a `media` row is world-readable
+  regardless of whether the wedding or gallery photo that references it is published or draft —
+  tracked as `PS-025` in [KNOWN-ISSUES.md](KNOWN-ISSUES.md).
 
 `scripts/seed-db.mjs` copies the four content arrays this document describes
 (`INITIAL_STORIES`, `INITIAL_PHOTOS`, `INITIAL_FILMS`, `TESTIMONIALS`) into these tables. Two
