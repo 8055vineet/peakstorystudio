@@ -6,11 +6,17 @@ reference other docs link back to; if you are new to this codebase, start here.
 ## Overview
 
 Peak Story Studio is a Vite + React 18 single-page application styled with Tailwind CSS.
-There is no router, no backend, and no automated test suite — `package.json` declares
-`playwright` as a dev dependency, but no test files or Playwright config exist in the repo.
-The entire site is one page: a single component tree that renders a fixed navbar followed by
-a tall stack of full-width sections, each mounted permanently in the DOM (nothing is
-route-based or lazily mounted). "Navigation" is anchor-link scrolling within that one page.
+There is no router. The entire site is one page: a single component tree that renders a fixed
+navbar followed by a tall stack of full-width sections, each mounted permanently in the DOM
+(nothing is route-based or lazily mounted). "Navigation" is anchor-link scrolling within that
+one page.
+
+Since Phase 1b (`v0.2b`) the site can read its content from a Postgres database rather than
+from a JavaScript module. Which source is used is decided by `VITE_DATA_SOURCE`, and the
+default is the static file — see [Data flow](#data-flow) below and `docs/DATA-MODEL.md`.
+
+Since Phase 1a (`v0.2a`) there is a real test suite (Vitest + React Testing Library) and real
+linting (ESLint); `npm run lint` genuinely lints, and `npm test` runs the suite.
 
 ## Render flow
 
@@ -38,8 +44,8 @@ are 9 actual state declarations, listed below):
 
 | State | Holds | Persists to localStorage? | Consumed by |
 | --- | --- | --- | --- |
-| `stories` | Array of story objects, seeded from `INITIAL_STORIES` in `src/data/weddingData.js` | Yes — key `peak_story_stories` | `FeaturedStories` (read); `ContentManagerModal` appends new entries via `handleAddStory` |
-| `photos` | Array of photo objects, seeded from `INITIAL_PHOTOS` in `src/data/weddingData.js` | Yes — key `peak_story_photos` | `PhotoGallery` and `ClientGalleryModal` (read); default `imagesList` for the lightbox when none is supplied; `ContentManagerModal` appends new entries via `handleAddPhoto` |
+| `localStories` | Array of story objects, seeded from `INITIAL_STORIES` in `src/data/weddingData.js`. Since Phase 1b the value components actually receive is `stories`, a derived constant: `DATA_SOURCE === 'supabase' ? weddingData : localStories`, where `weddingData` comes from `useWeddings()` | Only on the `static` path — key `peak_story_stories`. The write effect returns early when the database is authoritative | `FeaturedStories` (read); `ContentManagerModal` appends new entries via `handleAddStory`, which still writes `localStories` |
+| `localPhotos` | Array of photo objects, seeded from `INITIAL_PHOTOS` in `src/data/weddingData.js`. Components receive `photos`, derived the same way from `useGalleryPhotos()` | Only on the `static` path — key `peak_story_photos`. Same early return | `PhotoGallery` and `ClientGalleryModal` (read); default `imagesList` for the lightbox when none is supplied; `ContentManagerModal` appends new entries via `handleAddPhoto` |
 | `user` | `null`, or an object such as `{ role, name, ... }` set by a successful login | Yes — key `peak_story_user` (the key is removed with `localStorage.removeItem` when the user logs out) | `Navbar` (renders the admin/client badge and sign-out control); `ClientGalleryModal` (gates its content on `user` being present); set via `handleLoginSuccess` from `AuthModal`, cleared via `handleLogout` |
 | `lightboxState` | `{ isOpen, activeUrl, activeIndex, imagesList }` for the fullscreen image viewer | No | `LightboxModal`; opened via `handleOpenLightbox` from `FeaturedStories` and `PhotoGallery` |
 | `videoModalUrl` | A video embed URL, or `null` when no video modal is open | No | Renders the inline video-iframe modal defined directly in `App.jsx`; set via the `onOpenFilmModal` (`Hero`), `onOpenVideo` (`FeaturedStories`), and `onOpenVideoModal` (`FilmsGallery`) callbacks |
@@ -111,31 +117,56 @@ directives, it defines a custom layer with:
 
 For the full color, type, and animation token catalogue, see `docs/DESIGN-SYSTEM.md`.
 
-## Data flow today
+## Data flow
 
-All content is static data imported directly from `src/data/weddingData.js` (`INITIAL_STORIES`,
-`INITIAL_PHOTOS`, `INITIAL_FILMS`, `TESTIMONIALS`) — there is no CMS and no API call involved
-in populating the page on load. User-added content (photos and stories submitted through
-`ContentManagerModal`) is written to the `stories` and `photos` state in `App.jsx`, which is
-then persisted to `localStorage` (`peak_story_stories`, `peak_story_photos`). On the next load,
-`src/App.jsx:27-43` reads that key back with `saved ? JSON.parse(saved) : INITIAL_STORIES` (and
-the equivalent for `photos`): when the key exists, its contents become the entire `stories`/
-`photos` state and `INITIAL_STORIES`/`INITIAL_PHOTOS` are ignored outright. This is a total
-override, not a merge — the static seed data and any `localStorage` contents are never combined,
-and once a browser has written that key, `src/data/weddingData.js` stops being consulted for that
-piece of state on that browser until the key is cleared. It never leaves the browser. There is no
-network layer anywhere in the app: no `fetch`, no API client, no server. For where this is going, see
-the backend and hosting plan in
-`docs/superpowers/specs/2026-07-30-end-to-end-platform-design.md`.
+Content reaches the page through one of two sources, selected by `VITE_DATA_SOURCE` in
+`src/lib/dataSource.js`. The default is `static`, and an environment without Supabase
+credentials stays on `static` regardless of what the variable says — asking for a database
+without configuring one would otherwise leave a null client and crash on the first query.
+
+**The layering, in either mode:** components call hooks, hooks call queries, queries call
+Supabase. No component imports the Supabase client; `src/lib/supabase.js` is the only module
+that constructs one. This keeps components testable against mocked hooks and confines a future
+migration to a single layer.
+
+```
+src/components/*   ->  src/hooks/useContent.js  ->  src/lib/queries/*  ->  src/lib/supabase.js
+```
+
+**`static` (default).** The hooks return the arrays exported by `src/data/weddingData.js`
+synchronously — no effect, no loading state, no network call. User-added content submitted
+through `ContentManagerModal` is written to the `stories` and `photos` state in `App.jsx` and
+persisted to `localStorage` (`peak_story_stories`, `peak_story_photos`). On the next load
+`src/App.jsx` reads that key back with `saved ? JSON.parse(saved) : INITIAL_STORIES` (and the
+equivalent for `photos`): when the key exists its contents become the entire state and the
+static seed is ignored outright. This is a total override, not a merge — the two are never
+combined, and once a browser has written that key `src/data/weddingData.js` stops being
+consulted for that state on that browser until the key is cleared. It never leaves the browser.
+
+**`supabase`.** The hooks call the query layer, which reads from Postgres. `weddingData.js`
+becomes the seed source (`scripts/seed-db.mjs` copies it in) and the value a hook returns
+before its first query resolves or if that query throws — never something a component reads
+directly. The `localStorage` write effects do not run in this mode; the database is
+authoritative.
+
+`VITE_DATA_SOURCE` is temporary migration scaffolding. Per the platform spec it is removed in
+Phase 3, once the database is authoritative unconditionally.
+
+Row Level Security, not client code, is what makes it safe to ship the Supabase anon key in the
+browser bundle: Postgres refuses anything the policies do not permit. See
+`supabase/migrations/*_row_level_security.sql` and `npm run db:verify`.
 
 ## Known architectural limits
 
 - **No routing.** There is no router of any kind (no `react-router` or equivalent dependency),
   so the entire site is one URL. Individual sections, galleries, and stories have no shareable
   or indexable address of their own — everything lives behind anchor-link scrolling on `/`.
-- **No error boundary.** No component in the tree implements `componentDidCatch` or an
-  equivalent boundary, so an unhandled render error anywhere in the tree takes down the whole
-  page rather than degrading one section.
+- **One top-level error boundary, not per-section.** `src/components/ErrorBoundary.jsx` (added
+  in Phase 1a, `v0.2a`) implements `getDerivedStateFromError` and `componentDidCatch`, and wraps
+  the entire tree at `src/main.jsx:9`, so an unhandled render error shows a recovery screen
+  instead of unmounting to a blank page. But it is a single boundary around all of `<App />`,
+  not one per section, so a render error in any one section still replaces the whole page with
+  the recovery screen rather than degrading just that section.
 - **Three independent scroll listeners**, each attaching its own `window.addEventListener('scroll', ...)`
   with no shared coordination: `src/components/Navbar.jsx` (toggles its background/shadow past
   a 40px scroll threshold), `src/components/ScrollProgressBar.jsx` (computes the reading-progress

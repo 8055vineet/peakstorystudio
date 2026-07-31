@@ -20,11 +20,15 @@ import BookingForm from './components/BookingForm';
 import Footer from './components/Footer';
 import SectionDivider from './components/SectionDivider';
 
-import { INITIAL_FILMS, TESTIMONIALS, INITIAL_STORIES, INITIAL_PHOTOS } from './data/weddingData';
+import { INITIAL_STORIES, INITIAL_PHOTOS } from './data/weddingData';
+import { DATA_SOURCE } from './lib/dataSource';
+import { useWeddings, useGalleryPhotos, useFilms, useTestimonials } from './hooks/useContent';
 import { X } from 'lucide-react';
 
 export default function App() {
-  const [stories, setStories] = useState(() => {
+  const { data: weddingData } = useWeddings();
+
+  const [localStories, setLocalStories] = useState(() => {
     try {
       const saved = localStorage.getItem('peak_story_stories');
       return saved ? JSON.parse(saved) : INITIAL_STORIES;
@@ -33,7 +37,19 @@ export default function App() {
     }
   });
 
-  const [photos, setPhotos] = useState(() => {
+  // The database is authoritative when it is the source; localStorage is only
+  // the Content Manager's store for the static path.
+  const stories = DATA_SOURCE === 'supabase' ? weddingData : localStories;
+  const setStories = setLocalStories;
+
+  useEffect(() => {
+    if (DATA_SOURCE === 'supabase') return;
+    localStorage.setItem('peak_story_stories', JSON.stringify(localStories));
+  }, [localStories]);
+
+  const { data: galleryData } = useGalleryPhotos();
+
+  const [localPhotos, setLocalPhotos] = useState(() => {
     try {
       const saved = localStorage.getItem('peak_story_photos');
       return saved ? JSON.parse(saved) : INITIAL_PHOTOS;
@@ -42,13 +58,16 @@ export default function App() {
     }
   });
 
-  useEffect(() => {
-    localStorage.setItem('peak_story_stories', JSON.stringify(stories));
-  }, [stories]);
+  const photos = DATA_SOURCE === 'supabase' ? galleryData : localPhotos;
+  const setPhotos = setLocalPhotos;
 
   useEffect(() => {
-    localStorage.setItem('peak_story_photos', JSON.stringify(photos));
-  }, [photos]);
+    if (DATA_SOURCE === 'supabase') return;
+    localStorage.setItem('peak_story_photos', JSON.stringify(localPhotos));
+  }, [localPhotos]);
+
+  const { data: films } = useFilms();
+  const { data: testimonials } = useTestimonials();
 
   const [user, setUser] = useState(() => {
     try {
@@ -160,7 +179,7 @@ export default function App() {
         <SectionDivider color="#faf9f6" bgColor="#ffffff" />
 
         <FilmsGallery
-          films={INITIAL_FILMS}
+          films={films}
           onOpenVideoModal={(url) => setVideoModalUrl(url)}
         />
 
@@ -184,7 +203,7 @@ export default function App() {
 
         <SectionDivider color="#ffffff" bgColor="#faf9f6" />
 
-        <Testimonials testimonials={TESTIMONIALS} />
+        <Testimonials testimonials={testimonials} />
 
         <SectionDivider color="#faf9f6" bgColor="#ffffff" />
 
