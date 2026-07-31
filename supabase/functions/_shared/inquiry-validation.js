@@ -1,0 +1,134 @@
+// The one definition of a valid booking inquiry.
+//
+// Imported by the submit-inquiry Edge Function (relatively) and by the browser
+// (through the @shared Vite alias). Two copies of these rules would drift, and
+// drift here means showing a couple an inline message the server contradicts.
+// Keep this file free of Deno and browser globals so both runtimes can load it.
+
+export const SERVICES = [
+  'Cinematic Film',
+  'Fine Art Photography',
+  'Drone Aerials',
+  'Pre-Wedding Shoot',
+];
+
+export const FIELD_LIMITS = {
+  name: 100,
+  email: 254,
+  phone: 20,
+  venue: 200,
+  message: 2000,
+};
+
+export const MAX_YEARS_AHEAD = 5;
+
+// Deliberately permissive. The address is confirmed by the acknowledgement
+// email actually arriving, not by a regex trying to encode RFC 5322.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const PHONE_PATTERN = /^[+(\d][\d\s()+-]{6,19}$/;
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+function text(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function isRealIsoDate(value) {
+  // Date.parse silently rolls an out-of-range day/month forward (2027-02-30
+  // becomes 2027-03-02) instead of producing NaN, so it cannot detect an
+  // impossible calendar date on its own. Building the date from its parsed
+  // components and reading them back exposes any rollover: a real date's
+  // components survive the round trip, a rolled-forward one does not.
+  if (!ISO_DATE_PATTERN.test(value)) {
+    return false;
+  }
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
+
+export function validateInquiry(input, { today } = {}) {
+  const source = input && typeof input === 'object' ? input : {};
+  const fields = {};
+
+  const name = text(source.name);
+  if (name.length < 2) {
+    fields.name = 'Please tell us who we should address.';
+  } else if (name.length > FIELD_LIMITS.name) {
+    fields.name = `Please keep this under ${FIELD_LIMITS.name} characters.`;
+  }
+
+  const email = text(source.email);
+  if (!email) {
+    fields.email = 'We need an email address to reply to.';
+  } else if (email.length > FIELD_LIMITS.email || !EMAIL_PATTERN.test(email)) {
+    fields.email = 'That email address does not look right.';
+  }
+
+  const phone = text(source.phone);
+  if (!phone) {
+    fields.phone = 'We need a phone number.';
+  } else if (!PHONE_PATTERN.test(phone)) {
+    fields.phone = 'Use digits, spaces, and + ( ) - only.';
+  }
+
+  const weddingDate = text(source.weddingDate);
+  const reference = isRealIsoDate(text(today)) ? text(today) : null;
+  if (!weddingDate) {
+    fields.weddingDate = 'Please give us your wedding date.';
+  } else if (!isRealIsoDate(weddingDate)) {
+    fields.weddingDate = 'Please give a valid date.';
+  } else if (reference) {
+    // ISO dates compare correctly as strings, which sidesteps every timezone
+    // trap in doing this with Date objects.
+    const latest = `${Number(reference.slice(0, 4)) + MAX_YEARS_AHEAD}${reference.slice(4)}`;
+    if (weddingDate < reference) {
+      fields.weddingDate = 'That date has already passed.';
+    } else if (weddingDate > latest) {
+      fields.weddingDate = `We take bookings up to ${MAX_YEARS_AHEAD} years ahead.`;
+    }
+  }
+
+  const venue = text(source.venue);
+  if (!venue) {
+    fields.venue = 'Please tell us where the wedding is.';
+  } else if (venue.length > FIELD_LIMITS.venue) {
+    fields.venue = `Please keep this under ${FIELD_LIMITS.venue} characters.`;
+  }
+
+  let services = [];
+  if (source.services === undefined || source.services === null) {
+    services = [];
+  } else if (!Array.isArray(source.services)) {
+    fields.services = 'Please choose from the services offered.';
+  } else {
+    const chosen = source.services.map(text);
+    if (chosen.some((service) => !SERVICES.includes(service))) {
+      fields.services = 'Please choose from the services offered.';
+    } else {
+      services = SERVICES.filter((service) => chosen.includes(service));
+    }
+  }
+
+  const message = text(source.message);
+  if (message.length > FIELD_LIMITS.message) {
+    fields.message = `Please keep this under ${FIELD_LIMITS.message} characters.`;
+  }
+
+  return {
+    valid: Object.keys(fields).length === 0,
+    fields,
+    value: {
+      name,
+      email,
+      phone,
+      weddingDate,
+      venue,
+      services,
+      message: message || null,
+    },
+  };
+}

@@ -61,4 +61,13 @@ export default [
       globals: { ...globals.node },
     },
   },
+  {
+    // Supabase Edge Functions run on Deno. They get browser globals (fetch,
+    // Response, crypto, TextEncoder are all present there) plus Deno itself.
+    // _shared/ deliberately uses neither, so it can also run in the browser.
+    files: ['supabase/functions/**/*.js'],
+    languageOptions: {
+      globals: { ...globals.browser, Deno: 'readonly' },
+    },
+  },
 ];
