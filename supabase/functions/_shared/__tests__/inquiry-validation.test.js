@@ -110,4 +110,25 @@ describe('validateInquiry', () => {
     expect(result.value.services).toEqual([]);
     expect(result.value.message).toBeNull();
   });
+
+  it('strips a null byte from a text field instead of failing', () => {
+    const withNullByte = `Ma${String.fromCharCode(0)}llory`;
+    const result = validateInquiry(valid({ name: withNullByte }), { today: TODAY });
+    expect(result.valid).toBe(true);
+    expect(result.value.name).toBe('Mallory');
+  });
+
+  it('strips other C0 control characters (e.g. DEL) from a text field', () => {
+    const withDel = `Ma${String.fromCharCode(0x7f)}llory`;
+    const result = validateInquiry(valid({ venue: withDel }), { today: TODAY });
+    expect(result.valid).toBe(true);
+    expect(result.value.venue).toBe('Mallory');
+  });
+
+  it('keeps a newline and tab inside message intact', () => {
+    const message = 'Day one:\n\tceremony at dawn.';
+    const result = validateInquiry(valid({ message }), { today: TODAY });
+    expect(result.valid).toBe(true);
+    expect(result.value.message).toBe(message);
+  });
 });

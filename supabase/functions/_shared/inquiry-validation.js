@@ -28,8 +28,31 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PHONE_PATTERN = /^[+(\d][\d\s()+-]{6,19}$/;
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+// Char codes for the whitespace a multi-line message legitimately uses: tab,
+// line feed, carriage return. Everything else at or below 0x1F, plus 0x7F
+// (DEL), is a control character with no legitimate reason to appear in any of
+// these fields — Postgres `text` cannot even store a null byte. Comparing
+// numeric char codes (rather than a regex literal containing escaped or raw
+// control characters) keeps this readable and keeps ESLint's no-control-regex
+// rule out of the picture entirely.
+const ALLOWED_WHITESPACE_CODES = new Set([9, 10, 13]);
+
+function isControlCharCode(code) {
+  return (code <= 0x1f && !ALLOWED_WHITESPACE_CODES.has(code)) || code === 0x7f;
+}
+
+function stripControlChars(value) {
+  let result = '';
+  for (const ch of value) {
+    if (!isControlCharCode(ch.codePointAt(0))) {
+      result += ch;
+    }
+  }
+  return result;
+}
+
 function text(value) {
-  return typeof value === 'string' ? value.trim() : '';
+  return typeof value === 'string' ? stripControlChars(value).trim() : '';
 }
 
 function isRealIsoDate(value) {
