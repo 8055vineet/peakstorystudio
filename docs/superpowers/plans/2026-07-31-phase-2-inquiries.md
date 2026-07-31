@@ -493,9 +493,19 @@ function text(value) {
 }
 
 function isRealIsoDate(value) {
-  // Date.parse rejects out-of-range components in ISO form, so 2027-02-30 is
-  // NaN rather than rolling forward into March.
-  return ISO_DATE_PATTERN.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+  // Date.parse silently rolls an out-of-range day forward — 2027-02-30 becomes
+  // 2027-03-02 rather than NaN — so it cannot detect an impossible calendar
+  // date on its own. Rebuilding the date from its components and reading them
+  // back exposes the rollover: a real date's components survive the round
+  // trip, a rolled-forward one does not.
+  if (!ISO_DATE_PATTERN.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
 }
 
 export function validateInquiry(input, { today } = {}) {
