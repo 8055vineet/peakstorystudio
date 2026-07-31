@@ -164,18 +164,34 @@ security definer
 set search_path = public
 as $$
 declare
+  -- Fixed retention, deliberately NOT derived from p_window. The prune below
+  -- has no ip_hash scoping — it sweeps the whole table — so a caller-derived
+  -- cutoff lets whichever caller happens to run it delete another caller's
+  -- still-live counter row, silently resetting that visitor's limit. A
+  -- constant makes that unrepresentable. The guard below is what keeps the
+  -- constant honest: without it, raising p_window past this value would
+  -- quietly resume deleting live rows with no error anywhere.
+  c_max_retention constant interval := interval '30 days';
   v_window_started_at timestamptz;
   v_request_count     integer;
 begin
+  -- A non-positive window never blocks at all: the window-roll below would
+  -- reset the count on every call. Refuse it rather than pretend to limit.
+  if p_window <= interval '0' then
+    raise exception
+      'consume_inquiry_rate_limit: p_window must be positive, got %', p_window;
+  end if;
+
+  if p_window > c_max_retention then
+    raise exception
+      'consume_inquiry_rate_limit: p_window % exceeds the % retention the prune assumes',
+      p_window, c_max_retention;
+  end if;
+
   -- Opportunistic prune. At this traffic the table never exceeds a few
   -- thousand rows, and this keeps it from growing without bound.
-  --
-  -- greatest() so the prune can never delete a row that is still inside the
-  -- caller's window. A bare '1 day' would silently defeat any window of a day
-  -- or more: the counter row would be deleted before the upsert reads it, and
-  -- the limit would reset every call with no error anywhere.
   delete from public.inquiry_rate_limits
-   where window_started_at < now() - greatest(p_window, interval '1 day');
+   where window_started_at < now() - c_max_retention;
 
   insert into public.inquiry_rate_limits as l (ip_hash, window_started_at, request_count)
   values (p_ip_hash, now(), 1)
