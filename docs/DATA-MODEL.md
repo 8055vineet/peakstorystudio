@@ -217,20 +217,26 @@ reaches this table with the service-role key, which bypasses RLS entirely — th
 to exist regardless, because Postgres checks table privileges before it ever evaluates a policy.
 
 `consume_inquiry_rate_limit(p_ip_hash text, p_max_requests integer, p_window interval)` is how
-the Edge Function touches that table — it never writes to it directly. Called by RPC, it does the
-window roll, the increment, and the read in one statement (so two simultaneous requests from the
-same visitor cannot both pass a limit that admits only one), and returns exactly one row of
-`(allowed boolean, retry_after_seconds integer)`. If the visitor's current window has expired
-(older than `p_window`), it starts a new one at a count of 1 and allows the request. Otherwise it
-increments the existing window's count; if that count now exceeds `p_max_requests`, it returns
-`false` with a `retry_after_seconds` counting down to when the window resets, and does not count
-the rejected attempt again toward a future window. The function also opportunistically deletes
-rows older than `greatest(p_window, interval '1 day')` on every call, so the table never grows
-without bound at this traffic — the cutoff is never shorter than the caller's own window, because
-a bare one-day cutoff would delete a still-live counter out from under any caller using a
-day-or-longer window, silently defeating that caller's limit. It is `security definer` and
-`execute` is granted only to `service_role` — anon cannot call it any more than it can read the
-table directly.
+the Edge Function touches that table — it never writes to it directly. `p_window` must be
+strictly positive and no greater than 30 days; a call outside that range raises an exception
+(caught by the Edge Function's fail-open handling around this RPC call, so an out-of-range window
+degrades to "no rate limiting on this request" rather than blocking a submission). Called by RPC,
+it does the window roll, the increment, and the read in one statement (so two simultaneous
+requests from the same visitor cannot both pass a limit that admits only one), and returns exactly
+one row of `(allowed boolean, retry_after_seconds integer)`. If the visitor's current window has
+expired (older than `p_window`), it starts a new one at a count of 1 and allows the request.
+Otherwise it increments the existing window's count; if that count now exceeds `p_max_requests`,
+it returns `false` with a `retry_after_seconds` counting down to when the window resets, and does
+not count the rejected attempt again toward a future window. The function also opportunistically
+deletes rows older than a fixed 30-day retention on every call, so the table never grows without
+bound at this traffic. That retention is a constant, not derived from the current caller's
+`p_window` — the prune has no `ip_hash` scoping, so it sweeps the whole table on every call, and
+an earlier version of this function computed the cutoff from whichever `p_window` the *current*
+caller happened to pass, which let one caller's shorter window delete a different `ip_hash`'s
+still-live row under a longer window. The 30-day upper bound on `p_window` is what keeps the fixed
+retention honest: without it, a caller could raise its window past 30 days and silently reintroduce
+the same problem. It is `security definer` and `execute` is granted only to `service_role` — anon
+cannot call it any more than it can read the table directly.
 
 For the exact columns, constraints, indexes, and RLS policies, the migration files themselves are
 the source of truth. [The platform design spec](./superpowers/specs/2026-07-30-end-to-end-platform-design.md),

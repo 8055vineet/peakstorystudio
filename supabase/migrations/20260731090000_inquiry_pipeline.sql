@@ -54,18 +54,37 @@ security definer
 set search_path = public
 as $$
 declare
+  -- Fixed retention the prune below relies on — deliberately NOT derived
+  -- from p_window. A per-call cutoff (e.g. greatest(p_window, interval '1
+  -- day')) lets whichever caller happens to run the prune on a given
+  -- invocation delete rows on ITS window, including rows belonging to a
+  -- different ip_hash under a longer window: the prune has no ip_hash
+  -- scoping, so it sweeps the whole table. Making retention a constant
+  -- instead makes that cross-caller interference unrepresentable. The guard
+  -- immediately below is what keeps this constant honest: without it,
+  -- raising p_window past c_max_retention would silently resume deleting
+  -- live rows with no error anywhere.
+  c_max_retention constant interval := interval '30 days';
   v_window_started_at timestamptz;
   v_request_count     integer;
 begin
-  -- Opportunistic prune. At this traffic the table never exceeds a few
-  -- thousand rows, and this keeps it from growing without bound. The cutoff
-  -- must never be shorter than the caller's own window — a bare interval
-  -- '1 day' here would delete a still-live counter row out from under any
-  -- caller using a window of a day or longer, silently defeating that
-  -- caller's limit (the very next upsert would treat it as a fresh window).
-  -- Do not "simplify" this back to a bare interval.
+  if p_window <= interval '0' then
+    raise exception
+      'consume_inquiry_rate_limit: p_window must be positive, got %', p_window;
+  end if;
+
+  if p_window > c_max_retention then
+    raise exception
+      'consume_inquiry_rate_limit: p_window % exceeds the % retention the prune assumes',
+      p_window, c_max_retention;
+  end if;
+
+  -- Opportunistic prune. Fixed retention (see c_max_retention above),
+  -- independent of the current caller's own p_window, so the table never
+  -- grows without bound at this traffic and no caller's window choice can
+  -- ever delete another caller's still-live counter row.
   delete from public.inquiry_rate_limits
-   where window_started_at < now() - greatest(p_window, interval '1 day');
+   where window_started_at < now() - c_max_retention;
 
   insert into public.inquiry_rate_limits as l (ip_hash, window_started_at, request_count)
   values (p_ip_hash, now(), 1)
@@ -98,7 +117,10 @@ $$;
 comment on function public.consume_inquiry_rate_limit(text, integer, interval) is
   'Records one inquiry attempt for p_ip_hash and reports whether it is within
    p_max_requests per p_window. Rolls the window when the current one has
-   expired. Callable only by service_role.';
+   expired. p_window must be strictly positive and no greater than 30 days
+   (the fixed retention the opportunistic prune assumes) — anything outside
+   that range raises an exception rather than misbehaving silently. Callable
+   only by service_role.';
 
 revoke all on function public.consume_inquiry_rate_limit(text, integer, interval) from public;
 grant execute on function public.consume_inquiry_rate_limit(text, integer, interval) to service_role;
