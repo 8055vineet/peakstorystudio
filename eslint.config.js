@@ -5,7 +5,10 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default [
-  { ignores: ['dist/**', 'node_modules/**'] },
+  // .superpowers/ is git-ignored scratch space for planning artefacts and
+  // throwaway verification scripts; linting it fails the build on files that
+  // are never shipped.
+  { ignores: ['dist/**', 'node_modules/**', '.superpowers/**'] },
   {
     // .mjs is included so scripts/check-docs.mjs is actually linted, and .cjs
     // so tool configs written in CommonJS are covered too; without them

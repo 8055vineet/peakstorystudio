@@ -8,7 +8,7 @@ export default function Testimonials({ testimonials }) {
   const [touchEnd, setTouchEnd] = useState(null);
 
   useEffect(() => {
-    if (isHovered) return;
+    if (isHovered || testimonials.length === 0) return undefined;
     const timer = setInterval(() => {
       setActiveIdx((prev) => (prev + 1) % testimonials.length);
     }, 5000);
@@ -33,6 +33,11 @@ export default function Testimonials({ testimonials }) {
       setActiveIdx((prev) => (prev === 0 ? testimonials.length - 1 : prev - 1));
     }
   };
+
+  // Nothing to show — render nothing rather than indexing into an empty
+  // array. Reachable once content is dynamic: every testimonial unpublished,
+  // or a status filter that legitimately matches none.
+  if (testimonials.length === 0) return null;
 
   return (
     <section className="py-24 relative bg-offwhite-50 overflow-hidden border-t border-pitch-900/10 text-pitch-900">
