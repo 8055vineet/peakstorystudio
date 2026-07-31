@@ -1,11 +1,22 @@
 # Data Model
 
-This document describes the data Peak Story Studio actually holds today — the shapes defined
-in `src/data/weddingData.js`, the browser storage layer in `src/App.jsx`, and the write path in
-`src/components/ContentManagerModal.jsx`. There is no backend and no database: everything here
-is a JavaScript module seeding React state, optionally overridden by `localStorage`. This is the
-reference Phase 1's migration work reads before designing the real schema (see
-[Target schema](#target-schema) below); it deliberately does not duplicate that schema.
+This document describes the data Peak Story Studio holds. As of Phase 1b (`v0.2b`) there are two
+sources, and exactly one is authoritative at runtime, chosen by the `VITE_DATA_SOURCE`
+environment variable (`src/lib/dataSource.js`):
+
+- **`static`** — the default, and what any unconfigured environment falls back to regardless of
+  what `.env.local` says. Content lives entirely in `src/data/weddingData.js`, a JavaScript module
+  seeding React state, optionally overridden by `localStorage`, with writes going through
+  `src/components/ContentManagerModal.jsx`. Everything below up to
+  [The database](#the-database) describes this shape, unchanged since Phase 0.
+- **`supabase`** — content is read from a local Postgres database instead, through
+  `src/lib/queries/` and the hooks in `src/hooks/useContent.js` (see
+  [The database](#the-database)). In this mode `weddingData.js` is no longer the source of
+  truth: it is only the seed source (`scripts/seed-db.mjs` copies it into Postgres) and the
+  fallback a hook returns before its first query resolves or if that query throws — never
+  something a component reads directly.
+
+The static shapes below are exactly what `src/data/weddingData.js` exports today, in either mode.
 
 ## Content modules
 
@@ -53,7 +64,14 @@ Moved here from a module-scope `const` in that component file (see `PS-015` belo
 
 ## Field-level problems
 
-These are the shapes Phase 1 must correct. Each is a real value taken from
+These are the shapes the static file still holds, and the problems each causes whenever
+`VITE_DATA_SOURCE=static` (the default) is in effect. The schema in
+[The database](#the-database) below fixes several of them for the `supabase` path — a real
+`date` column and an integer seconds column instead of the two display strings below, a `slug`
+column, a uniform `uuid` id everywhere, and `alt_text` plus `width`/`height` columns on `media`
+— but not all: `gallery_photos.grid_span` still stores the same literal Tailwind utility-class
+string that `span` does here. `weddingData.js` itself is untouched either way, so every problem
+below is still real whenever the static path is in effect. Each is a real value taken from
 `src/data/weddingData.js`, not a hypothetical.
 
 - **`date: "November 2024"`** (`INITIAL_STORIES`) is a free-text display string, not a sortable
@@ -142,9 +160,37 @@ independent of this data module; they have since been moved here, so the full se
 hotlinks Phase 1's migration needs to account for is now entirely contained in the content
 modules described in this document (see `PS-015` in `docs/KNOWN-ISSUES.md`).
 
-## Target schema
+## The database
 
-The tables, columns, and constraints Phase 1 should migrate this data to are specified in
-[the platform design spec](./superpowers/specs/2026-07-30-end-to-end-platform-design.md), section
-5.2 ("Schema"). That document is the source of truth for the target shape; this document only
-describes what exists today so the two can be diffed.
+When `VITE_DATA_SOURCE=supabase`, content is read from a local Postgres database (run via
+`supabase start`), not from this file. The schema — eight tables — lives in
+`supabase/migrations/`:
+
+- `20260730203451_initial_schema.sql` creates `media` (image records: storage path, width,
+  height, `alt_text`, `blurhash`), `weddings` (one row per wedding story, with a `slug`), the
+  `wedding_photos` join table (links a wedding to its ordered gallery images), `gallery_photos`
+  (the standalone photo grid), `films`, `testimonials`, `profiles` (admin/client role, keyed to
+  `auth.users`), and `inquiries` (booking-form submissions — not yet written to; that starts in
+  Phase 2).
+- `20260730204126_row_level_security.sql` enables Row Level Security on all eight and defines the
+  read/write policies (published content is world-readable; only an admin profile can write; the
+  anon key gets no access at all to `inquiries`).
+
+`scripts/seed-db.mjs` copies the four content arrays this document describes
+(`INITIAL_STORIES`, `INITIAL_PHOTOS`, `INITIAL_FILMS`, `TESTIMONIALS`) into these tables. Two
+fields change type in that copy, because the target columns are typed rather than display
+strings:
+
+- **`date: "November 2024"`** (`INITIAL_STORIES`) becomes `weddings.event_date`, a real Postgres
+  `date` (`2024-11-01`). `src/lib/queries/weddings.js` formats it back to `"November 2024"` as
+  the `date` field components already read, and also returns the raw ISO value as `eventDate`.
+- **`duration: "4:32 mins"`** (`INITIAL_FILMS`) becomes `films.duration_seconds`, an integer
+  (`272`). `src/lib/queries/films.js` rebuilds the `"4:32 mins"` string as the `duration` field
+  components already read.
+
+`FILM_STRIP_FRAMES` and `EDITORIAL_GALLERY` — described above — have no table; see `PS-023` in
+[KNOWN-ISSUES.md](KNOWN-ISSUES.md).
+
+For the exact columns, constraints, indexes, and RLS policies, the migration files themselves are
+the source of truth. [The platform design spec](./superpowers/specs/2026-07-30-end-to-end-platform-design.md),
+section 5.2 ("Schema") and 5.3 ("Row Level Security"), records the rationale behind that shape.

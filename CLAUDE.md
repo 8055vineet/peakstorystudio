@@ -41,12 +41,19 @@ task notes) rather than silently fixing or silently working around it.
   to new call sites, and do not fix it early outside that phase without saying so (per
   "Before changing anything" above) — the same scheduling rule applies to this issue as to
   every other row in that register.
-- Components stay presentational. All cross-cutting state (content, session, modal visibility)
-  lives in `src/App.jsx` and is passed down as props; a component's own local state should never
-  need to escape that component (e.g. `Navbar`'s `scrolled`, `AuthModal`'s form fields). This
-  holds until Phase 1 introduces `src/lib/queries/` as the new home for data.
-- From Phase 1 onward: components never import the Supabase client directly. Components call
-  hooks, hooks call functions in `src/lib/queries/`. Keep data access out of component bodies.
+- Components stay presentational. Session and modal-visibility state lives in `src/App.jsx` and
+  is passed down as props; a component's own local state should never need to escape that
+  component (e.g. `Navbar`'s `scrolled`, `AuthModal`'s form fields).
+- **Components never import the Supabase client.** Components call hooks, hooks call functions
+  in `src/lib/queries/`, and only `src/lib/supabase.js` constructs a client. Keep data access
+  out of component bodies. This is what confines a future API or framework change to one layer.
+- **Schema changes go only in `supabase/migrations/`.** Never edit a running database to fix a
+  migration — `npm run db:reset` replaying from empty is what proves the migration is complete,
+  and it is the only thing keeping local and hosted reproducible from the same files.
+- Content sections must tolerate an empty list. `Testimonials` indexes rather than maps, so an
+  empty array once threw and the root `ErrorBoundary` blanked the whole page; it now guards.
+  Any new section that indexes into its data needs the same guard, because once content is
+  database-driven an unpublished collection is a normal state, not an impossible one.
 
 ## Commands
 

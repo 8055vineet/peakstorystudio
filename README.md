@@ -29,6 +29,35 @@ landed in 20.11. CI runs Node 22.
 | `npm test` | `vitest run` | Runs the Vitest suite once and exits. This is what CI runs. |
 | `npm run test:watch` | `vitest` | Runs the Vitest suite in watch mode for local development. |
 | `npm run check:docs` | `node scripts/check-docs.mjs` | Verifies the docs stay consistent with the codebase: required docs exist, every component is documented, cited source paths exist, and every relative markdown link resolves. |
+| `npm run db:start` | `supabase start` | Starts the local Supabase stack in Docker. First run pulls several images and takes a few minutes. |
+| `npm run db:stop` | `supabase stop` | Stops the local stack. |
+| `npm run db:reset` | `supabase db reset` | Drops the local database and replays every migration from empty. This is how a migration is proven complete. |
+| `npm run db:seed` | `node scripts/seed-db.mjs` | Copies `src/data/weddingData.js` into Postgres. Idempotent — clears content tables first, so re-running does not duplicate. |
+| `npm run db:verify` | `node scripts/verify-db.mjs` | Asserts the Row Level Security policies actually behave. **Not part of `npm test`**, because CI has no Postgres. |
+
+## Local database
+
+Optional: the site runs without it. `VITE_DATA_SOURCE` defaults to `static`, and an
+environment with no Supabase credentials stays static regardless.
+
+Docker must be running. Then:
+
+```bash
+npm run db:start          # prints API URL, anon key, service_role key
+eval "$(supabase status -o env | sed 's/^/export /')"
+export SUPABASE_URL="$API_URL" \
+       SUPABASE_ANON_KEY="$ANON_KEY" \
+       SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+npm run db:seed
+npm run db:verify
+```
+
+To point the site at the database, put the URL and anon key in `.env.local` (git-ignored)
+along with `VITE_DATA_SOURCE=supabase`. See [.env.example](.env.example).
+
+The anon key is meant to be public — it ships in the browser bundle. What constrains it is
+Row Level Security in Postgres, which `npm run db:verify` exists to prove. The service-role
+key is different: it bypasses RLS entirely and must never reach the browser or a committed file.
 
 ## Project layout
 
