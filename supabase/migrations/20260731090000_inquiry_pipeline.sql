@@ -58,9 +58,14 @@ declare
   v_request_count     integer;
 begin
   -- Opportunistic prune. At this traffic the table never exceeds a few
-  -- thousand rows, and this keeps it from growing without bound.
+  -- thousand rows, and this keeps it from growing without bound. The cutoff
+  -- must never be shorter than the caller's own window — a bare interval
+  -- '1 day' here would delete a still-live counter row out from under any
+  -- caller using a window of a day or longer, silently defeating that
+  -- caller's limit (the very next upsert would treat it as a fresh window).
+  -- Do not "simplify" this back to a bare interval.
   delete from public.inquiry_rate_limits
-   where window_started_at < now() - interval '1 day';
+   where window_started_at < now() - greatest(p_window, interval '1 day');
 
   insert into public.inquiry_rate_limits as l (ip_hash, window_started_at, request_count)
   values (p_ip_hash, now(), 1)

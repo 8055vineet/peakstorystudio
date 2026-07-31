@@ -225,9 +225,12 @@ same visitor cannot both pass a limit that admits only one), and returns exactly
 increments the existing window's count; if that count now exceeds `p_max_requests`, it returns
 `false` with a `retry_after_seconds` counting down to when the window resets, and does not count
 the rejected attempt again toward a future window. The function also opportunistically deletes
-rows older than a day on every call, so the table never grows without bound at this traffic. It
-is `security definer` and `execute` is granted only to `service_role` — anon cannot call it any
-more than it can read the table directly.
+rows older than `greatest(p_window, interval '1 day')` on every call, so the table never grows
+without bound at this traffic — the cutoff is never shorter than the caller's own window, because
+a bare one-day cutoff would delete a still-live counter out from under any caller using a
+day-or-longer window, silently defeating that caller's limit. It is `security definer` and
+`execute` is granted only to `service_role` — anon cannot call it any more than it can read the
+table directly.
 
 For the exact columns, constraints, indexes, and RLS policies, the migration files themselves are
 the source of truth. [The platform design spec](./superpowers/specs/2026-07-30-end-to-end-platform-design.md),
