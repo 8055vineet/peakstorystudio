@@ -169,8 +169,13 @@ declare
 begin
   -- Opportunistic prune. At this traffic the table never exceeds a few
   -- thousand rows, and this keeps it from growing without bound.
+  --
+  -- greatest() so the prune can never delete a row that is still inside the
+  -- caller's window. A bare '1 day' would silently defeat any window of a day
+  -- or more: the counter row would be deleted before the upsert reads it, and
+  -- the limit would reset every call with no error anywhere.
   delete from public.inquiry_rate_limits
-   where window_started_at < now() - interval '1 day';
+   where window_started_at < now() - greatest(p_window, interval '1 day');
 
   insert into public.inquiry_rate_limits as l (ip_hash, window_started_at, request_count)
   values (p_ip_hash, now(), 1)
@@ -193,6 +198,10 @@ begin
                1,
                ceil(extract(epoch from (v_window_started_at + p_window - now())))::integer
              );
+    -- RETURN QUERY appends rows; it does not exit. Without this bare return,
+    -- a blocked call falls through and appends a second, contradictory
+    -- allowed=true row, and the caller's .single() gets the wrong answer.
+    return;
   end if;
 
   return query select true, 0;
