@@ -178,6 +178,18 @@ When `VITE_DATA_SOURCE=supabase`, content is read from a local Postgres database
   its own and its `media_read_all` policy has no predicate, so a `media` row is world-readable
   regardless of whether the wedding or gallery photo that references it is published or draft —
   tracked as `PS-025` in [KNOWN-ISSUES.md](KNOWN-ISSUES.md).
+- `20260731090000_inquiry_pipeline.sql` (Phase 2, Task 1) adds `inquiries.notification_status`
+  and creates `inquiry_rate_limits` and `consume_inquiry_rate_limit()` — the groundwork the
+  Phase 2 submit-inquiry Edge Function needs before it can write a row. See
+  [Inquiry rate limiting](#inquiry-rate-limiting) below.
+
+`inquiries.notification_status` is a text column, defaulting to `pending`, constrained to four
+values: `pending` (the row was written but no notification attempt has happened yet), `sent` (the
+studio's notification email was accepted by Resend), `failed` (Resend rejected or errored on the
+send), and `skipped` (no notification was attempted because email was never configured in this
+environment). The inquiry row is written regardless of which of the last three applies — a lead
+is saved even if the email step fails outright — so this column is the only record of whether the
+studio was actually told about it.
 
 `scripts/seed-db.mjs` copies the four content arrays this document describes
 (`INITIAL_STORIES`, `INITIAL_PHOTOS`, `INITIAL_FILMS`, `TESTIMONIALS`) into these tables. Two
@@ -193,6 +205,38 @@ strings:
 
 `FILM_STRIP_FRAMES` and `EDITORIAL_GALLERY` — described above — have no table; see `PS-023` in
 [KNOWN-ISSUES.md](KNOWN-ISSUES.md).
+
+### Inquiry rate limiting
+
+`inquiry_rate_limits` is a per-visitor counter, keyed on `ip_hash` — a salted SHA-256 hash of the
+submitter's IP address, never the address itself, so the table holds nothing that identifies a
+person on its own. It has no RLS policies at all (not "world-readable" restricted to admin, but
+*none*): anon and authenticated get nothing, and the only grant is `select, insert, update,
+delete` to `service_role`. The Phase 2 submit-inquiry Edge Function is the only writer, and it
+reaches this table with the service-role key, which bypasses RLS entirely — the grant still has
+to exist regardless, because Postgres checks table privileges before it ever evaluates a policy.
+
+`consume_inquiry_rate_limit(p_ip_hash text, p_max_requests integer, p_window interval)` is how
+the Edge Function touches that table — it never writes to it directly. `p_window` must be
+strictly positive and no greater than 30 days; a call outside that range raises an exception
+(caught by the Edge Function's fail-open handling around this RPC call, so an out-of-range window
+degrades to "no rate limiting on this request" rather than blocking a submission). Called by RPC,
+it does the window roll, the increment, and the read in one statement (so two simultaneous
+requests from the same visitor cannot both pass a limit that admits only one), and returns exactly
+one row of `(allowed boolean, retry_after_seconds integer)`. If the visitor's current window has
+expired (older than `p_window`), it starts a new one at a count of 1 and allows the request.
+Otherwise it increments the existing window's count; if that count now exceeds `p_max_requests`,
+it returns `false` with a `retry_after_seconds` counting down to when the window resets, and does
+not count the rejected attempt again toward a future window. The function also opportunistically
+deletes rows older than a fixed 30-day retention on every call, so the table never grows without
+bound at this traffic. That retention is a constant, not derived from the current caller's
+`p_window` — the prune has no `ip_hash` scoping, so it sweeps the whole table on every call, and
+an earlier version of this function computed the cutoff from whichever `p_window` the *current*
+caller happened to pass, which let one caller's shorter window delete a different `ip_hash`'s
+still-live row under a longer window. The 30-day upper bound on `p_window` is what keeps the fixed
+retention honest: without it, a caller could raise its window past 30 days and silently reintroduce
+the same problem. It is `security definer` and `execute` is granted only to `service_role` — anon
+cannot call it any more than it can read the table directly.
 
 For the exact columns, constraints, indexes, and RLS policies, the migration files themselves are
 the source of truth. [The platform design spec](./superpowers/specs/2026-07-30-end-to-end-platform-design.md),

@@ -300,6 +300,59 @@ Content sections get loading skeletons rather than spinners, matching the editor
 and an error state that falls back to the last known content rather than rendering blank. A
 React error boundary is added at the application root; the app currently has none.
 
+### 6.5 Implementation decisions (added 2026-07-31, before Phase 2 began)
+
+Sections 6.1–6.4 settle the shape of the inquiry pipeline. These are the choices that shape
+left open, each verified against the local stack rather than assumed.
+
+**The Edge Function is written in plain JavaScript, not TypeScript.** Supabase's convention is
+`index.ts`, but the repo's standing rule is that this project has no TypeScript. Registering
+`entrypoint = "./functions/submit-inquiry/index.js"` under `[functions.submit-inquiry]` in
+`supabase/config.toml` makes the CLI serve a `.js` entrypoint; this was confirmed working
+against edge-runtime v1.74.2 before the plan was written, as were `npm:` import specifiers,
+the automatically injected `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, and service-role
+database access from inside the function. The rule about TypeScript survives Phase 2 intact.
+
+**Validation rules have one home, shared by both sides.**
+`supabase/functions/_shared/inquiry-validation.js` is the single source; the function imports
+it relatively and the browser imports it through a `@shared` Vite alias. Two copies of the same
+rules drift, and drift here shows the couple an inline message the server then contradicts.
+`_shared` is Supabase's documented convention for code a function depends on, so this costs
+nothing at deploy time.
+
+**Testing uses Vitest, not Deno's test runner.** Section 7 named `deno test` as the Edge
+Function gate. Deno is not installed on the development machine and a second test runner plus a
+CI toolchain is real cost, so the validation, Turnstile, and email modules are written as pure
+modules with injectable `fetch`, and Vitest — which already transpiles and runs them — covers
+them. The response contract is covered instead by an end-to-end check that posts to the running
+function and asserts the row reached Postgres, which tests the real runtime rather than a
+simulation of it.
+
+**Rate limiting is a Postgres ledger keyed by a salted hash of the IP.** Edge Functions are
+stateless, so the counter needs storage; `inquiry_rate_limits` holds a SHA-256 of
+`salt:ip`, never the address, so the table carries nothing directly identifying. A single
+`consume_inquiry_rate_limit()` function does the read, window roll, and increment in one
+atomic upsert, so two simultaneous requests cannot both pass a limit that admits one.
+
+**Rate limiting fails open; the captcha fails closed.** If no client IP can be determined from
+the request headers, the function skips the rate-limit check and logs it, rather than hashing a
+constant and dropping every visitor into one shared bucket — that failure mode blocks paying
+customers, which is worse than admitting spam. Turnstile is the actual spam control and takes
+the opposite stance: a missing `TURNSTILE_SECRET_KEY` is a server error, not a bypass.
+Cloudflare publishes always-pass test keys that need no account, so local development runs with
+the captcha genuinely enabled rather than switched off.
+
+**Email degrades; the row never does.** A lead is persisted before any email is attempted, and
+a Resend failure or a missing `RESEND_API_KEY` never turns a saved inquiry into an error for
+the couple. The outcome is recorded on the row as `notification_status`, so Phase 3's admin
+view can show which inquiries the studio was never actually told about. Without that column a
+silent Resend outage is indistinguishable from no inquiries at all.
+
+**Anything unconfirmed stays out of the bundle.** The WhatsApp number comes from
+`VITE_WHATSAPP_NUMBER` and the button does not render when it is unset, so Phase 2 ships
+without hard-coding a contact number the studio has not yet confirmed. The same applies to the
+studio notification address.
+
 ---
 
 ## 7. Quality gates

@@ -15,7 +15,6 @@ the audit; see the task report for the verification evidence.
 | --- | --- | --- | --- | --- |
 | PS-001 | Any client PIN unlocks every client's photos; no per-client scoping | Critical | `src/components/AuthModal.jsx`, `src/components/ClientGalleryModal.jsx` | 6 |
 | PS-002 | Fabricated press credentials ("AS FEATURED IN" Vogue, Harper's Bazaar, Filmfare, WedMeGood; "Vogue Fine Art Choice" badge) and real Bollywood celebrities named as clients | Critical (legal) | `src/components/AboutSection.jsx`, `src/data/weddingData.js` | 7 |
-| PS-003 | Booking form reports success unconditionally; submissions are discarded | High | `src/components/BookingForm.jsx` | 2 |
 | PS-004 | Uploaded images stored as base64 in localStorage; exceeds the ~5 MB quota | High | `src/components/ContentManagerModal.jsx` (base64 conversion), `src/App.jsx:50` (oversized write) | 3 |
 | PS-005 | Export Config JSON button sets a "Copied!" label but copies nothing | High | `src/components/ContentManagerModal.jsx` | 3 |
 | PS-007 | "Download ZIP" button is a non-functional stub that fires a browser `alert()` | Medium | `src/components/ClientGalleryModal.jsx:59` | 6 |
@@ -34,6 +33,9 @@ the audit; see the task report for the verification evidence.
 | PS-023 | `FILM_STRIP_FRAMES` (6 entries) and `EDITORIAL_GALLERY` (5 entries) stay static after the Phase 1b migration — they have no table in the approved schema, so `VITE_DATA_SOURCE=supabase` still reads them from the JavaScript file while every other collection comes from Postgres. Migrating them needs a schema decision the approved spec does not cover: the film-strip entries carry a camera/film-stock label rather than a wedding, so they are not simply more `gallery_photos`. Both are decorative strips whose editing story only matters once the CMS exists. | Low | `src/data/weddingData.js`, `src/components/FilmStrip.jsx`, `src/components/HorizontalGallery.jsx` | 3 |
 | PS-024 | The Content Manager modal is a silent no-op on the `supabase` path: `setStories`/`setPhotos` write the `localStories`/`localPhotos` state, but the rendered `stories`/`photos` read the database-backed `weddingData`/`galleryData` instead, and the matching `localStorage` write effects early-return in this mode. An admin adds a wedding story or photo, the modal reports success, and the entry appears nowhere and persists nowhere. Dormant today because `VITE_DATA_SOURCE` defaults to `static`; real from the moment anyone flips the flag ahead of Phase 3, which replaces this modal with real CRUD. | Medium | `src/App.jsx:43,62,120-126` | 3 |
 | PS-025 | `media` rows are unconditionally world-readable (`media_read_all` has no predicate), regardless of the `status` of the wedding or gallery photo that references them. The parent row is correctly hidden while in `draft`, but its cover image's `storage_path`/`alt_text` is readable by the anon key regardless. Matches the approved spec exactly (spec section 5.3), so this is a design consequence, not a deviation, and impact today is zero — every seeded row is `status='published'`. Becomes real once Phase 3 introduces a real `draft` state and Phase 3/4 make `storage_path` a real Supabase Storage URL, and matters most by Phase 6, whose deliverable is that a couple sees only their own photographs. | Medium | `supabase/migrations/20260730204126_row_level_security.sql:49-50` | 3 |
+| PS-026 | The booking form requires both a firm wedding date and a firm venue before it accepts an inquiry, so a couple who is still choosing either — arguably the most common state for an early inquiry — cannot submit at all | Medium | `supabase/functions/_shared/inquiry-validation.js`, `src/components/BookingForm.jsx` | 7 |
+| PS-027 | `ALLOWED_ORIGINS` only constrains which origins a *browser* is willing to hand the response back to; it is enforced client-side by the browser's own CORS check, not by the function refusing the request. A POST from any origin — or from a non-browser client that ignores CORS entirely, such as curl or a script — still reaches validation and still stores a row. Must not be relied on as an access control once the site is deployed | Low | `supabase/functions/submit-inquiry/index.js` | 4 |
+| PS-028 | The studio's phone number, email address, and postal address are unconfirmed — inherited unchanged from the seeded template rather than supplied by the studio | Medium | `src/data/contact.js` | 7 |
 
 ### Notes on selected rows
 
@@ -121,3 +123,14 @@ Four more issues were closed in Phase 1a (quality foundation):
 - **PS-015 — `FilmStrip` and `HorizontalGallery` hardcode their own image arrays** — both now
   import their image data (`FILM_STRIP_FRAMES`, `EDITORIAL_GALLERY`) from
   `src/data/weddingData.js` instead of defining it locally.
+
+One issue was closed in Phase 2 (inquiries real):
+
+- **PS-003 — booking form reported success unconditionally; submissions were discarded** —
+  `BookingForm` now calls a real Edge Function (`supabase/functions/submit-inquiry`) that
+  validates the payload against the same rules the form applies, inserts it into
+  `public.inquiries` under the service-role key (the only role with insert privilege on that
+  table), and only then reports success back to the couple. A failed insert now surfaces as an
+  error state with a way to reach the studio directly instead of a false confirmation.
+  `npm run verify:inquiry` asserts against Postgres directly that a submission actually lands a
+  row, and the same check runs in CI.

@@ -412,3 +412,9 @@ enabled = true
 # declarative_schema_path = "./database"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+[functions.submit-inquiry]
+# This project has no TypeScript, so the entrypoint is named explicitly rather
+# than relying on the CLI's index.ts default.
+entrypoint = "./functions/submit-inquiry/index.js"
+verify_jwt = true

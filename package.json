@@ -18,7 +18,9 @@
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
     "db:verify": "node scripts/verify-db.mjs",
-    "db:seed": "node scripts/seed-db.mjs"
+    "db:seed": "node scripts/seed-db.mjs",
+    "db:functions": "supabase functions serve --env-file supabase/functions/.env.local",
+    "verify:inquiry": "node scripts/verify-inquiry.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.111.0",
