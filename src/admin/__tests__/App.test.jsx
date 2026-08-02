@@ -91,6 +91,22 @@ describe('admin App shell', () => {
     expect(screen.getByRole('button', { name: 'Sign Out' })).toBeInTheDocument();
   });
 
+  it('does not render the dashboard for a status it does not recognise', () => {
+    // Falling through to the dashboard because a value was not one of the
+    // three recognised states is deciding access from ignorance. Unreachable
+    // while the status union stays closed — which is exactly when a
+    // fall-through survives review and outlives the assumption behind it.
+    useSession.mockReturnValue({
+      ...baseState,
+      status: 'something-unrecognised',
+      session: { user: { id: 'user-3', email: 'someone@example.test' } },
+    });
+    render(<App><p>Dashboard content</p></App>);
+
+    expect(screen.queryByText('Dashboard content')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/email/i)).not.toBeInTheDocument();
+  });
+
   it('calls signOut when the sign-out control is clicked while forbidden', async () => {
     const { default: userEvent } = await import('@testing-library/user-event');
     const signOut = vi.fn();

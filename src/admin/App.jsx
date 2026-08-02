@@ -82,7 +82,24 @@ export default function App({
     );
   }
 
-  // authenticated
+  // Gate on the value explicitly rather than letting this be the implicit
+  // else. An unrecognised status must not fall through to the dashboard:
+  // rendering admin screens because a value was not one of the three we
+  // recognised is deciding access from ignorance. The status union is a
+  // closed set of four today, so this is unreachable — which is exactly when
+  // a fall-through survives review and outlives the assumption that made it
+  // safe. RLS would still refuse the data underneath, but the admin should
+  // not be showing a dashboard it cannot justify.
+  if (status !== 'authenticated') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-offwhite-100 text-pitch-900 p-6">
+        <p className="text-sm text-charcoal-700">
+          Studio Admin could not determine your session. Please reload the page.
+        </p>
+      </div>
+    );
+  }
+
   const account = profile?.displayName || session?.user?.email || 'Studio Admin';
   return (
     <div className="min-h-screen bg-offwhite-100 text-pitch-900">
