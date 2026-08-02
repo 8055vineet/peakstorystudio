@@ -72,31 +72,49 @@ export async function sendInquiryEmails(
     return { status: 'skipped' };
   }
 
-  try {
-    await send({
+  // Both sends go out together rather than one after the other. The couple is
+  // watching a disabled button while this runs, and sequential sends stack
+  // their timeouts: a degraded-but-not-dead Resend could hold them for the
+  // full SEND_TIMEOUT_MS twice over before they see anything. Concurrently the
+  // worst case is one timeout, not two.
+  //
+  // It also means a bad STUDIO_NOTIFY_EMAIL no longer costs the couple their
+  // acknowledgement. Sequentially the studio send failing returned early and
+  // the couple heard nothing; now they are still thanked, and the row still
+  // records that the studio was never told.
+  const [studioResult, coupleResult] = await Promise.allSettled([
+    send({
       from: fromAddress,
       to: [studioEmail],
       reply_to: inquiry.email,
       subject: `New inquiry — ${inquiry.name}, ${inquiry.weddingDate}`,
       html: studioHtml(inquiry),
-    }, { apiKey, fetchImpl });
-  } catch (error) {
-    console.error('submit-inquiry: studio notification failed', error.message);
-    return { status: 'failed' };
-  }
-
-  try {
-    await send({
+    }, { apiKey, fetchImpl }),
+    send({
       from: fromAddress,
       to: [inquiry.email],
       reply_to: studioEmail,
       subject: 'We have your wedding inquiry',
       html: coupleHtml(inquiry),
-    }, { apiKey, fetchImpl });
-  } catch (error) {
-    // The studio has the lead. Not acknowledging the couple is worth logging,
-    // not worth marking the inquiry as un-notified.
-    console.error('submit-inquiry: couple acknowledgement failed', error.message);
+    }, { apiKey, fetchImpl }),
+  ]);
+
+  if (coupleResult.status === 'rejected') {
+    // Worth logging, not worth marking the inquiry un-notified: whether the
+    // couple got their thank-you says nothing about whether the studio has
+    // the lead, and notification_status is about the latter.
+    console.error(
+      'submit-inquiry: couple acknowledgement failed',
+      coupleResult.reason?.message,
+    );
+  }
+
+  if (studioResult.status === 'rejected') {
+    console.error(
+      'submit-inquiry: studio notification failed',
+      studioResult.reason?.message,
+    );
+    return { status: 'failed' };
   }
 
   return { status: 'sent' };

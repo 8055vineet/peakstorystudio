@@ -72,6 +72,39 @@ describe('sendInquiryEmails', () => {
     expect(result.status).toBe('failed');
   });
 
+  it('still thanks the couple when only the studio notification fails', async () => {
+    // A mistyped STUDIO_NOTIFY_EMAIL should not cost the couple their
+    // acknowledgement — they did nothing wrong and silence reads as being
+    // ignored. The row still records that the studio was never told.
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 422, text: async () => 'bad studio address' })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'couple' }) });
+
+    const result = await sendInquiryEmails(INQUIRY, { ...CONFIG, fetchImpl });
+
+    expect(result.status).toBe('failed');
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(fetchImpl.mock.calls[1][1].body).to).toEqual(['couple@example.com']);
+  });
+
+  it('sends both messages concurrently rather than one after the other', async () => {
+    // Sequential sends stack their timeouts, so a slow Resend holds the couple
+    // at a disabled button for twice as long as it needs to.
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const fetchImpl = vi.fn().mockImplementation(async () => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      inFlight -= 1;
+      return { ok: true, json: async () => ({ id: 'sent' }) };
+    });
+
+    await sendInquiryEmails(INQUIRY, { ...CONFIG, fetchImpl });
+
+    expect(maxInFlight).toBe(2);
+  });
+
   it('reports failed rather than throwing when the request throws', async () => {
     const fetchImpl = vi.fn().mockRejectedValue(new Error('network down'));
     const result = await sendInquiryEmails(INQUIRY, { ...CONFIG, fetchImpl });
