@@ -2,9 +2,12 @@ import { useMemo, useState } from 'react';
 import { useSession } from '../hooks/useSession';
 import { useResource } from '../hooks/useResource';
 import { listInquiries, updateInquiryStatus } from '../lib/queries/adminInquiries';
+import { listMedia } from '../lib/queries/media';
 import SignInForm from './SignInForm.jsx';
 import LeadsTable from './LeadsTable.jsx';
 import LeadDetail from './LeadDetail.jsx';
+import UploadField from './UploadField.jsx';
+import MediaPicker from './MediaPicker.jsx';
 
 // Owns the leads dashboard's data (via useResource, the generic hook Tasks
 // 7-9 will also use) and which inquiry is selected. Kept private to this
@@ -45,6 +48,87 @@ function InquiriesDashboard() {
   );
 }
 
+// Owns the media library's data the same way InquiriesDashboard owns leads':
+// a memoized queries object so useResource's mount effect (which fetches
+// once, on mount — see useResource's own module comment) doesn't see a new
+// object identity every render and refetch in a loop. MediaPicker and
+// UploadField stay fully presentational either way: this is the composition
+// that hands MediaPicker its items and hands UploadField the reload that
+// makes an upload show up here without any optimistic update.
+function MediaLibraryDashboard() {
+  const queries = useMemo(() => ({ list: listMedia }), []);
+  const {
+    items, status, error, reload,
+  } = useResource(queries);
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+      <div className="lg:col-span-2">
+        <h1 className="font-cinzel text-2xl font-bold text-pitch-900 mb-6">Media Library</h1>
+        <UploadField onUploaded={reload} />
+      </div>
+      <div className="lg:col-span-3">
+        {/* No selection consumer exists yet — Task 7's `media` field type
+            and Task 8's WeddingPhotos are what will pass a real onSelect,
+            per the plan's own task ordering. Until then this screen is
+            where an admin manages the library directly: upload, and see
+            what's missing alt text. */}
+        <MediaPicker
+          items={items}
+          status={status}
+          error={error}
+          onRetry={reload}
+          onSelect={() => {}}
+        />
+      </div>
+    </div>
+  );
+}
+
+// Short nav labels rather than each dashboard's own full heading — 'Leads'
+// stays unambiguous from InquiriesDashboard's "Booking Inquiries" <h1> even
+// though a screen reader announces both, and it leaves room for Tasks 8/9's
+// tabs (Weddings, Gallery, Films, Testimonials) to read as a set.
+const DASHBOARD_TABS = [
+  { key: 'leads', label: 'Leads' },
+  { key: 'media', label: 'Media Library' },
+];
+
+// The admin's default landing composition. Tasks 8 and 9 will extend
+// DASHBOARD_TABS with weddings, gallery, films, and testimonials once Task
+// 7's reusable resource pattern exists — this is deliberately the smallest
+// thing that makes the Media Library reachable before then, not a preview
+// of that later navigation. A tab's dashboard only fetches once it's
+// actually opened (see the "not fetched until asked for" test in
+// App.test.jsx), so switching tabs, not mounting the shell, is what
+// triggers each one's first load.
+function AdminDashboard() {
+  const [tab, setTab] = useState('leads');
+
+  return (
+    <div>
+      <nav className="flex gap-2 mb-8" aria-label="Admin sections">
+        {DASHBOARD_TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            aria-pressed={tab === key}
+            className={`px-4 py-2 rounded-lg text-xs uppercase tracking-widest font-semibold transition-colors ${
+              tab === key
+                ? 'bg-pitch-900 text-offwhite-50'
+                : 'border border-pitch-900/20 text-pitch-900 hover:bg-offwhite-200'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+      {tab === 'leads' ? <InquiriesDashboard /> : <MediaLibraryDashboard />}
+    </div>
+  );
+}
+
 // This component decides only what to RENDER for a given useSession()
 // status. It is not the security boundary — Row Level Security (the
 // `is_admin()` policies from Phase 1b) is what actually protects every
@@ -56,7 +140,7 @@ function InquiriesDashboard() {
 // substitute for RLS if that policy set is ever weakened. It grants
 // nothing; it only decides what a signed-in browser is shown.
 export default function App({
-  children = <InquiriesDashboard />,
+  children = <AdminDashboard />,
 }) {
   const {
     status, session, profile, error, signIn, signOut,

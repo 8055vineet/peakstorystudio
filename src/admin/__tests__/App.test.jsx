@@ -4,6 +4,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 const useSession = vi.fn();
 const listInquiries = vi.fn();
 const updateInquiryStatus = vi.fn();
+const listMedia = vi.fn();
 
 vi.mock('../../hooks/useSession', () => ({
   useSession: (...args) => useSession(...args),
@@ -20,6 +21,20 @@ vi.mock('../../lib/queries/adminInquiries', () => ({
   INQUIRY_STATUSES: ['new', 'contacted', 'booked', 'archived'],
 }));
 
+// The Media Library tab's dashboard (MediaLibraryDashboard, also defined in
+// App.jsx) calls listMedia through the same useResource hook. UploadField's
+// own useMediaUpload hook is mocked wholesale — these tests are about the
+// shell's tab wiring, not the upload pipeline Task 5 already proved and
+// UploadField.test.jsx already exercises against a mocked hook of its own.
+vi.mock('../../lib/queries/media', () => ({
+  listMedia: (...args) => listMedia(...args),
+}));
+vi.mock('../../hooks/useMediaUpload', () => ({
+  useMediaUpload: () => ({
+    status: 'idle', progress: 0, error: null, upload: vi.fn(), reset: vi.fn(),
+  }),
+}));
+
 const { default: App } = await import('../App.jsx');
 
 const baseState = {
@@ -34,7 +49,9 @@ beforeEach(() => {
   useSession.mockReset();
   listInquiries.mockReset();
   updateInquiryStatus.mockReset();
+  listMedia.mockReset();
   listInquiries.mockResolvedValue([]);
+  listMedia.mockResolvedValue([]);
   baseState.signIn = vi.fn();
   baseState.signOut = vi.fn();
 });
@@ -167,5 +184,67 @@ describe('admin App shell', () => {
     await user.click(screen.getByRole('button', { name: 'Sign Out' }));
 
     expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  describe('Media Library tab', () => {
+    function signIn() {
+      useSession.mockReturnValue({
+        ...baseState,
+        status: 'authenticated',
+        session: { user: { id: 'user-2', email: 'admin@example.test' } },
+        profile: { userId: 'user-2', role: 'admin', displayName: 'Studio Director' },
+      });
+    }
+
+    it('switches to the media library and lists it via listMedia when the tab is opened', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      listMedia.mockResolvedValue([{
+        id: 'media-1',
+        storagePath: 'uploads/one.webp',
+        width: 2000,
+        height: 1500,
+        altText: 'A couple at dusk.',
+        blurhash: null,
+        createdAt: '2026-08-01T10:00:00Z',
+      }]);
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+
+      // Leads is the default tab — Media Library is not fetched until asked
+      // for, same principle as useResource's own "one hook instance per
+      // resource" constraint (see its module comment): nothing here should
+      // pull media rows nobody has gone looking for yet.
+      expect(listMedia).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole('button', { name: /media library/i }));
+
+      expect(screen.getByRole('heading', { name: /media library/i })).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+      expect(listMedia).toHaveBeenCalled();
+    });
+
+    it('still shows the leads dashboard first, unaffected by the new tab existing', async () => {
+      signIn();
+      render(<App />);
+
+      expect(screen.getByText(/booking inquiries/i)).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /media library/i })).not.toBeInTheDocument();
+      // Lets InquiriesDashboard's own listInquiries() call resolve — and the
+      // state update that follows actually land — before the test ends, so
+      // it isn't left dangling outside act().
+      await waitFor(() => expect(screen.getByText(/no inquiries yet/i)).toBeInTheDocument());
+    });
+
+    it('switching back to Leads does not re-render Dashboard content passed as explicit children', async () => {
+      // The tab shell only replaces App's *default* children — an explicit
+      // children override (as every other test in this file uses to isolate
+      // the session-gate behaviour) must keep bypassing it entirely.
+      signIn();
+      render(<App><p>Dashboard content</p></App>);
+
+      expect(screen.getByText('Dashboard content')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /media library/i })).not.toBeInTheDocument();
+    });
   });
 });
