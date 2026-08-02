@@ -135,7 +135,86 @@ Create `src/hooks/__tests__/useSession.test.jsx` covering the four states:
 
 - [ ] **Step 5: Write `src/hooks/useSession.js`**
 
-Subscribe via `onAuthStateChange`, resolve the profile whenever a session appears, and guard every `setState` behind a cancelled flag. Comment explicitly that `forbidden` is not a security decision — RLS refuses the data regardless — it exists so the UI can say something true.
+```js
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  signIn as signInRequest,
+  signOut as signOutRequest,
+  getSession,
+  getProfile,
+  onAuthStateChange,
+} from '../lib/auth';
+
+// status:
+//   loading       — we do not yet know whether anyone is signed in
+//   anonymous     — nobody is signed in
+//   authenticated — signed in AND profiles.role = 'admin'
+//   forbidden     — signed in, but not an admin
+//
+// `forbidden` is NOT a security decision. Row Level Security refuses every
+// row and every write to a non-admin regardless of what this hook returns;
+// see the Phase 1b policies. It exists so the UI can say something true —
+// showing a sign-in form to someone who is already signed in is a dead end
+// they cannot escape by doing what it asks.
+export function useSession() {
+  const [state, setState] = useState({ status: 'loading', session: null, profile: null });
+  const [error, setError] = useState(null);
+  const aliveRef = useRef(true);
+
+  const resolve = useCallback(async (session) => {
+    if (!session) {
+      if (aliveRef.current) setState({ status: 'anonymous', session: null, profile: null });
+      return;
+    }
+    let profile = null;
+    try {
+      profile = await getProfile(session.user.id);
+    } catch {
+      // A profile lookup that fails is indistinguishable, from here, from a
+      // profile that says 'client'. Both must land on forbidden: assuming
+      // admin on an error would hand the dashboard to a failed check.
+      profile = null;
+    }
+    if (!aliveRef.current) return;
+    setState({
+      status: profile?.role === 'admin' ? 'authenticated' : 'forbidden',
+      session,
+      profile,
+    });
+  }, []);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    getSession().then(resolve).catch(() => resolve(null));
+    const unsubscribe = onAuthStateChange((session) => { resolve(session); });
+    return () => {
+      aliveRef.current = false;
+      unsubscribe();
+    };
+  }, [resolve]);
+
+  const signIn = useCallback(async (email, password) => {
+    setError(null);
+    try {
+      const { session } = await signInRequest(email, password);
+      await resolve(session);
+      return true;
+    } catch (err) {
+      if (aliveRef.current) setError(err?.code ?? 'NETWORK_ERROR');
+      return false;
+    }
+  }, [resolve]);
+
+  const signOut = useCallback(async () => {
+    await signOutRequest();
+    if (aliveRef.current) setState({ status: 'anonymous', session: null, profile: null });
+  }, []);
+
+  return { ...state, error, signIn, signOut };
+}
+```
+
+Note the `catch` around `getProfile`: a failed lookup must land on `forbidden`, never on `authenticated`. Defaulting to admin when a check errors is how a check becomes decoration.
 
 - [ ] **Step 6: Write the idempotent admin seed**
 
@@ -284,7 +363,49 @@ Verify against real data by seeding an inquiry through the running function, sig
 
 - [ ] **Step 2: Write `_shared/s3-presign.js` using `npm:aws4fetch`**
 
-`aws4fetch`'s `AwsClient.sign(url, { method, aws: { signQuery: true } })` produces a presigned URL. Confirm the `npm:` specifier resolves in the edge runtime the same way `@supabase/supabase-js` does before building on it.
+Confirm the `npm:` specifier resolves in the edge runtime — `@supabase/supabase-js` already does, so the mechanism works, but verify this package specifically before building on it.
+
+```js
+import { AwsClient } from 'npm:aws4fetch@1.0.20';
+
+// Presigns a PUT so the browser can upload straight to storage without the
+// bytes passing through this function, and without ever holding a credential.
+//
+// The same code serves local Supabase storage and Cloudflare R2: both speak
+// S3, so only endpoint, region, and credentials differ between them. That is
+// deliberate — a separate implementation per environment is how a bug hides
+// until deployment.
+export async function presignPut({
+  endpoint,
+  region,
+  bucket,
+  accessKeyId,
+  secretAccessKey,
+  key,
+  contentType,
+  expiresIn = 300,
+}) {
+  const client = new AwsClient({
+    accessKeyId,
+    secretAccessKey,
+    service: 's3',
+    region,
+  });
+
+  const url = new URL(`${endpoint.replace(/\/$/, '')}/${bucket}/${key}`);
+  url.searchParams.set('X-Amz-Expires', String(expiresIn));
+
+  const signed = await client.sign(url.toString(), {
+    method: 'PUT',
+    headers: { 'Content-Type': contentType },
+    aws: { signQuery: true },
+  });
+
+  return signed.url;
+}
+```
+
+Because `signQuery` puts the signature in the query string, the browser's later `PUT` must send **the same `Content-Type`** it was signed with or the signature will not match. Say so in a comment — it is the most likely upload failure and the error S3 returns for it is opaque.
 
 - [ ] **Step 3: Write the function**
 
@@ -326,6 +447,61 @@ jsdom has no real canvas encoder, so stub `HTMLCanvasElement.prototype.toBlob` a
 
 Keep it free of React and of the Supabase client — it is a pure browser utility, and Task 11's end-to-end gate reuses its dimension logic.
 
+```js
+export class ImageError extends Error {
+  constructor(code) {
+    super(code);
+    this.name = 'ImageError';
+    this.code = code;
+  }
+}
+
+// Scales the longest edge down to maxEdge, preserving aspect ratio, and
+// NEVER scales up: enlarging a small photograph adds bytes and invents
+// detail that was never there. An image already within the cap is still
+// re-encoded, so the output format is predictable for every upload.
+export function fitWithin(width, height, maxEdge) {
+  const longest = Math.max(width, height);
+  if (longest <= maxEdge) return { width, height };
+  const scale = maxEdge / longest;
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
+
+export async function resizeImage(file, { maxEdge = 2000, type = 'image/webp', quality = 0.82 } = {}) {
+  if (!file || !file.type?.startsWith('image/')) {
+    throw new ImageError('NOT_AN_IMAGE');
+  }
+
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    // A file can claim image/png in its type and still be undecodable.
+    throw new ImageError('DECODE_FAILED');
+  }
+
+  const { width, height } = fitWithin(bitmap.width, bitmap.height, maxEdge);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, width, height);
+  bitmap.close?.();
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, type, quality));
+  if (!blob) throw new ImageError('ENCODE_FAILED');
+
+  // Dimensions come from the canvas we actually drew, not from the source,
+  // so what is recorded in `media` always matches the bytes uploaded.
+  return { blob, width, height, type };
+}
+```
+
+`fitWithin` is exported separately because it is pure and worth testing without stubbing a canvas — the upscale guard is the part most likely to regress.
+
 - [ ] **Step 3: Write the failing upload-hook tests**
 
 Assert the state machine advances through its stages; that a failure at **each** of the three points — signing, `PUT`, `media` insert — surfaces distinctly and leaves `status` at `error`; and that a failed `media` insert after a successful `PUT` reports that the upload did not complete rather than silently succeeding. Note in a comment that this leaves an orphaned object, which the design accepts as debt.
@@ -366,7 +542,48 @@ Images render from `VITE_MEDIA_BASE_URL` joined to `storage_path`. When that var
 - `adminContent.js` — `makeResourceQueries(table, columns)` returning `{ list, create, update, remove, reorder }`, each mapping snake_case to camelCase and throwing on error.
 - `ResourceList({ config, items, status, error, onEdit, onCreate, onDelete, onToggleStatus, onReorder })`.
 - `ResourceForm({ config, initial, onSubmit, onCancel, pending, error })`.
-- A **resource config** shape: `{ key, label, table, columns, fields: [{ name, label, type, required, help }], listColumns, defaultSort }`, where `type` is one of `text`, `textarea`, `date`, `number`, `select`, `media`.
+- A **resource config**. Tasks 8 and 9 write nothing but these, so the shape is a contract:
+
+```js
+// src/admin/resources/testimonials.js — the simplest one, shown in full so
+// Tasks 8 and 9 have an exact template rather than a description.
+import { makeResourceQueries } from '../../lib/queries/adminContent';
+
+export const testimonialsResource = {
+  key: 'testimonials',
+  label: 'Testimonials',
+  table: 'testimonials',
+  // Columns fetched and written. camelCase in the app, snake_case in Postgres;
+  // makeResourceQueries does the mapping in one place so no screen has to.
+  columns: ['id', 'quote', 'couple', 'event', 'sort_order', 'status'],
+  defaultSort: 'sort_order',
+  // Which columns the list shows, in order.
+  listColumns: [
+    { name: 'couple', label: 'Couple' },
+    { name: 'event', label: 'Event' },
+    { name: 'status', label: 'Status' },
+  ],
+  fields: [
+    {
+      name: 'quote',
+      label: 'Quote',
+      type: 'textarea',
+      required: true,
+      help: 'Use only words someone actually gave you. Never attribute a quote to a real person who did not say it.',
+    },
+    { name: 'couple', label: 'Couple', type: 'text', required: true },
+    { name: 'event', label: 'Event', type: 'text', required: false },
+    { name: 'sortOrder', label: 'Order', type: 'number', required: false },
+  ],
+};
+
+export const testimonialsQueries = makeResourceQueries(
+  testimonialsResource.table,
+  testimonialsResource.columns,
+);
+```
+
+Field `type` is one of `text`, `textarea`, `date`, `number`, `select` (which also carries `options: [{ value, label }]`), or `media` (which renders `MediaPicker` and `UploadField` and stores a media id). `status` is not a field — every resource has it, and `ResourceList` renders the publish toggle from it.
 
 - [ ] **Step 1: Write the failing tests**
 
