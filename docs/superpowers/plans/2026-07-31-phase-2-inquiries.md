@@ -2640,12 +2640,21 @@ async function main() {
   console.log('\na bot filling the honeypot');
   const bot = await post(payload({ email: `bot-${probeEmail}`, website: 'http://spam.example' }));
   check('answers 200 so the bot learns nothing', bot.status === 200);
-  check('stores no row', bot.body?.id === null);
+  // The response is deliberately indistinguishable from a real success — the
+  // id is a freshly generated UUID matching no row, because a fixed sentinel
+  // would let a bot identify the trap by trying it once. So the only way to
+  // check this is to ask the database.
+  check('returns a success-shaped body', bot.body?.ok === true && Boolean(bot.body?.id));
   const { count } = await admin
     .from('inquiries')
     .select('id', { count: 'exact', head: true })
     .eq('email', `bot-${probeEmail}`);
-  check('really stored nothing', count === 0, `${count} rows`);
+  check('stored nothing despite answering 200', count === 0, `${count} rows`);
+
+  console.log('\na body larger than the cap');
+  const oversized = await post(payload({ message: 'x'.repeat(70 * 1024) }));
+  check('returns HTTP 413', oversized.status === 413, `got ${oversized.status}`);
+  check('names PAYLOAD_TOO_LARGE', oversized.body?.error === 'PAYLOAD_TOO_LARGE');
 
   console.log('\nrepeated submissions');
   await admin.from('inquiry_rate_limits').delete().neq('ip_hash', '');
