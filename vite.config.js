@@ -14,6 +14,20 @@ export default defineConfig({
       '@shared': fileURLToPath(new URL('./supabase/functions/_shared', import.meta.url)),
     },
   },
+  build: {
+    rollupOptions: {
+      // Two entries, two bundles. The admin entry pulls in useSession, the
+      // sign-in form, and (from Task 3 onward) the leads dashboard — none of
+      // which a public visitor's browser has any reason to download. Vite/
+      // Rollup code-splits each entry's own imports into its own chunk by
+      // default; naming both here is what makes admin.html exist in the
+      // build at all, since an unlisted HTML file is never a build input.
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        admin: fileURLToPath(new URL('./admin.html', import.meta.url)),
+      },
+    },
+  },
   server: {
     port: 3000,
     open: true
