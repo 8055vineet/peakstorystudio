@@ -1,9 +1,12 @@
 // The only write path to public.inquiries.
 //
-// Anon has no insert privilege on that table (see the Phase 1b RLS migration),
-// so this function — holding the service-role key, which bypasses RLS — is the
-// single door. Client-side validation is a convenience, not a control; every
-// rule is re-checked here.
+// Anon does hold an insert grant on that table; what refuses a direct write is
+// Row Level Security, which is enabled with no insert policy (see the Phase 1b
+// RLS migration). There is no grant-level backstop underneath that policy, so
+// adding even a narrow insert policy would genuinely open the table. This
+// function holds the service-role key, which bypasses RLS, and is the single
+// door. Client-side validation is a convenience, not a control; every rule is
+// re-checked here.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.111.0';
 import { validateInquiry } from '../_shared/inquiry-validation.js';

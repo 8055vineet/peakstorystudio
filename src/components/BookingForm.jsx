@@ -100,6 +100,15 @@ export default function BookingForm() {
   const errors = { ...clientErrors, ...fieldErrors };
   const isSending = status === 'pending';
 
+  // Submitting without a token earns a 403, and the copy for that says the
+  // verification check did not pass — blaming the couple for a widget that
+  // simply had not issued a token yet. That window is real: every failed
+  // attempt calls resetTurnstile(), and a fast second click, or a click
+  // before Cloudflare finishes on first load, lands squarely in it. This is
+  // the client-side twin of the misattribution the server side already fixed
+  // by separating "could not run the check" from "failed the check".
+  const awaitingVerification = isInquiryBackendConfigured && !turnstileToken;
+
   const handleServiceToggle = (service) => {
     setFormData((prev) => ({
       ...prev,
@@ -419,13 +428,18 @@ export default function BookingForm() {
 
                     <button
                       type="submit"
-                      disabled={isSending}
+                      disabled={isSending || awaitingVerification}
                       className="w-full py-4 rounded-xl bg-pitch-900 text-offwhite-50 font-extrabold uppercase tracking-[0.25em] text-xs hover:bg-pitch-800 hover:shadow-xl hover:scale-[1.01] transition-all flex items-center justify-center space-x-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
                     >
                       {isSending ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
                           <span>Sending…</span>
+                        </>
+                      ) : awaitingVerification ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Just a moment…</span>
                         </>
                       ) : (
                         <>

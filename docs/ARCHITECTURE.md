@@ -174,9 +174,14 @@ BookingForm (browser)
   -> Resend (email), best-effort, after the insert
 ```
 
-**The Edge Function is the only door.** `anon` has no `insert` grant on `public.inquiries` — see
-the Phase 1b Row Level Security migration — so a client holding only the anon key cannot write a
-row directly no matter what it sends. `submit-inquiry` holds the service-role key, which bypasses
+**The Edge Function is the only door.** `anon` *does* hold an `insert` grant on
+`public.inquiries` — what stops it is Row Level Security: the table has RLS enabled and no
+`insert` policy, so a direct `POST /rest/v1/inquiries` with the anon key is refused with
+`42501 new row violates row-level security policy`. Be precise about which layer is doing the
+work here, because the two tables this phase touches are defended differently: `inquiries`
+relies on RLS with the grant present, while `inquiry_rate_limits` withholds the grant from
+`anon` entirely. Anyone adding a narrow `insert` policy to `inquiries` should know there is no
+grant-level backstop underneath it. `submit-inquiry` holds the service-role key, which bypasses
 RLS, and is consequently the single place that inserts. Client-side validation
 (`BookingForm` calling the same `validateInquiry` the function calls) exists to give a couple
 immediate, specific feedback; it is not itself a control, because nothing stops a request from

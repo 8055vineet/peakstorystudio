@@ -12,10 +12,14 @@ vi.mock('../../hooks/useInquirySubmission', () => ({
   useInquirySubmission: () => ({ ...hookState, submit, reset }),
 }));
 
+// Mutable so a test can put the widget in the state it occupies on first
+// load and after every reset: mounted, but no token issued yet.
+let turnstileToken = 'test-token';
+
 vi.mock('../../hooks/useTurnstile', () => ({
   useTurnstile: () => ({
     containerRef: { current: null },
-    token: 'test-token',
+    token: turnstileToken,
     ready: true,
     error: null,
     reset: vi.fn(),
@@ -61,10 +65,24 @@ describe('BookingForm', () => {
     submit.mockReset().mockResolvedValue(true);
     reset.mockReset();
     hookState = { status: 'idle', errorCode: null, fieldErrors: {} };
+    turnstileToken = 'test-token';
     // Shared across tests because the module is mocked once. Without this, a
     // later test asserting confetti has NOT fired sees an earlier test's call.
     const confetti = (await import('canvas-confetti')).default;
     confetti.mockClear();
+  });
+
+  it('will not let a couple submit before the widget has issued a token', () => {
+    // Submitting without one earns a 403 whose copy says the verification
+    // check did not pass — blaming the couple for a widget that had simply
+    // not finished. Reachable on first load and after every failed attempt,
+    // since each one resets the widget.
+    turnstileToken = '';
+    render(<BookingForm />);
+
+    const button = screen.getByRole('button', { name: /just a moment/i });
+    expect(button).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /send booking inquiry/i })).not.toBeInTheDocument();
   });
 
   it('shows inline validation and does not submit when fields are invalid', async () => {
