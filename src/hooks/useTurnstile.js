@@ -3,6 +3,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 const SCRIPT_ID = 'cf-turnstile-script';
 
+// How long to wait on a script tag this hook did not create before giving up
+// on it. Only ever applies to the adopted-tag path below.
+const ADOPTED_SCRIPT_TIMEOUT_MS = 10000;
+
 function loadScript() {
   if (typeof document === 'undefined') return Promise.reject(new Error('no document'));
 
@@ -17,8 +21,25 @@ function loadScript() {
     existing.__loadPromise = window.turnstile
       ? Promise.resolve()
       : new Promise((resolve, reject) => {
-        existing.addEventListener('load', resolve);
-        existing.addEventListener('error', () => reject(new Error('Turnstile script failed to load')));
+        // A tag that already finished loading — successfully or not — will
+        // never fire either event again, so listeners alone can leave this
+        // pending forever: no widget, no error, nothing for the couple to
+        // act on. This app shows a splash screen before the form mounts,
+        // which makes "already settled" the likely case rather than the
+        // exotic one, so the wait is bounded and a timeout is reported the
+        // same way a failed load is.
+        const timer = setTimeout(
+          () => reject(new Error('Turnstile script did not load in time')),
+          ADOPTED_SCRIPT_TIMEOUT_MS,
+        );
+        existing.addEventListener('load', () => {
+          clearTimeout(timer);
+          resolve();
+        });
+        existing.addEventListener('error', () => {
+          clearTimeout(timer);
+          reject(new Error('Turnstile script failed to load'));
+        });
       });
     return existing.__loadPromise;
   }
@@ -86,13 +107,18 @@ export function useTurnstile(siteKey) {
 
   const reset = useCallback(() => {
     setToken('');
-    // A widget that has already recovered and issued a fresh token should
-    // not keep reporting the stale error from a prior error-callback — left
-    // set, Task 7 has no way to know the widget is usable again and a
-    // couple who hit one transient error would be blocked from booking at
-    // all.
-    setError(null);
+
+    // Only a widget that exists can clear its own error. When there is one, a
+    // stale error-callback message must go, or a couple who hit one transient
+    // error stays blocked from booking even after the widget recovers.
+    //
+    // When there is no widget the error came from the script failing to load,
+    // and nothing will ever re-raise it. Clearing it there would erase the
+    // only explanation the couple has and leave a silent dead end — no
+    // widget, no message, no way to know why they cannot submit. The form
+    // resets after every attempt, so that would happen on the first retry.
     if (widgetIdRef.current && window.turnstile) {
+      setError(null);
       window.turnstile.reset(widgetIdRef.current);
     }
   }, []);

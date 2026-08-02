@@ -52,6 +52,27 @@ describe('useInquirySubmission', () => {
     expect(result.current.fieldErrors).toEqual({ email: 'bad' });
   });
 
+  it('forwards retryAfterSeconds so the form can say how long to wait', async () => {
+    // The query layer carries this off the 429 body; without the hook passing
+    // it on, the form can only offer an unbounded "try again later".
+    submitInquiry.mockRejectedValue(new InquiryError('RATE_LIMITED', undefined, 900));
+    const { result } = renderHook(() => useInquirySubmission());
+
+    await act(async () => { await result.current.submit(PAYLOAD); });
+
+    expect(result.current.errorCode).toBe('RATE_LIMITED');
+    expect(result.current.retryAfterSeconds).toBe(900);
+  });
+
+  it('leaves retryAfterSeconds undefined for errors that do not carry one', async () => {
+    submitInquiry.mockRejectedValue(new InquiryError('SERVER_ERROR'));
+    const { result } = renderHook(() => useInquirySubmission());
+
+    await act(async () => { await result.current.submit(PAYLOAD); });
+
+    expect(result.current.retryAfterSeconds).toBeUndefined();
+  });
+
   it('treats an unexpected throw as SERVER_ERROR rather than crashing', async () => {
     submitInquiry.mockRejectedValue(new TypeError('boom'));
     const { result } = renderHook(() => useInquirySubmission());
