@@ -1,10 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 
 const useSession = vi.fn();
+const listInquiries = vi.fn();
+const updateInquiryStatus = vi.fn();
 
 vi.mock('../../hooks/useSession', () => ({
   useSession: (...args) => useSession(...args),
+}));
+
+// The default-mounted dashboard (InquiriesDashboard, defined in App.jsx)
+// calls the real useResource hook, which calls these. Mocked here the same
+// way the query module is mocked in src/lib/queries/__tests__/*.test.js, so
+// this stays a test of App.jsx's wiring rather than a network integration
+// test.
+vi.mock('../../lib/queries/adminInquiries', () => ({
+  listInquiries: (...args) => listInquiries(...args),
+  updateInquiryStatus: (...args) => updateInquiryStatus(...args),
+  INQUIRY_STATUSES: ['new', 'contacted', 'booked', 'archived'],
 }));
 
 const { default: App } = await import('../App.jsx');
@@ -19,6 +32,9 @@ const baseState = {
 
 beforeEach(() => {
   useSession.mockReset();
+  listInquiries.mockReset();
+  updateInquiryStatus.mockReset();
+  listInquiries.mockResolvedValue([]);
   baseState.signIn = vi.fn();
   baseState.signOut = vi.fn();
 });
@@ -89,6 +105,34 @@ describe('admin App shell', () => {
 
     expect(screen.getByText('Dashboard content')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign Out' })).toBeInTheDocument();
+  });
+
+  it('mounts the leads dashboard by default when authenticated and no children are supplied', async () => {
+    listInquiries.mockResolvedValue([{
+      id: 'inq-1',
+      name: 'Ananya & Rohan',
+      email: 'ananya@example.test',
+      phone: '+91 98200 00000',
+      weddingDate: '2027-02-14',
+      venue: 'Umaid Bhawan Palace',
+      services: ['Cinematic Film'],
+      message: 'We would love to hear more.',
+      status: 'new',
+      notificationStatus: 'sent',
+      createdAt: '2026-08-01T10:00:00Z',
+    }]);
+    useSession.mockReturnValue({
+      ...baseState,
+      status: 'authenticated',
+      session: { user: { id: 'user-2', email: 'admin@example.test' } },
+      profile: { userId: 'user-2', role: 'admin', displayName: 'Studio Director' },
+    });
+
+    render(<App />);
+
+    expect(screen.getByText(/booking inquiries/i)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Ananya & Rohan')).toBeInTheDocument());
+    expect(listInquiries).toHaveBeenCalled();
   });
 
   it('does not render the dashboard for a status it does not recognise', () => {

@@ -1,6 +1,49 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSession } from '../hooks/useSession';
+import { useResource } from '../hooks/useResource';
+import { listInquiries, updateInquiryStatus } from '../lib/queries/adminInquiries';
 import SignInForm from './SignInForm.jsx';
+import LeadsTable from './LeadsTable.jsx';
+import LeadDetail from './LeadDetail.jsx';
+
+// Owns the leads dashboard's data (via useResource, the generic hook Tasks
+// 7-9 will also use) and which inquiry is selected. Kept private to this
+// file rather than its own component, the same way src/App.jsx composes the
+// public site's sections directly rather than through an extra wrapper —
+// this *is* the top-level stateful composition for the admin app.
+function InquiriesDashboard() {
+  // Memoized so useResource's internal effect (which reloads only when the
+  // `list` function it was given changes) doesn't see a new object identity
+  // on every render and refetch in a loop.
+  const queries = useMemo(() => ({ list: listInquiries, update: updateInquiryStatus }), []);
+  const {
+    items, status, error, reload, mutate,
+  } = useResource(queries);
+  const [selectedId, setSelectedId] = useState(null);
+  const selected = items.find((item) => item.id === selectedId) ?? null;
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+      <div className="lg:col-span-3">
+        <h1 className="font-cinzel text-2xl font-bold text-pitch-900 mb-6">Booking Inquiries</h1>
+        <LeadsTable
+          items={items}
+          status={status}
+          error={error}
+          onRetry={reload}
+          selectedId={selectedId}
+          onSelectLead={setSelectedId}
+        />
+      </div>
+      <div className="lg:col-span-2">
+        <LeadDetail
+          inquiry={selected}
+          onUpdateStatus={(id, nextStatus) => mutate('update', id, nextStatus)}
+        />
+      </div>
+    </div>
+  );
+}
 
 // This component decides only what to RENDER for a given useSession()
 // status. It is not the security boundary — Row Level Security (the
@@ -13,7 +56,7 @@ import SignInForm from './SignInForm.jsx';
 // substitute for RLS if that policy set is ever weakened. It grants
 // nothing; it only decides what a signed-in browser is shown.
 export default function App({
-  children = <p className="text-sm text-charcoal-500">No admin screens are mounted yet.</p>,
+  children = <InquiriesDashboard />,
 }) {
   const {
     status, session, profile, error, signIn, signOut,
