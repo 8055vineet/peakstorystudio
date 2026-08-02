@@ -11,8 +11,12 @@ with work half-finished.
 
 ## Current position
 
-**Phase 1a — Quality foundation** and **Phase 1b — Backend foundation** are complete, tagged
-`v0.2a` and `v0.2b` respectively.
+**Phase 1a — Quality foundation**, **Phase 1b — Backend foundation**, and **Phase 2 —
+Inquiries real** are complete, tagged `v0.2a`, `v0.2b`, and `v0.3` respectively. A submitted
+booking inquiry now reaches Postgres through a dedicated Edge Function, protected by Turnstile
+and a per-visitor rate limit, and is acknowledged to the couple and the studio by email —
+`npm run verify:inquiry` proves the whole path end to end against a real database, and the same
+check runs in CI.
 
 ## Phase and version table
 

@@ -62,3 +62,42 @@ jobs:
             echo "::error::build failed :: $(grep -iE "error|missing|not in sync|failed" /tmp/step.log | head -c 1200 | tr "\n" "⏎")"
             exit 1
           }
+
+  inquiry-e2e:
+    name: Inquiry end-to-end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start Supabase
+        run: supabase start || { echo "::error::supabase start failed"; exit 1; }
+      - name: Serve the Edge Function
+        run: |
+          cp supabase/functions/.env.example supabase/functions/.env.local
+          nohup npm run db:functions > /tmp/functions.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null -X OPTIONS \
+              http://127.0.0.1:54321/functions/v1/submit-inquiry && exit 0
+            sleep 2
+          done
+          echo "::error::Edge Function did not become ready in 120s"
+          cat /tmp/functions.log
+          exit 1
+      - name: Verify a booking inquiry reaches the database
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          export SUPABASE_URL="$API_URL"
+          export SUPABASE_ANON_KEY="$ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          npm run verify:inquiry || {
+            echo "::error::A booking inquiry did not reach the database"
+            cat /tmp/functions.log
+            exit 1
+          }

@@ -36,6 +36,7 @@ landed in 20.11. CI runs Node 22.
 | `npm run db:seed` | `node scripts/seed-db.mjs` | Copies `src/data/weddingData.js` into Postgres. Idempotent — clears content tables first, so re-running does not duplicate. |
 | `npm run db:verify` | `node scripts/verify-db.mjs` | Asserts the Row Level Security policies actually behave. **Not part of `npm test`**, because CI has no Postgres. |
 | `npm run db:functions` | `supabase functions serve --env-file supabase/functions/.env.local` | Serves Edge Functions locally, loading secrets from the git-ignored `supabase/functions/.env.local` (copy it from `supabase/functions/.env.example` first). The process never exits on its own — background it and poll, don't run it in the foreground. |
+| `npm run verify:inquiry` | `node scripts/verify-inquiry.mjs` | End-to-end gate for the booking pipeline: posts real requests at the running `submit-inquiry` function and asserts against Postgres directly, because a 200 response is not evidence a row landed. Requires the database and the function server both running — see [Running the inquiry pipeline locally](#running-the-inquiry-pipeline-locally) below. |
 
 ## Local database
 
@@ -60,6 +61,49 @@ along with `VITE_DATA_SOURCE=supabase`. See [.env.example](.env.example).
 The anon key is meant to be public — it ships in the browser bundle. What constrains it is
 Row Level Security in Postgres, which `npm run db:verify` exists to prove. The service-role
 key is different: it bypasses RLS entirely and must never reach the browser or a committed file.
+
+## Running the inquiry pipeline locally
+
+Since Phase 2 (`v0.3`), the booking form on `#contact` is a real write path, not a static form.
+Making a submission actually land in the database and, past this local setup, in an inbox
+takes three processes and two environment files:
+
+```bash
+npm run db:start                                    # local Supabase, once per session
+cp .env.example .env.local                           # browser: Supabase creds, Turnstile site key
+cp supabase/functions/.env.example supabase/functions/.env.local   # function: Turnstile secret, rate-limit salt
+```
+
+Fill in `.env.local`'s `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from
+`supabase status -o env` (see [Local database](#local-database) above). Both `.env.example`
+files ship Cloudflare's published Turnstile test keys, so the captcha works out of the box with
+no Cloudflare account.
+
+In a second terminal, serve the Edge Function (it never exits on its own — background it):
+
+```bash
+npm run db:functions
+```
+
+Then, in a third terminal:
+
+```bash
+npm run dev
+```
+
+Open `http://localhost:3000/#contact` and submit the form. **Resend is unconfigured locally**
+(`RESEND_API_KEY` is blank in `supabase/functions/.env.example`), so no email is actually sent;
+the function detects this itself and records `notification_status='skipped'` on the row rather
+than treating a missing mail provider as a failed inquiry — the lead is still saved either way.
+
+To check the whole path end to end without a browser — the same check CI runs — with the
+database and function server both up:
+
+```bash
+eval "$(supabase status -o env | sed 's/^/export /')"
+export SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+npm run verify:inquiry
+```
 
 ## Project layout
 
@@ -86,9 +130,10 @@ key is different: it bypasses RLS entirely and must never reach the browser or a
 ├── docs/                # Architecture, component, data-model, design-system, roadmap,
 │                         # known-issues docs, ADRs, and specs (see Documentation below)
 └── scripts/
-    ├── check-docs.mjs   # Documentation consistency checker (see Scripts above)
-    ├── seed-db.mjs      # Copies src/data/weddingData.js into Postgres
-    └── verify-db.mjs    # Asserts the RLS policies actually behave
+    ├── check-docs.mjs      # Documentation consistency checker (see Scripts above)
+    ├── seed-db.mjs         # Copies src/data/weddingData.js into Postgres
+    ├── verify-db.mjs       # Asserts the RLS policies actually behave
+    └── verify-inquiry.mjs  # End-to-end gate for the booking pipeline (see Scripts above)
 ```
 
 There is no router — the entire site is one page, and "navigation" is anchor-link scrolling

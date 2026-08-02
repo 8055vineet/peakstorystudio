@@ -156,6 +156,51 @@ Row Level Security, not client code, is what makes it safe to ship the Supabase 
 browser bundle: Postgres refuses anything the policies do not permit. See
 `supabase/migrations/*_row_level_security.sql` and `npm run db:verify`.
 
+## The inquiry write path
+
+Since Phase 2 (`v0.3`), `BookingForm` is a real write path rather than a form that only reads
+`VITE_DATA_SOURCE`. It runs independently of that flag — a submission reaches the database in
+both `static` and `supabase` mode — because the booking form was never one of the content
+collections `VITE_DATA_SOURCE` switches between; it always writes, regardless of where the rest
+of the page reads from.
+
+A submission travels:
+
+```
+BookingForm (browser)
+  -> useInquirySubmission -> src/lib/queries/inquiries.js -> supabase.functions.invoke(...)
+  -> Edge Function: supabase/functions/submit-inquiry
+  -> Postgres: insert into public.inquiries
+  -> Resend (email), best-effort, after the insert
+```
+
+**The Edge Function is the only door.** `anon` has no `insert` grant on `public.inquiries` — see
+the Phase 1b Row Level Security migration — so a client holding only the anon key cannot write a
+row directly no matter what it sends. `submit-inquiry` holds the service-role key, which bypasses
+RLS, and is consequently the single place that inserts. Client-side validation
+(`BookingForm` calling the same `validateInquiry` the function calls) exists to give a couple
+immediate, specific feedback; it is not itself a control, because nothing stops a request from
+skipping the browser entirely. Every rule is re-checked inside the function against whatever
+arrived on the wire, and the function also runs the checks a browser cannot be trusted to run at
+all: a body-size cap, a honeypot field, an origin-blind rate limit keyed on a hashed IP, and
+Cloudflare Turnstile verification of the submission's captcha token.
+
+Email is separate from the write. `sendInquiryEmails` (`supabase/functions/_shared/email.js`)
+runs only after the insert has already succeeded, and its outcome — `sent`, `failed`, or
+`skipped` (no `RESEND_API_KEY` configured, the default in local development) — is recorded on the
+row's `notification_status` column rather than surfaced as the request's own success or failure.
+A couple who submits a valid inquiry always sees success once the row is saved; an outage at
+Resend costs the studio a notification, not a couple's booking.
+
+**The `@shared` alias.** `vite.config.js` and `supabase/functions/submit-inquiry/index.js` both
+need the same validation rules — what counts as a valid name, email, phone, wedding date, venue,
+and service list — because the client-side check and the server-side check must never quietly
+disagree about what a valid inquiry looks like. Rather than maintain that logic twice, both sides
+import the single module `supabase/functions/_shared/inquiry-validation.js`: the Edge Function
+directly (Supabase's own convention for code a function depends on lives under `_shared/`), and
+the browser bundle via the `@shared` alias `vite.config.js` points at that same directory. One
+file, one set of rules, so the two layers cannot drift apart.
+
 ## Known architectural limits
 
 - **No routing.** There is no router of any kind (no `react-router` or equivalent dependency),
