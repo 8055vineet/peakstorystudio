@@ -14,13 +14,13 @@ const { InquiryError } = await import('../../lib/queries/inquiries');
 const PAYLOAD = { name: 'Ananya & Rohan', email: 'couple@example.com' };
 
 describe('useInquirySubmission', () => {
-  // Async on purpose, not just () => submitInquiry.mockReset(): a synchronous
-  // beforeEach leaves no microtask gap before the next test runs, and in this
-  // Node/Vitest combination that races tinyspy's own settle-tracking on the
-  // reset mock, making a rejection this hook demonstrably catches (verified
-  // with instrumented logging) get reported as unhandled anyway. Returning a
-  // promise here forces the runner to await it, closing the gap.
-  beforeEach(async () => { submitInquiry.mockReset(); });
+  // Block body, not an implicit-return arrow: mockReset() returns the mock
+  // itself, and Vitest treats a beforeEach's returned function as a cleanup
+  // callback to invoke at teardown. An implicit return here would hand it
+  // submitInquiry, which it would then call — replaying whatever rejection
+  // a test had just installed with mockRejectedValue and reporting that as
+  // a failure of its own.
+  beforeEach(() => { submitInquiry.mockReset(); });
 
   it('starts idle', () => {
     const { result } = renderHook(() => useInquirySubmission());
@@ -84,5 +84,72 @@ describe('useInquirySubmission', () => {
     expect(result.current.status).toBe('idle');
     expect(result.current.errorCode).toBeNull();
     expect(result.current.fieldErrors).toEqual({});
+  });
+
+  it('ignores a second submit while the first is still in flight', async () => {
+    let resolve;
+    submitInquiry.mockReturnValue(new Promise((r) => { resolve = r; }));
+    const { result } = renderHook(() => useInquirySubmission());
+
+    let firstOutcome;
+    let secondOutcome;
+    act(() => {
+      result.current.submit(PAYLOAD).then((v) => { firstOutcome = v; });
+    });
+    await waitFor(() => expect(result.current.status).toBe('pending'));
+
+    // The double-click: a second submit while the token from the first has
+    // already been spent. It must not reach the query layer at all — a
+    // second call to Cloudflare with the same token can only fail.
+    await act(async () => { secondOutcome = await result.current.submit(PAYLOAD); });
+
+    expect(submitInquiry).toHaveBeenCalledTimes(1);
+    expect(secondOutcome).toBe(false);
+    expect(result.current.status).toBe('pending');
+
+    await act(async () => { resolve({ id: 'abc' }); });
+    await waitFor(() => expect(result.current.status).toBe('success'));
+    expect(firstOutcome).toBe(true);
+  });
+
+  it('does not let a stale response overwrite state after reset', async () => {
+    let resolve;
+    submitInquiry.mockReturnValue(new Promise((r) => { resolve = r; }));
+    const { result } = renderHook(() => useInquirySubmission());
+
+    act(() => { result.current.submit(PAYLOAD); });
+    await waitFor(() => expect(result.current.status).toBe('pending'));
+
+    act(() => { result.current.reset(); });
+    expect(result.current.status).toBe('idle');
+
+    // The first request's response arrives after the couple has already
+    // moved on (reset ran). It must not resurrect stale state.
+    await act(async () => { resolve({ id: 'abc' }); });
+
+    expect(result.current.status).toBe('idle');
+    expect(result.current.errorCode).toBeNull();
+  });
+
+  it('does not let a stale response overwrite a newer submission', async () => {
+    let resolveFirst;
+    submitInquiry.mockReturnValueOnce(new Promise((r) => { resolveFirst = r; }));
+    const { result } = renderHook(() => useInquirySubmission());
+
+    act(() => { result.current.submit(PAYLOAD); });
+    await waitFor(() => expect(result.current.status).toBe('pending'));
+
+    act(() => { result.current.reset(); });
+
+    submitInquiry.mockRejectedValueOnce(new InquiryError('VALIDATION_FAILED', { email: 'bad' }));
+    await act(async () => { await result.current.submit(PAYLOAD); });
+    await waitFor(() => expect(result.current.status).toBe('error'));
+
+    // The stale first response settles after the second submission has
+    // already reported its own (different) outcome. It must not clobber it.
+    await act(async () => { resolveFirst({ id: 'abc' }); });
+
+    expect(result.current.status).toBe('error');
+    expect(result.current.errorCode).toBe('VALIDATION_FAILED');
   });
 });

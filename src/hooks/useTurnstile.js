@@ -7,7 +7,21 @@ function loadScript() {
   if (typeof document === 'undefined') return Promise.reject(new Error('no document'));
 
   const existing = document.getElementById(SCRIPT_ID);
-  if (existing) return existing.__loadPromise;
+  if (existing) {
+    // Something else — e.g. Cloudflare's own documented <script> tag, hand
+    // placed in index.html — may own this id without ever setting our
+    // tracking expando. Do not assume that means success: check the one
+    // fact we can (whether the global already landed), and otherwise listen
+    // for the outcome rather than dereferencing an undefined promise.
+    if (existing.__loadPromise) return existing.__loadPromise;
+    existing.__loadPromise = window.turnstile
+      ? Promise.resolve()
+      : new Promise((resolve, reject) => {
+        existing.addEventListener('load', resolve);
+        existing.addEventListener('error', () => reject(new Error('Turnstile script failed to load')));
+      });
+    return existing.__loadPromise;
+  }
 
   const script = document.createElement('script');
   script.id = SCRIPT_ID;
@@ -16,7 +30,13 @@ function loadScript() {
   script.defer = true;
   script.__loadPromise = new Promise((resolve, reject) => {
     script.addEventListener('load', resolve);
-    script.addEventListener('error', () => reject(new Error('Turnstile script failed to load')));
+    script.addEventListener('error', () => {
+      // Otherwise this failure is cached forever: every later mount would
+      // reuse the same rejected promise, and a couple on a flaky connection
+      // would have no way to recover short of a full page reload.
+      script.remove();
+      reject(new Error('Turnstile script failed to load'));
+    });
   });
   document.head.appendChild(script);
   return script.__loadPromise;
@@ -66,6 +86,12 @@ export function useTurnstile(siteKey) {
 
   const reset = useCallback(() => {
     setToken('');
+    // A widget that has already recovered and issued a fresh token should
+    // not keep reporting the stale error from a prior error-callback — left
+    // set, Task 7 has no way to know the widget is usable again and a
+    // couple who hit one transient error would be blocked from booking at
+    // all.
+    setError(null);
     if (widgetIdRef.current && window.turnstile) {
       window.turnstile.reset(widgetIdRef.current);
     }

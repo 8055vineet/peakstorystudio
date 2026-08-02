@@ -54,6 +54,23 @@ describe('submitInquiry', () => {
     expect(failure.fields).toEqual({ email: 'bad' });
   });
 
+  it('carries retryAfterSeconds from a 429 response onto the error', async () => {
+    invoke.mockResolvedValue({
+      data: null,
+      error: {
+        context: {
+          json: async () => ({ ok: false, error: 'RATE_LIMITED', retryAfterSeconds: 120 }),
+        },
+      },
+    });
+    const { submitInquiry } = await import('../inquiries.js');
+
+    const failure = await submitInquiry(PAYLOAD).catch((error) => error);
+
+    expect(failure.code).toBe('RATE_LIMITED');
+    expect(failure.retryAfterSeconds).toBe(120);
+  });
+
   it('falls back to NETWORK_ERROR when the error carries no readable body', async () => {
     invoke.mockResolvedValue({ data: null, error: new Error('failed to fetch') });
     const { submitInquiry } = await import('../inquiries.js');

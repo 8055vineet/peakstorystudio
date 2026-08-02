@@ -9,11 +9,14 @@ export const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY ?? '';
 export const isInquiryBackendConfigured = isSupabaseConfigured && Boolean(TURNSTILE_SITE_KEY);
 
 export class InquiryError extends Error {
-  constructor(code, fields) {
+  constructor(code, fields, retryAfterSeconds) {
     super(code);
     this.name = 'InquiryError';
     this.code = code;
     this.fields = fields ?? {};
+    // Only the 429 RATE_LIMITED body carries this; every other caller omits
+    // it and it stays undefined, which Task 7 can treat as "no known wait".
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -36,11 +39,11 @@ export async function submitInquiry(payload) {
 
   if (error) {
     const body = await readErrorBody(error);
-    throw new InquiryError(body?.error ?? 'NETWORK_ERROR', body?.fields);
+    throw new InquiryError(body?.error ?? 'NETWORK_ERROR', body?.fields, body?.retryAfterSeconds);
   }
 
   if (!data?.ok) {
-    throw new InquiryError(data?.error ?? 'SERVER_ERROR', data?.fields);
+    throw new InquiryError(data?.error ?? 'SERVER_ERROR', data?.fields, data?.retryAfterSeconds);
   }
 
   return { id: data.id ?? null };
