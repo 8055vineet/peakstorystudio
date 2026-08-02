@@ -78,6 +78,27 @@ describe('LeadDetail', () => {
     expect(screen.getByRole('button', { name: 'Booked' })).not.toBeDisabled();
   });
 
+  it('tells the admin the change saved but this view is stale, rather than "could not update", when useResource reports written:true', async () => {
+    // useResource.mutate() rejects this way specifically when the write
+    // itself succeeded but the follow-up reload failed — a real state, not
+    // a hypothetical: "could not update" would be false in this case.
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const staleError = new Error('useResource: "update" succeeded, but the list could not be refreshed afterward: network down');
+    staleError.written = true;
+    const onUpdateStatus = vi.fn().mockRejectedValue(staleError);
+    render(<LeadDetail inquiry={INQUIRY} onUpdateStatus={onUpdateStatus} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: 'Booked' }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/saved/i);
+    expect(alert).toHaveTextContent(/reload|refresh/i);
+    // Must NOT read like a failed write — that would tell the admin to
+    // retry an update that already went through.
+    expect(alert).not.toHaveTextContent(/could not update/i);
+  });
+
   it('re-enables the controls once a failed change settles', async () => {
     const { default: userEvent } = await import('@testing-library/user-event');
     const onUpdateStatus = vi.fn().mockRejectedValue(new Error('network down'));

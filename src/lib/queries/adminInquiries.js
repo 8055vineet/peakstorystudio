@@ -1,12 +1,15 @@
 import { supabase } from '../supabase';
+import { INQUIRY_STATUSES } from '@shared/inquiry-status.js';
 
-// Mirrors the CHECK constraint on inquiries.status
-// (supabase/migrations/20260730203451_initial_schema.sql). Exported so
-// LeadDetail can render exactly these four transitions from one source
-// instead of a second, driftable copy of the same list, and so
-// updateInquiryStatus can refuse an unknown value locally before it ever
-// reaches Postgres.
-export const INQUIRY_STATUSES = ['new', 'contacted', 'booked', 'archived'];
+// Re-exported for backward compatibility with existing callers/tests that
+// import it from here, but the definition itself now lives in
+// @shared/inquiry-status.js (a module with no Supabase import), not in this
+// file. LeadDetail.jsx renders its four status buttons by importing
+// straight from that shared module rather than from here, precisely so it
+// does not transitively pull in @supabase/supabase-js just to get a list of
+// four strings — this file is the one that actually needs the Supabase
+// client, LeadDetail never should.
+export { INQUIRY_STATUSES };
 
 // Deliberately excludes `source` — not part of the shape this screen's
 // interface documents, and every row today is 'website' regardless.

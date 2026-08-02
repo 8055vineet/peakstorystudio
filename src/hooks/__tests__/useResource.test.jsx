@@ -102,6 +102,37 @@ describe('useResource', () => {
     expect(result.current.items).toEqual([{ id: '1', status: 'new' }]);
   });
 
+  it('mutate() rejects — marked written:true — when the write succeeds but the follow-up reload fails', async () => {
+    // The write reaching the database and the confirming GET afterward are
+    // two separate network calls; a transient failure can hit the second
+    // without touching the first. Resolving normally here would tell the
+    // caller the screen reflects the write when it does not.
+    list.mockResolvedValueOnce([{ id: '1', status: 'new' }]);
+    const { result } = renderHook(() => useResource({ list, update }));
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+
+    update.mockResolvedValue({ id: '1', status: 'booked' });
+    const reloadFailure = new Error('network down');
+    list.mockRejectedValueOnce(reloadFailure);
+
+    let caught;
+    await act(async () => {
+      await result.current.mutate('update', '1', 'booked').catch((err) => { caught = err; });
+    });
+
+    expect(update).toHaveBeenCalledWith('1', 'booked');
+    // The write itself was attempted (and, per the mock, succeeded) — this
+    // is not the "query itself fails" case above.
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught.written).toBe(true);
+    expect(caught.cause).toBe(reloadFailure);
+    // The hook's own state reflects the failed reload — status flips to
+    // 'error' — which is what lets LeadsTable's error banner reveal the
+    // same problem mutate() is reporting here.
+    expect(result.current.status).toBe('error');
+    expect(result.current.items).toEqual([{ id: '1', status: 'new' }]);
+  });
+
   it('mutate() rejects with no side effects when the named query was not supplied', async () => {
     list.mockResolvedValue([{ id: '1' }]);
     const { result } = renderHook(() => useResource({ list }));

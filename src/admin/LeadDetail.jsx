@@ -1,5 +1,11 @@
 import { useRef, useState } from 'react';
-import { INQUIRY_STATUSES } from '../lib/queries/adminInquiries';
+// Deliberately from the shared, Supabase-free module rather than from
+// ../lib/queries/adminInquiries — that module imports the Supabase client,
+// and this is a presentational component that must not transitively depend
+// on it just to read a list of four strings. See @shared/inquiry-status.js
+// for the full rationale.
+import { INQUIRY_STATUSES } from '@shared/inquiry-status.js';
+import { formatDateOnly } from './formatDate.js';
 
 const STATUS_LABELS = {
   new: 'New',
@@ -18,7 +24,14 @@ const ERROR_ID = 'lead-detail-update-error';
 // this component is capable of showing.
 export default function LeadDetail({ inquiry, onUpdateStatus }) {
   const [updating, setUpdating] = useState(false);
-  const [updateError, setUpdateError] = useState(null);
+  // { message, written } | null. `written` distinguishes two failures
+  // useResource's mutate() can produce: a genuine failed write (written:
+  // false — the status is unchanged, "try again" is the right thing to
+  // say), versus a write that succeeded but whose confirming reload failed
+  // (written: true — the status DID change in the database, this panel
+  // just cannot prove it yet). Telling the admin "could not update" in the
+  // second case would be false; it saved.
+  const [updateFailure, setUpdateFailure] = useState(null);
   // Belt-and-suspenders alongside the `disabled` attribute, same reasoning
   // as useInquirySubmission's pendingRef: React's re-render that disables
   // the buttons is not synchronous with the click handler that started it,
@@ -37,11 +50,14 @@ export default function LeadDetail({ inquiry, onUpdateStatus }) {
     if (pendingRef.current || nextStatus === inquiry.status) return;
     pendingRef.current = true;
     setUpdating(true);
-    setUpdateError(null);
+    setUpdateFailure(null);
     try {
       await onUpdateStatus(inquiry.id, nextStatus);
     } catch (err) {
-      setUpdateError(err?.message || 'Could not update this status. Please try again.');
+      setUpdateFailure({
+        message: err?.message || 'unknown error',
+        written: Boolean(err?.written),
+      });
     } finally {
       pendingRef.current = false;
       setUpdating(false);
@@ -68,7 +84,7 @@ export default function LeadDetail({ inquiry, onUpdateStatus }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <h3 className="text-xs uppercase tracking-widest text-charcoal-500 font-bold mb-1">Wedding Date</h3>
-          <p className="text-sm text-pitch-900">{inquiry.weddingDate || 'Not specified'}</p>
+          <p className="text-sm text-pitch-900">{formatDateOnly(inquiry.weddingDate) || 'Not specified'}</p>
         </div>
         <div>
           <h3 className="text-xs uppercase tracking-widest text-charcoal-500 font-bold mb-1">Venue</h3>
@@ -121,9 +137,11 @@ export default function LeadDetail({ inquiry, onUpdateStatus }) {
             );
           })}
         </div>
-        {updateError && (
+        {updateFailure && (
           <p id={ERROR_ID} role="alert" className="mt-3 text-xs font-semibold text-pitch-900">
-            Could not update status: {updateError}. Please try again.
+            {updateFailure.written
+              ? `The status change saved, but this screen could not refresh to confirm it (${updateFailure.message}). Reload to check.`
+              : `Could not update status: ${updateFailure.message}. Please try again.`}
           </p>
         )}
       </div>

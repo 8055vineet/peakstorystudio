@@ -36,7 +36,10 @@ describe('LeadsTable', () => {
     render(<LeadsTable items={ITEMS} status="ready" error={null} onRetry={vi.fn()} onSelectLead={vi.fn()} />);
 
     expect(screen.getByText('Ananya & Rohan')).toBeInTheDocument();
-    expect(screen.getByText('2027-02-14')).toBeInTheDocument();
+    // Formatted, not the raw ISO string — and in the same "Mon D, YYYY"
+    // convention as the Submitted column below, not two different date
+    // formats in one row.
+    expect(screen.getByText('Feb 14, 2027')).toBeInTheDocument();
     expect(screen.getByText('Umaid Bhawan Palace')).toBeInTheDocument();
     expect(screen.getByText(/Aug 1, 2026/)).toBeInTheDocument();
     expect(screen.getByText('new')).toBeInTheDocument();
@@ -59,6 +62,35 @@ describe('LeadsTable', () => {
     render(<LeadsTable items={items} status="ready" error={null} onRetry={vi.fn()} onSelectLead={vi.fn()} />);
 
     expect(screen.getByText(/not notified/i)).toBeInTheDocument();
+  });
+
+  it('styles a pending notification_status distinctly from a sent one — not the same quiet badge', () => {
+    // submit-inquiry writes notification_status AFTER inserting the row,
+    // and only on success — a function that dies in between (or any future
+    // caller that forgets the write) leaves a row at 'pending' forever.
+    // Meant to last milliseconds; on a stale row it carries the same
+    // "nobody knows if the studio was told" urgency as 'failed', so it must
+    // not read the same as a confirmed 'sent'.
+    const items = [
+      { ...ITEMS[0], notificationStatus: 'pending' },
+      { ...ITEMS[1], notificationStatus: 'sent', status: 'new' },
+    ];
+    render(<LeadsTable items={items} status="ready" error={null} onRetry={vi.fn()} onSelectLead={vi.fn()} />);
+
+    const pendingBadge = screen.getByText(/pending/i);
+    const sentBadge = screen.getByText('Notified');
+    expect(pendingBadge).toBeInTheDocument();
+    expect(sentBadge).toBeInTheDocument();
+    // Not the same wording...
+    expect(pendingBadge.textContent).not.toBe(sentBadge.textContent);
+    // ...and not the same visual treatment either — this is the whole
+    // point, not an incidental detail.
+    expect(pendingBadge.className).not.toBe(sentBadge.className);
+    // Nor should it borrow the "definitely never told" failed/skipped
+    // treatment — 'pending' means "not confirmed either way", a distinct
+    // third state.
+    expect(pendingBadge.className).not.toContain('bg-pitch-900');
+    expect(screen.queryByText(/not notified/i)).not.toBeInTheDocument();
   });
 
   it('filters the rendered rows by status', async () => {

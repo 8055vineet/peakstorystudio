@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Clock } from 'lucide-react';
+import { formatDateOnly, formatTimestamp } from './formatDate.js';
 
 const STATUS_FILTER_OPTIONS = [
   { value: '', label: 'All Statuses' },
@@ -11,18 +12,21 @@ const STATUS_FILTER_OPTIONS = [
 
 const FILTER_ID = 'leads-status-filter';
 
-function formatSubmittedDate(iso) {
-  const parsed = iso ? new Date(iso) : null;
-  if (!parsed || Number.isNaN(parsed.getTime())) return '—';
-  return parsed.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-// notification_status is the reason this whole screen exists: 'failed' and
-// 'skipped' both mean a real inquiry arrived and the studio was never
-// emailed about it. That case gets a solid, filled badge — not a muted pill
-// among the others — so it cannot be scanned past. 'sent'/'pending' share
-// one quiet, outlined treatment because neither is something anyone needs
-// to act on.
+// notification_status is the reason this whole screen exists: it is the
+// only record of whether the studio was actually told about a lead. Three
+// distinct treatments, not two:
+//   - 'failed'/'skipped' — the studio was DEFINITELY never told. Solid,
+//     filled, impossible to scan past.
+//   - 'pending' — the studio does not yet know either way. Written by
+//     submit-inquiry BEFORE the notification attempt, and only updated
+//     to sent/failed AFTER it — a function that dies in between (or a
+//     future caller that forgets to set it) leaves a row at 'pending'
+//     forever. This is meant to last milliseconds; on a row sitting for
+//     hours it carries the same "go find out" urgency as 'failed', so it
+//     gets its own visibly-unconfirmed treatment, not the quiet one
+//     'sent' gets.
+//   - 'sent' — confirmed delivered. The only status that earns the quiet
+//     badge.
 function NotificationBadge({ notificationStatus }) {
   if (notificationStatus === 'failed' || notificationStatus === 'skipped') {
     return (
@@ -32,9 +36,17 @@ function NotificationBadge({ notificationStatus }) {
       </span>
     );
   }
+  if (notificationStatus === 'pending') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-gold-500 text-gold-600 text-[10px] uppercase tracking-widest font-bold">
+        <Clock className="w-3.5 h-3.5" aria-hidden="true" />
+        Notification Pending
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center px-2.5 py-1 rounded-full border border-pitch-900/15 text-charcoal-700 text-[10px] uppercase tracking-widest font-semibold">
-      {notificationStatus === 'sent' ? 'Notified' : 'Pending'}
+      Notified
     </span>
   );
 }
@@ -126,9 +138,9 @@ export default function LeadsTable({
                 className={`border-b border-pitch-900/10 ${item.id === selectedId ? 'bg-offwhite-200' : ''}`}
               >
                 <td className="py-3 pr-4 font-semibold text-pitch-900">{item.name}</td>
-                <td className="py-3 pr-4 text-charcoal-700">{item.weddingDate || '—'}</td>
+                <td className="py-3 pr-4 text-charcoal-700">{formatDateOnly(item.weddingDate) || '—'}</td>
                 <td className="py-3 pr-4 text-charcoal-700">{item.venue || '—'}</td>
-                <td className="py-3 pr-4 text-charcoal-700">{formatSubmittedDate(item.createdAt)}</td>
+                <td className="py-3 pr-4 text-charcoal-700">{formatTimestamp(item.createdAt) || '—'}</td>
                 <td className="py-3 pr-4 text-charcoal-700 capitalize">{item.status}</td>
                 <td className="py-3 pr-4"><NotificationBadge notificationStatus={item.notificationStatus} /></td>
                 <td className="py-3 pr-4">

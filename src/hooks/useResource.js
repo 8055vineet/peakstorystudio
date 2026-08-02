@@ -10,6 +10,28 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 // `items` only ever changes to what queries.list() most recently returned,
 // never to a value this hook fabricates from an update's arguments. A row
 // stays showing its old data until the database confirms otherwise.
+//
+// CONSTRAINT — one hook instance per resource, always. `queries` is only
+// ever read through a ref (see queriesRef below), and nothing in this file
+// treats "the queries object's identity changed" as "go fetch again" — the
+// mount effect that calls reload() runs exactly once, on mount, full stop.
+// That is deliberate: a caller re-creating an equivalent { list, update }
+// object on every render (a completely normal thing to do without
+// memoizing it) must not cause a refetch loop. The cost of that choice is
+// that swapping `queries` to point at a genuinely *different* resource —
+// e.g. the same mounted hook instance handed weddings' queries first and
+// testimonials' queries later — does NOT refetch either. `items` keeps
+// showing the first resource's rows at status 'ready'; the second
+// resource's list() is never even called. Confirmed by swapping `list`
+// between two mocked resources mid-test and observing the second is never
+// invoked and `items` never changes.
+//
+// So: a tabbed admin screen covering several content types must give each
+// tab's content type its own useResource() call — a separate component (so
+// each one mounts/unmounts with its own effect), or a `key` prop on
+// whichever component calls this hook that changes when the resource does,
+// forcing a remount. Never reuse one mounted useResource() call across more
+// than one resource.
 export function useResource(queries) {
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState('loading');
@@ -33,6 +55,11 @@ export function useResource(queries) {
   // overwrite it.
   const generationRef = useRef(0);
 
+  // Returns { ok: true } or { ok: false, error } — not just void. mutate()
+  // below needs to know whether the fetch that's supposed to confirm its
+  // write actually happened, and "call reload() and hope" is exactly how a
+  // failed post-write refresh went unnoticed before this return value
+  // existed.
   const reload = useCallback(async () => {
     const generation = ++generationRef.current;
     setStatus('loading');
@@ -43,6 +70,7 @@ export function useResource(queries) {
         setStatus('ready');
         setError(null);
       }
+      return { ok: true };
     } catch (err) {
       // Deliberately does not touch `items` — the last known-good list
       // stays on screen. A failed refresh reads as "could not load", not
@@ -51,6 +79,7 @@ export function useResource(queries) {
         setStatus('error');
         setError(err);
       }
+      return { ok: false, error: err };
     }
   }, []);
 
@@ -78,7 +107,24 @@ export function useResource(queries) {
       throw new Error(`useResource: no query named "${name}" was supplied`);
     }
     const result = await fn(...args);
-    await reload();
+    const outcome = await reload();
+    if (!outcome.ok) {
+      // The write itself succeeded — this is not a failed mutation, and
+      // `result` really is the database's confirmation of it — but the
+      // follow-up fetch that was supposed to bring `items` up to date
+      // failed, so the screen this resolves into is stale. Resolving
+      // normally here would tell the caller "you're looking at what
+      // happened," which is false: reject instead, so a caller with only
+      // a success/failure branch still lands on the honest one. `written`
+      // distinguishes this from a genuine mutation failure for any caller
+      // that wants to say something more specific than "could not update."
+      const staleError = new Error(
+        `useResource: "${name}" succeeded, but the list could not be refreshed afterward: ${outcome.error?.message ?? 'unknown error'}`,
+      );
+      staleError.cause = outcome.error;
+      staleError.written = true;
+      throw staleError;
+    }
     return result;
   }, [reload]);
 
