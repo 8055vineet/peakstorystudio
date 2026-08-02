@@ -2223,7 +2223,9 @@ describe('BookingForm', () => {
 
   it.each([
     ['RATE_LIMITED', /too many/i],
-    ['CAPTCHA_FAILED', /verification/i],
+    ['CAPTCHA_FAILED', /did not pass/i],
+    ['CAPTCHA_UNAVAILABLE', /this is on us, not you/i],
+    ['PAYLOAD_TOO_LARGE', /longer than the form can send/i],
     ['NETWORK_ERROR', /could not reach/i],
     ['BACKEND_UNCONFIGURED', /not accepting/i],
   ])('explains %s and always offers a way through', async (code, pattern) => {
@@ -2293,11 +2295,18 @@ import { isInquiryBackendConfigured, TURNSTILE_SITE_KEY } from '../lib/queries/i
 import { STUDIO_PHONE, STUDIO_EMAIL, STUDIO_ADDRESS } from '../data/contact';
 import { validateInquiry, SERVICES } from '@shared/inquiry-validation.js';
 
+// Every one of these ends by offering another way through, because the panel
+// they appear in is the last thing standing between a couple and giving up.
+// CAPTCHA_UNAVAILABLE is deliberately worded so it does not blame the visitor:
+// on that path the check never ran, so telling them they failed it is both
+// untrue and the likeliest moment to lose a booking.
 const ERROR_COPY = {
   VALIDATION_FAILED: 'Some details need another look — see the notes above.',
   RATE_LIMITED: 'Too many inquiries from this connection just now. Please wait a few minutes, or reach us directly.',
   CAPTCHA_FAILED: 'The verification check did not pass. Please reload the page and try again.',
+  CAPTCHA_UNAVAILABLE: 'Our verification service is temporarily unreachable — this is on us, not you. Please reach us directly and we will pick it up straight away.',
   CAPTCHA_NOT_CONFIGURED: 'The form is temporarily unavailable. Please reach us directly.',
+  PAYLOAD_TOO_LARGE: 'That message is longer than the form can send. Please shorten it, or reach us directly.',
   BACKEND_UNCONFIGURED: 'The form is not accepting inquiries at the moment. Please reach us directly.',
   NETWORK_ERROR: 'We could not reach the studio just now. Please check your connection, or reach us directly.',
   SERVER_ERROR: 'Something went wrong on our side. Please reach us directly and we will pick it up.',
