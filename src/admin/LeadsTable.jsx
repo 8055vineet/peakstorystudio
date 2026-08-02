@@ -37,16 +37,36 @@ function NotificationBadge({ notificationStatus }) {
     );
   }
   if (notificationStatus === 'pending') {
+    // pitch-900 text rather than gold-600: gold on offwhite measures about
+    // 3.7:1, under the 4.5:1 AA floor for text this small. The gold border
+    // and the clock icon still carry the signal — meaning is not left to
+    // colour alone — but the words themselves have to be readable by
+    // someone who is not already looking for them.
     return (
-      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-gold-500 text-gold-600 text-[10px] uppercase tracking-widest font-bold">
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-gold-500 text-pitch-900 text-[10px] uppercase tracking-widest font-bold">
         <Clock className="w-3.5 h-3.5" aria-hidden="true" />
         Notification Pending
       </span>
     );
   }
+  if (notificationStatus === 'sent') {
+    return (
+      <span className="inline-flex items-center px-2.5 py-1 rounded-full border border-pitch-900/15 text-charcoal-700 text-[10px] uppercase tracking-widest font-semibold">
+        Notified
+      </span>
+    );
+  }
+  // Anything unrecognised — a null column, a value added to the CHECK
+  // constraint that nobody taught this component about — takes the
+  // unresolved treatment, not the reassuring one. Claiming a booking was
+  // notified because the value was unfamiliar is the same mistake as
+  // granting admin because a permission check errored: do not decide from
+  // ignorance, and when the two errors are "chase a lead you already saw"
+  // versus "never chase one at all", default to the cheap one.
   return (
-    <span className="inline-flex items-center px-2.5 py-1 rounded-full border border-pitch-900/15 text-charcoal-700 text-[10px] uppercase tracking-widest font-semibold">
-      Notified
+    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 border-gold-600 text-pitch-900 text-[10px] uppercase tracking-widest font-bold">
+      <Clock className="w-3.5 h-3.5" aria-hidden="true" />
+      Notification Unknown
     </span>
   );
 }

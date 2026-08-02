@@ -14,7 +14,15 @@ describe('formatDateOnly', () => {
 
   describe('does not shift the day in a timezone west of Greenwich', () => {
     const originalTz = process.env.TZ;
-    afterEach(() => { process.env.TZ = originalTz; });
+    afterEach(() => {
+      // Assigning back an undefined original coerces to the STRING
+      // "undefined", which is not a zone — every later test in the file
+      // then runs under a resolved timezone of undefined rather than the
+      // one it started in. Delete instead of assigning when there was
+      // nothing there.
+      if (originalTz === undefined) delete process.env.TZ;
+      else process.env.TZ = originalTz;
+    });
 
     it('renders Jan 1 as Jan 1 under UTC-10 — the exact bug new Date(dateOnlyString) reintroduces', () => {
       // The historical bug this guards against: new Date('2027-01-01')

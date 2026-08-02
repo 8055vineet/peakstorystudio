@@ -37,5 +37,13 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.js'],
     css: false,
+    // Pin the zone the suite runs in. Several assertions render a
+    // timestamptz and compare the result, which is only stable if every
+    // machine agrees on the local zone — otherwise the suite is green on
+    // UTC CI runners and red for a developer at UTC+13 or +14, for a
+    // reason that has nothing to do with their change. Timezone CORRECTNESS
+    // is proved separately, by the formatDateOnly tests that deliberately
+    // flip TZ across four zones.
+    env: { TZ: 'UTC' },
   },
 })
