@@ -19,8 +19,10 @@ export default defineConfig({
       // "import('npm:aws4fetch@1.0.20')"` throws
       // ERR_UNSUPPORTED_ESM_URL_SCHEME), so without this alias Vitest cannot
       // load that module at all and the presign tests can never run. The
-      // devDependency below pins the same 1.0.20 the function imports, so
-      // this alias only ever resolves to the exact code under test.
+      // devDependency is pinned to exactly 1.0.20 — no caret — because the
+      // function's import is exact: a range would let `npm update` quietly
+      // test one version while deploying another, and the whole point of
+      // this alias is that the tests exercise the code the function runs.
       'npm:aws4fetch@1.0.20': 'aws4fetch',
     },
   },

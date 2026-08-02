@@ -40,7 +40,7 @@ Edge Function (`supabase/functions/.env.local`, never committed):
 
 | Name | Purpose |
 | --- | --- |
-| `S3_ENDPOINT` | `http://kong:8000/storage/v1/s3` locally; the R2 endpoint in production |
+| `S3_ENDPOINT` | `STORAGE_S3_URL` verbatim (`http://127.0.0.1:54321/storage/v1/s3`) locally; the R2 endpoint in production. **Not** an internal container hostname: presigning does no network I/O, and the host is part of what gets signed, so the URL must name a host the *browser* can reach — the browser performs the `PUT`, not the function. Signing against `kong:8000` yields `SignatureDoesNotMatch`; verified. |
 | `S3_REGION` | `local` locally; `auto` for R2 |
 | `S3_BUCKET` | Bucket name |
 | `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | From `supabase status -o env` locally; an R2 API token in production |
@@ -405,7 +405,11 @@ export async function presignPut({
 }
 ```
 
-Because `signQuery` puts the signature in the query string, the browser's later `PUT` must send **the same `Content-Type`** it was signed with or the signature will not match. Say so in a comment — it is the most likely upload failure and the error S3 returns for it is opaque.
+Send the same `Content-Type` on the later `PUT` that was signed here, and say so in a comment.
+
+Be accurate about why, though: against local Supabase storage this was tested and a mismatched `Content-Type` **does not** break the signature, because `aws4fetch` signs only `host` — `X-Amz-SignedHeaders=host`. A `text/plain` `PUT` to a URL signed for a JPEG succeeded. Keep matching them anyway, because R2 has not been tested and other S3 implementations do sign the header, but do not write a comment asserting a failure mode nobody has observed here.
+
+Note also what this means for what actually lands in the bucket: the allowlist gates *who gets a URL*, not what the browser then stores under it. The stored object's content type is whatever the `PUT` sends. That matters when Phase 4 configures public serving.
 
 - [ ] **Step 3: Write the function**
 
