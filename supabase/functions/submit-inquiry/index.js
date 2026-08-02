@@ -8,6 +8,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.111.0';
 import { validateInquiry } from '../_shared/inquiry-validation.js';
 import { verifyTurnstile } from '../_shared/turnstile.js';
+import { sendInquiryEmails } from '../_shared/email.js';
 
 const allowedOrigins = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
   .split(',')
@@ -396,5 +397,24 @@ Deno.serve(async (req) => {
     return json(500, { ok: false, error: 'SERVER_ERROR' }, origin);
   }
 
+  const { status } = await sendInquiryEmails(
+    { ...value, id: data.id },
+    {
+      apiKey: Deno.env.get('RESEND_API_KEY'),
+      fromAddress: Deno.env.get('RESEND_FROM'),
+      studioEmail: Deno.env.get('STUDIO_NOTIFY_EMAIL'),
+    },
+  );
+
+  const { error: statusError } = await db
+    .from('inquiries')
+    .update({ notification_status: status })
+    .eq('id', data.id);
+
+  if (statusError) {
+    console.error('submit-inquiry: could not record notification status', statusError.message);
+  }
+
+  // The row is saved. Whatever happened to the email, this inquiry succeeded.
   return json(200, { ok: true, id: data.id }, origin);
 });
