@@ -32,11 +32,16 @@ vi.mock('../../lib/queries/inquiries', () => ({
 // This also makes the left contact column's WhatsAppButton render on every
 // test in this file, which is why the prefill test below scopes its query to
 // the error panel rather than asking for "the" WhatsApp link.
-vi.mock('../../data/contact', () => ({
-  STUDIO_PHONE: '+91 98200 37027',
-  STUDIO_EMAIL: 'inquiries@peakstorystudio.com',
-  STUDIO_ADDRESS: '241 Laxmi Plaza, Andheri (W), Mumbai, India',
-  WHATSAPP_NUMBER: '919820037027',
+// Only WHATSAPP_NUMBER is overridden, and it is sourced from an environment
+// variable so a fresh clone renders no WhatsApp button at all. The rest come
+// from the real module on purpose: src/data/contact.js exists to be the one
+// file Phase 7 corrects when the studio confirms its details, and a second
+// copy here would quietly defeat that. The stand-in number is deliberately
+// not a plausible one — nothing in this repo should read as a real contact
+// number that nobody has verified.
+vi.mock('../../data/contact', async (importOriginal) => ({
+  ...await importOriginal(),
+  WHATSAPP_NUMBER: '10000000000',
 }));
 
 const { default: BookingForm } = await import('../BookingForm.jsx');
@@ -204,7 +209,11 @@ describe('BookingForm', () => {
     // render, so an unscoped query would be ambiguous once both are present.
     const link = container.querySelector('[role="alert"] a[href^="https://wa.me/"]');
     expect(link).not.toBeNull();
-    const message = decodeURIComponent(new URL(link.getAttribute('href')).searchParams.get('text'));
+    // searchParams.get already decodes once. Decoding its result again would
+    // make this assertion pass against a double-encoded href too, which is
+    // precisely the bug worth catching — a couple would then see literal
+    // %26 in WhatsApp instead of the ampersand in their own names.
+    const message = new URL(link.getAttribute('href')).searchParams.get('text');
     expect(message).toContain('Ananya & Rohan');
     expect(message).toContain('2027-02-14');
     expect(message).toContain('Umaid Bhawan Palace');

@@ -8,6 +8,8 @@ export const STUDIO_PHONE = '+91 98200 37027';
 export const STUDIO_EMAIL = 'inquiries@peakstorystudio.com';
 export const STUDIO_ADDRESS = '241 Laxmi Plaza, Andheri (W), Mumbai, India';
 
-// Digits only, country code first, e.g. 919820037027. Unset means the
-// WhatsApp button does not render at all, so no unconfirmed number ships.
+// Digits only, country code first — an Indian mobile takes the form 91
+// followed by the ten-digit number, with no spaces, plus, or punctuation.
+// Unset means the WhatsApp button does not render at all, so no unconfirmed
+// number ships.
 export const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER ?? '';
