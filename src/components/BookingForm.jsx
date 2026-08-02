@@ -26,13 +26,36 @@ const ERROR_COPY = {
   SERVER_ERROR: 'Something went wrong on our side. Please reach us directly and we will pick it up.',
 };
 
+// "about 60 minutes" is technically correct and not what a person would say.
+// Below an hour, minutes read naturally; at or above it, switch to hours
+// (rounded to the nearest, floor of one) so a long wait still sounds like
+// something a human would tell another human.
+function formatWait(retryAfterSeconds) {
+  const minutes = Math.ceil(retryAfterSeconds / 60);
+  if (minutes >= 60) {
+    const hours = Math.max(1, Math.round(minutes / 60));
+    return hours > 1 ? `about ${hours} hours` : 'about an hour';
+  }
+  return minutes > 1 ? `about ${minutes} minutes` : 'about a minute';
+}
+
 function errorMessage(errorCode, retryAfterSeconds) {
   if (errorCode === 'RATE_LIMITED' && Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
-    const minutes = Math.ceil(retryAfterSeconds / 60);
-    const wait = minutes > 1 ? `about ${minutes} minutes` : 'about a minute';
-    return `Too many inquiries from this connection just now. Please wait ${wait}, or reach us directly.`;
+    return `Too many inquiries from this connection just now. Please wait ${formatWait(retryAfterSeconds)}, or reach us directly.`;
   }
   return ERROR_COPY[errorCode] ?? ERROR_COPY.SERVER_ERROR;
+}
+
+// Built from what the couple already typed, so a failed submission does not
+// mean retyping everything into WhatsApp at the exact moment they are most
+// likely to give up. Each line is guarded so a half-filled form does not
+// produce a message with dangling gaps ("Wedding date: " and nothing after).
+function buildFailureMessage({ name, weddingDate, venue }) {
+  const lines = ["Hi Peak Story Studio, our booking inquiry form didn't go through."];
+  if (name) lines.push(`Couple: ${name}`);
+  if (weddingDate) lines.push(`Wedding date: ${weddingDate}`);
+  if (venue) lines.push(`Venue: ${venue}`);
+  return lines.join('\n');
 }
 
 const EMPTY_FORM = {
@@ -199,17 +222,40 @@ export default function BookingForm() {
                     </button>
                   </div>
                 ) : (
-                  <form onSubmit={handleSubmit} className="space-y-6 relative">
+                  // noValidate: validateInquiry (shared with the server) is the
+                  // single source of truth for what a valid inquiry looks like.
+                  // Without this, native constraint validation on type="email"
+                  // fires before the submit event and blocks it outright — no
+                  // handleSubmit, no inline message, just the browser's own
+                  // bubble. That disagreement runs the wrong way for this
+                  // studio's customers: an address like कपल@example.com passes
+                  // validateInquiry but Chrome rejects it, so a couple writing
+                  // in an Indian language would be blocked by a rule the form's
+                  // own validator would have accepted. Do not remove this.
+                  <form onSubmit={handleSubmit} noValidate className="space-y-6 relative">
 
-                    {/* Not visible to people. Anything typed here came from a bot. */}
-                    <div className="absolute w-px h-px -m-px overflow-hidden" aria-hidden="true">
+                    {/* Not visible to people. The input itself is taken out of
+                        layout and given no visible size — off-screen with zero
+                        opacity, not display:none or visibility:hidden, since
+                        many spam bots skip fields hidden that way, which would
+                        defeat the trap. Styling only this wrapper is not
+                        enough: a field that keeps its own full-size bounding
+                        box can still be reached by autofill heuristics that
+                        measure the input rather than an ancestor's clipping —
+                        and a filled honeypot reads as a bot submission, which
+                        the Edge Function discards silently with a
+                        success-shaped response, so that would lose a real
+                        couple's inquiry without a trace. */}
+                    <div aria-hidden="true">
                       <input
                         type="text"
                         name="website"
                         tabIndex={-1}
                         autoComplete="off"
+                        aria-hidden="true"
                         value={formData.website}
                         onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                        className="absolute -left-[9999px] top-0 w-px h-px opacity-0 overflow-hidden"
                       />
                     </div>
 
@@ -404,7 +450,7 @@ export default function BookingForm() {
                           </a>{' '}
                           and we will reply to your inquiry directly.
                         </p>
-                        <WhatsAppButton />
+                        <WhatsAppButton message={buildFailureMessage(formData)} />
                       </div>
                     )}
 

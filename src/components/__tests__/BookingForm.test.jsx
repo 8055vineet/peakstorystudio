@@ -27,6 +27,18 @@ vi.mock('../../lib/queries/inquiries', () => ({
   TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
 }));
 
+// A real number, so WhatsAppButton actually renders (it renders nothing when
+// unset) and the failure-panel prefill test below has a link to inspect.
+// This also makes the left contact column's WhatsAppButton render on every
+// test in this file, which is why the prefill test below scopes its query to
+// the error panel rather than asking for "the" WhatsApp link.
+vi.mock('../../data/contact', () => ({
+  STUDIO_PHONE: '+91 98200 37027',
+  STUDIO_EMAIL: 'inquiries@peakstorystudio.com',
+  STUDIO_ADDRESS: '241 Laxmi Plaza, Andheri (W), Mumbai, India',
+  WHATSAPP_NUMBER: '919820037027',
+}));
+
 const { default: BookingForm } = await import('../BookingForm.jsx');
 
 async function fillValidForm(user) {
@@ -156,5 +168,64 @@ describe('BookingForm', () => {
     expect(honeypot).not.toBeNull();
     expect(honeypot).toHaveAttribute('tabindex', '-1');
     expect(honeypot).toHaveAttribute('autocomplete', 'off');
+    expect(honeypot).toHaveAttribute('aria-hidden', 'true');
+    // display:none / visibility:hidden would let a spam bot's own client-side
+    // rendering skip the field entirely, defeating the trap — the input must
+    // stay "visible" to a non-CSS-aware bot while being unreachable to a
+    // person (off-screen position + zero opacity, asserted below via class).
+    expect(honeypot.className).not.toMatch(/(?:^|\s)hidden(?:\s|$)/);
+    expect(honeypot.className).not.toMatch(/(?:^|\s)invisible(?:\s|$)/);
+    expect(honeypot.className).toMatch(/opacity-0/);
+  });
+
+  it('disables native browser form validation so validateInquiry is the only source of truth', () => {
+    // Without noValidate, type="email" triggers the browser's own constraint
+    // validation before the submit event fires — no handleSubmit call, no
+    // inline message, just a native bubble. jsdom does not implement that
+    // validation, so it cannot fail this test the way it fails in a real
+    // browser; this assertion is the only thing standing between a future
+    // edit and silently reintroducing that gap.
+    const { container } = render(<BookingForm />);
+    const form = container.querySelector('form');
+
+    expect(form).toHaveAttribute('novalidate');
+  });
+
+  it('prefills the WhatsApp link on the failure panel with what the couple already typed', async () => {
+    const user = userEvent.setup();
+    const { container, rerender } = render(<BookingForm />);
+    await fillValidForm(user);
+
+    hookState = { status: 'error', errorCode: 'SERVER_ERROR', fieldErrors: {} };
+    rerender(<BookingForm />);
+
+    // Scoped to the error panel, not "the" WhatsApp link — the left contact
+    // column renders its own (with the generic default message) on every
+    // render, so an unscoped query would be ambiguous once both are present.
+    const link = container.querySelector('[role="alert"] a[href^="https://wa.me/"]');
+    expect(link).not.toBeNull();
+    const message = decodeURIComponent(new URL(link.getAttribute('href')).searchParams.get('text'));
+    expect(message).toContain('Ananya & Rohan');
+    expect(message).toContain('2027-02-14');
+    expect(message).toContain('Umaid Bhawan Palace');
+  });
+
+  it('says "about an hour" rather than "about 60 minutes" once the wait crosses an hour', () => {
+    hookState = {
+      status: 'error', errorCode: 'RATE_LIMITED', fieldErrors: {}, retryAfterSeconds: 3600,
+    };
+    render(<BookingForm />);
+
+    expect(screen.getByText(/about an hour/i)).toBeInTheDocument();
+    expect(screen.queryByText(/60 minutes/i)).not.toBeInTheDocument();
+  });
+
+  it('still counts in minutes below an hour', () => {
+    hookState = {
+      status: 'error', errorCode: 'RATE_LIMITED', fieldErrors: {}, retryAfterSeconds: 300,
+    };
+    render(<BookingForm />);
+
+    expect(screen.getByText(/about 5 minutes/i)).toBeInTheDocument();
   });
 });
