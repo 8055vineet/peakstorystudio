@@ -12,6 +12,16 @@ export default defineConfig({
       // pointing at it here costs nothing at deploy time and keeps one copy of
       // the rules instead of two that drift.
       '@shared': fileURLToPath(new URL('./supabase/functions/_shared', import.meta.url)),
+      // supabase/functions/_shared/s3-presign.js imports 'npm:aws4fetch@1.0.20'
+      // — Deno's syntax for an npm package, which the Edge Function runtime
+      // resolves on its own. Node has no built-in understanding of an
+      // 'npm:' specifier (confirmed directly: `node --input-type=module -e
+      // "import('npm:aws4fetch@1.0.20')"` throws
+      // ERR_UNSUPPORTED_ESM_URL_SCHEME), so without this alias Vitest cannot
+      // load that module at all and the presign tests can never run. The
+      // devDependency below pins the same 1.0.20 the function imports, so
+      // this alias only ever resolves to the exact code under test.
+      'npm:aws4fetch@1.0.20': 'aws4fetch',
     },
   },
   build: {

@@ -421,3 +421,14 @@ enabled = true
 # than relying on the CLI's index.ts default.
 entrypoint = "./functions/submit-inquiry/index.js"
 verify_jwt = true
+
+[functions.sign-upload]
+# See the comment on submit-inquiry above: no TypeScript in this project, so
+# the entrypoint is named explicitly.
+entrypoint = "./functions/sign-upload/index.js"
+# verify_jwt = true rejects a request with no Authorization header (or an
+# unparseable one) before the function body ever runs. It is not a
+# substitute for the function's own getUser()-and-profiles.role check —
+# a valid JWT belonging to a signed-in non-admin passes this gate — it only
+# narrows what reaches the function to "at least presents some token".
+verify_jwt = true
