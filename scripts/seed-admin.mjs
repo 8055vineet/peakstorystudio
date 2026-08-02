@@ -25,10 +25,48 @@ if (!URL || !SERVICE || !EMAIL || !PASSWORD) {
 // because there is no admin session yet for that RLS to check against.
 const admin = createClient(URL, SERVICE, { auth: { persistSession: false } });
 
+// Not paginated past the first 1000 users. Past that, a lookup can miss an
+// existing user and createUser then fails loudly on the duplicate email —
+// a loud failure, not a silent one, so this degrades safely. Not fixed here;
+// left for whenever the local admin list plausibly exceeds four digits.
 async function findUserByEmail(email) {
   const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   if (error) throw new Error(`listUsers failed: ${error.message}`);
   return data.users.find((u) => u.email === email) ?? null;
+}
+
+async function emailForUserId(userId) {
+  const { data, error } = await admin.auth.admin.getUserById(userId);
+  if (error) throw new Error(`getUserById failed: ${error.message}`);
+  return data.user?.email ?? null;
+}
+
+// A typo in ADMIN_EMAIL is not a new local account, it's a second
+// permanent grant of full admin access — silent locally, a real security
+// incident against a hosted project. Refuse rather than create one, unless
+// someone deliberately opts in. Re-running with the SAME email must still
+// pass this check silently: that is what keeps the script idempotent.
+async function refuseIfAnotherAdminExists(email) {
+  if (process.env.ALLOW_ADDITIONAL_ADMIN === 'true') return;
+
+  const { data, error } = await admin.from('profiles').select('user_id').eq('role', 'admin');
+  if (error) throw new Error(`profiles lookup failed: ${error.message}`);
+
+  const target = email.toLowerCase();
+  const others = [];
+  for (const row of data) {
+    const existingEmail = await emailForUserId(row.user_id);
+    if (existingEmail && existingEmail.toLowerCase() !== target) {
+      others.push(existingEmail);
+    }
+  }
+
+  if (others.length > 0) {
+    console.error(`seed-admin: refusing — an admin already exists: ${others.join(', ')}.`);
+    console.error(`ADMIN_EMAIL=${email} would create an additional admin, not replace one.`);
+    console.error('If that is deliberate, re-run with ALLOW_ADDITIONAL_ADMIN=true.');
+    process.exit(1);
+  }
 }
 
 // Create the user if absent, or update the password if present — either way
@@ -60,6 +98,7 @@ async function ensureAdminProfile(userId) {
 }
 
 async function main() {
+  await refuseIfAnotherAdminExists(EMAIL);
   const user = await ensureAuthUser(EMAIL, PASSWORD);
   await ensureAdminProfile(user.id);
   // Confirms which account this run configured — never the password, a
