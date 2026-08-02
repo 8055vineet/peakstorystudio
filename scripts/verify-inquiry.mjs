@@ -91,13 +91,18 @@ async function main() {
 
   const { data: rows, error } = await admin
     .from('inquiries')
-    .select('name, email, phone, wedding_date, venue, services, message, status, notification_status')
+    .select('id, name, email, phone, wedding_date, venue, services, message, status, notification_status')
     .eq('email', probeEmail);
 
   check('reached Postgres as exactly one row', !error && rows?.length === 1, error?.message ?? `${rows?.length} rows`);
 
   const row = rows?.[0];
   if (row) {
+    // The honeypot path deliberately answers with a freshly generated UUID
+    // matching no row, so "returned an id" is not on its own evidence that
+    // the id names anything. Tie the response to the row it claims to be.
+    check('returned the id of the row it actually stored', stored.body?.id === row.id,
+      `response ${stored.body?.id} vs row ${row.id}`);
     check('stored the name', row.name === 'Verify Probe', row.name);
     check('stored the phone', row.phone === '+91 98200 00000', row.phone);
     check('stored the wedding date without a timezone shift', row.wedding_date === '2027-02-14', row.wedding_date);
