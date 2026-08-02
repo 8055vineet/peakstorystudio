@@ -53,10 +53,15 @@ function corsHeaders(requestOrigin) {
 function json(status, body, requestOrigin, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
     status,
+    // extraHeaders is spread FIRST so a caller can never displace the CORS
+    // headers or the content type. Today the only caller passes Retry-After
+    // and nothing collides, but a later one that happened to pass an
+    // Access-Control-Allow-Origin would silently widen this endpoint's CORS
+    // policy from a call site that looks like it is only adding a header.
     headers: {
+      ...extraHeaders,
       ...corsHeaders(requestOrigin),
       'Content-Type': 'application/json',
-      ...extraHeaders,
     },
   });
 }
