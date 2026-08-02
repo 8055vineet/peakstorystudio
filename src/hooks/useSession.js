@@ -22,13 +22,23 @@ export function useSession() {
   const [state, setState] = useState({ status: 'loading', session: null, profile: null });
   const [error, setError] = useState(null);
   const aliveRef = useRef(true);
+  // Every resolve() takes a ticket. Only the newest may write state.
+  //
+  // Without this, a sign-out arriving while a slow profile lookup is still in
+  // flight loses the race: the older resolve() finishes last and reinstates
+  // 'authenticated' over the 'anonymous' that should have replaced it. The
+  // person clicked sign out and the dashboard stayed. Observed, not theorised.
+  const generationRef = useRef(0);
 
   // Returns the status it settled on, not just void: signIn needs that
   // value to know whether it actually reached 'authenticated', rather than
   // merely that signing in itself didn't throw.
   const resolve = useCallback(async (session) => {
+    const generation = ++generationRef.current;
+    const isCurrent = () => aliveRef.current && generation === generationRef.current;
+
     if (!session) {
-      if (aliveRef.current) setState({ status: 'anonymous', session: null, profile: null });
+      if (isCurrent()) setState({ status: 'anonymous', session: null, profile: null });
       return 'anonymous';
     }
     let profile = null;
@@ -52,7 +62,7 @@ export function useSession() {
     // no test can fail if it's removed, but the bug it guards against
     // (a stale async response outliving the component that started it) is
     // real regardless.
-    if (!aliveRef.current) return status;
+    if (!isCurrent()) return status;
     setState({ status, session, profile });
     return status;
   }, []);
@@ -91,12 +101,23 @@ export function useSession() {
     // must not depend on that staying true — someone tightening auth.js
     // later would otherwise silently strand a couple/admin in the
     // "authenticated" state after clicking sign out.
+    // Claim a generation before awaiting, so an in-flight profile lookup
+    // that started earlier cannot land after this and reinstate the session
+    // the person just ended.
+    const generation = ++generationRef.current;
     try {
       await signOutRequest();
     } catch {
       // Ignored — see above.
     } finally {
-      if (aliveRef.current) setState({ status: 'anonymous', session: null, profile: null });
+      // Same defensive guard as in resolve(), and with the same caveat: no
+      // test can fail if it is removed, because React 18.3 ignores an update
+      // to an unmounted component silently. The generation check, by
+      // contrast, is observable — a stale resolve() overwriting this is a
+      // real bug with a real test.
+      if (aliveRef.current && generation === generationRef.current) {
+        setState({ status: 'anonymous', session: null, profile: null });
+      }
     }
   }, []);
 

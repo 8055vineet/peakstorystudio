@@ -188,4 +188,27 @@ describe('useSession', () => {
     expect(result.current.session).toBeNull();
     expect(result.current.profile).toBeNull();
   });
+
+  it('does not let a slow profile lookup reinstate a session that was signed out', async () => {
+    // The admin clicks sign out while a profile lookup started earlier is
+    // still in flight. Without generation sequencing the older resolve()
+    // finishes last and writes 'authenticated' back over the sign-out — the
+    // dashboard stays up and the person believes they have left it.
+    let releaseProfile;
+    getSession.mockResolvedValue(SESSION);
+    getProfile.mockReturnValue(new Promise((resolve) => { releaseProfile = resolve; }));
+    signOut.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useSession());
+    await waitFor(() => expect(getProfile).toHaveBeenCalled());
+
+    await act(async () => { await result.current.signOut(); });
+    expect(result.current.status).toBe('anonymous');
+
+    // The stale lookup lands only now, and must be ignored.
+    await act(async () => { releaseProfile({ userId: 'user-1', role: 'admin' }); });
+
+    expect(result.current.status).toBe('anonymous');
+    expect(result.current.session).toBeNull();
+  });
 });

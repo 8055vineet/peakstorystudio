@@ -9,7 +9,13 @@ import { createClient } from '@supabase/supabase-js';
 
 const URL = process.env.SUPABASE_URL;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const EMAIL = process.env.ADMIN_EMAIL;
+// Normalised once, here, rather than at each comparison. GoTrue stores
+// addresses lowercased, so a mixed-case ADMIN_EMAIL previously slipped past
+// the existing-admin guard (which compared lowercased) while missing the
+// existing user (which compared exactly) — then died on a duplicate-email
+// error that named nothing useful. Lowercasing at the boundary means that
+// address is simply idempotent like any other.
+const EMAIL = process.env.ADMIN_EMAIL?.trim().toLowerCase();
 const PASSWORD = process.env.ADMIN_PASSWORD;
 
 if (!URL || !SERVICE || !EMAIL || !PASSWORD) {
