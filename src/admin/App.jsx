@@ -8,6 +8,10 @@ import LeadsTable from './LeadsTable.jsx';
 import LeadDetail from './LeadDetail.jsx';
 import UploadField from './UploadField.jsx';
 import MediaPicker from './MediaPicker.jsx';
+import ResourceList from './ResourceList.jsx';
+import ResourceForm from './ResourceForm.jsx';
+import WeddingPhotos from './WeddingPhotos.jsx';
+import { weddingsResource, weddingsQueries } from './resources/weddings.js';
 
 // Owns the leads dashboard's data (via useResource, the generic hook Tasks
 // 7-9 will also use) and which inquiry is selected. Kept private to this
@@ -85,23 +89,132 @@ function MediaLibraryDashboard() {
   );
 }
 
+// Owns the weddings resource's data the same way InquiriesDashboard and
+// MediaLibraryDashboard own theirs — one useResource instance, per that
+// hook's own "one instance per resource, always" rule (see its module
+// comment). `weddingsQueries` is already a stable module-level object (see
+// src/admin/resources/weddings.js), so no useMemo wrapper is needed here to
+// keep it from changing identity across renders.
+//
+// `view` is this component's own local navigation state — 'list' (the
+// ResourceList screen) or 'form' (create/edit, with WeddingPhotos attached
+// once a wedding actually has an id to attach photos to). Kept local
+// rather than lifted to AdminDashboard's `tab` state, the same way
+// InquiriesDashboard keeps `selectedId` local: nothing outside this
+// component's own tab needs to know which wedding is being edited.
+function WeddingsDashboard() {
+  const {
+    items, status, error, reload, mutate,
+  } = useResource(weddingsQueries);
+  const [view, setView] = useState({ mode: 'list' });
+  const [formPending, setFormPending] = useState(false);
+  const [formError, setFormError] = useState(null);
+  // Distinct from formError: a delete/publish-toggle/reorder click from
+  // ResourceList calls its callback synchronously and does not itself
+  // await or catch a rejection (see ResourceList.jsx's handleDelete/
+  // handleMove — this file must not edit that component, so the catching
+  // happens here instead, the same division of labour
+  // src/admin/LeadDetail.jsx's own handleTransition already uses for
+  // onUpdateStatus). `written` distinguishes a write that actually reached
+  // the database from one that never did — see useResource.mutate's own
+  // module comment.
+  const [listActionError, setListActionError] = useState(null);
+
+  async function runListAction(name, ...args) {
+    setListActionError(null);
+    try {
+      await mutate(name, ...args);
+    } catch (err) {
+      setListActionError({ message: err?.message || 'unknown error', written: Boolean(err?.written) });
+    }
+  }
+
+  async function handleSubmit(payload) {
+    setFormPending(true);
+    setFormError(null);
+    try {
+      if (view.item?.id) {
+        await mutate('update', view.item.id, payload);
+      } else {
+        await mutate('create', payload);
+      }
+      setView({ mode: 'list' });
+    } catch (err) {
+      setFormError(err);
+    } finally {
+      setFormPending(false);
+    }
+  }
+
+  if (view.mode === 'form') {
+    return (
+      <div className="space-y-8">
+        <h1 className="font-cinzel text-2xl font-bold text-pitch-900">
+          {view.item ? 'Edit Wedding' : 'Add Wedding'}
+        </h1>
+        <ResourceForm
+          key={view.item?.id ?? 'new'}
+          config={weddingsResource}
+          initial={view.item}
+          onSubmit={handleSubmit}
+          onCancel={() => setView({ mode: 'list' })}
+          pending={formPending}
+          error={formError}
+        />
+        {/* Photos can only attach to a wedding row that already exists —
+            a brand-new, unsaved wedding has no id for wedding_photos to
+            reference. `key={view.item.id}` remounts WeddingPhotos (and
+            its own useResource instance) if an admin somehow reaches this
+            screen for a different wedding without it unmounting first —
+            belt and braces, matching ResourceForm's own
+            key={initial?.id ?? 'new'} guidance. */}
+        {view.item?.id && <WeddingPhotos key={view.item.id} weddingId={view.item.id} />}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h1 className="font-cinzel text-2xl font-bold text-pitch-900 mb-6">Weddings</h1>
+      {listActionError && (
+        <p role="alert" className="mb-4 text-xs font-semibold text-pitch-900">
+          {listActionError.written
+            ? `That change saved, but this screen could not refresh to confirm it (${listActionError.message}). Reload to check.`
+            : `Could not save that change: ${listActionError.message}. Please try again.`}
+        </p>
+      )}
+      <ResourceList
+        config={weddingsResource}
+        items={items}
+        status={status}
+        error={error}
+        onRetry={reload}
+        onCreate={() => { setFormError(null); setView({ mode: 'form', item: null }); }}
+        onEdit={(item) => { setFormError(null); setView({ mode: 'form', item }); }}
+        onDelete={(id) => runListAction('remove', id)}
+        onToggleStatus={(id, nextStatus) => runListAction('update', id, { status: nextStatus })}
+        onReorder={(ids) => runListAction('reorder', ids)}
+      />
+    </div>
+  );
+}
+
 // Short nav labels rather than each dashboard's own full heading — 'Leads'
 // stays unambiguous from InquiriesDashboard's "Booking Inquiries" <h1> even
-// though a screen reader announces both, and it leaves room for Tasks 8/9's
-// tabs (Weddings, Gallery, Films, Testimonials) to read as a set.
+// though a screen reader announces both, and it leaves room for Task 9's
+// tabs (Gallery, Films, Testimonials) to read as a set.
 const DASHBOARD_TABS = [
   { key: 'leads', label: 'Leads' },
   { key: 'media', label: 'Media Library' },
+  { key: 'weddings', label: 'Weddings' },
 ];
 
-// The admin's default landing composition. Tasks 8 and 9 will extend
-// DASHBOARD_TABS with weddings, gallery, films, and testimonials once Task
-// 7's reusable resource pattern exists — this is deliberately the smallest
-// thing that makes the Media Library reachable before then, not a preview
-// of that later navigation. A tab's dashboard only fetches once it's
-// actually opened (see the "not fetched until asked for" test in
-// App.test.jsx), so switching tabs, not mounting the shell, is what
-// triggers each one's first load.
+// The admin's default landing composition. Task 9 will extend
+// DASHBOARD_TABS with gallery, films, and testimonials on top of Task 7's
+// reusable resource pattern this file already uses for weddings. A tab's
+// dashboard only fetches once it's actually opened (see the "not fetched
+// until asked for" test in App.test.jsx), so switching tabs, not mounting
+// the shell, is what triggers each one's first load.
 function AdminDashboard() {
   const [tab, setTab] = useState('leads');
 
@@ -124,7 +237,9 @@ function AdminDashboard() {
           </button>
         ))}
       </nav>
-      {tab === 'leads' ? <InquiriesDashboard /> : <MediaLibraryDashboard />}
+      {tab === 'leads' && <InquiriesDashboard />}
+      {tab === 'media' && <MediaLibraryDashboard />}
+      {tab === 'weddings' && <WeddingsDashboard />}
     </div>
   );
 }

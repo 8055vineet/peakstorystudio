@@ -5,6 +5,15 @@ const useSession = vi.fn();
 const listInquiries = vi.fn();
 const updateInquiryStatus = vi.fn();
 const listMedia = vi.fn();
+const weddingsList = vi.fn();
+const weddingsCreate = vi.fn();
+const weddingsUpdate = vi.fn();
+const weddingsRemove = vi.fn();
+const weddingsReorder = vi.fn();
+const listWeddingPhotos = vi.fn();
+const addWeddingPhoto = vi.fn();
+const removeWeddingPhoto = vi.fn();
+const reorderWeddingPhotos = vi.fn();
 
 vi.mock('../../hooks/useSession', () => ({
   useSession: (...args) => useSession(...args),
@@ -35,6 +44,54 @@ vi.mock('../../hooks/useMediaUpload', () => ({
   }),
 }));
 
+// The Weddings tab's dashboard (WeddingsDashboard, also defined in App.jsx)
+// is deliberately mocked at the resource-config boundary rather than
+// re-testing everything src/admin/resources/__tests__/weddings.test.js and
+// weddings.timezone.test.jsx already cover — a small fixture-shaped config
+// (no media/date/tags fields) keeps these tests about App.jsx's own wiring
+// — tab switching, create/edit/delete/toggle/reorder reaching
+// weddingsQueries, WeddingPhotos appearing once a wedding has an id — not
+// about re-proving the real field list or the slug/date behaviour those
+// other two files already own.
+vi.mock('../resources/weddings.js', () => ({
+  weddingsResource: {
+    key: 'weddings',
+    label: 'Weddings',
+    table: 'weddings',
+    columns: ['id', 'title', 'couple', 'location', 'sort_order', 'status'],
+    defaultSort: 'sort_order',
+    listColumns: [
+      { name: 'title', label: 'Title' },
+      { name: 'couple', label: 'Couple' },
+      { name: 'status', label: 'Status' },
+    ],
+    fields: [
+      { name: 'title', label: 'Title', type: 'text', required: true },
+      { name: 'couple', label: 'Couple', type: 'text', required: true },
+      { name: 'location', label: 'Location', type: 'text', required: true },
+      { name: 'sortOrder', label: 'Order', type: 'number', required: false },
+    ],
+  },
+  weddingsQueries: {
+    list: (...args) => weddingsList(...args),
+    create: (...args) => weddingsCreate(...args),
+    update: (...args) => weddingsUpdate(...args),
+    remove: (...args) => weddingsRemove(...args),
+    reorder: (...args) => weddingsReorder(...args),
+  },
+}));
+
+// WeddingPhotos (rendered once an edit screen's wedding has an id) drives
+// these directly — mocked the same way listInquiries/listMedia are above,
+// so opening the edit screen in these tests never reaches the real
+// Supabase-backed query layer.
+vi.mock('../../lib/queries/adminWeddingPhotos', () => ({
+  listWeddingPhotos: (...args) => listWeddingPhotos(...args),
+  addWeddingPhoto: (...args) => addWeddingPhoto(...args),
+  removeWeddingPhoto: (...args) => removeWeddingPhoto(...args),
+  reorderWeddingPhotos: (...args) => reorderWeddingPhotos(...args),
+}));
+
 const { default: App } = await import('../App.jsx');
 
 const baseState = {
@@ -50,8 +107,19 @@ beforeEach(() => {
   listInquiries.mockReset();
   updateInquiryStatus.mockReset();
   listMedia.mockReset();
+  weddingsList.mockReset();
+  weddingsCreate.mockReset();
+  weddingsUpdate.mockReset();
+  weddingsRemove.mockReset();
+  weddingsReorder.mockReset();
+  listWeddingPhotos.mockReset();
+  addWeddingPhoto.mockReset();
+  removeWeddingPhoto.mockReset();
+  reorderWeddingPhotos.mockReset();
   listInquiries.mockResolvedValue([]);
   listMedia.mockResolvedValue([]);
+  weddingsList.mockResolvedValue([]);
+  listWeddingPhotos.mockResolvedValue([]);
   baseState.signIn = vi.fn();
   baseState.signOut = vi.fn();
 });
