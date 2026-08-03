@@ -128,7 +128,7 @@ export default function StoryDetailModal({ story, onClose, onSelectImage, onOpen
                     onSelectImage(imgUrl);
                   }}
                   className={`relative aspect-square overflow-hidden cursor-pointer border-2 transition-all duration-300 img-zoom-container ${
-                    activeImageIndex === idx ? 'border-pitch-900 shadow-md scale-95' : 'border-transparent opacity-75 hover:opacity-100'
+                    activeImageIndex === idx ? 'border-pitch-900 shadow-md' : 'border-transparent hover:border-pitch-900/40'
                   }`}
                 >
                   <img src={imgUrl} alt="Thumbnail" className="w-full h-full object-cover" />

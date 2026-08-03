@@ -43,8 +43,9 @@ export default function FeaturedStories({ stories, onOpenLightbox, onOpenVideo }
                     className="w-full h-full object-cover"
                   />
                   
-                  {/* Subtle Gradient Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-pitch-950/90 via-pitch-950/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
+                  {/* Legibility gradient — bottom third only, so the
+                      photograph itself stays clean and sharp */}
+                  <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-pitch-950/85 to-transparent" />
 
                   {/* Leica-style Date & Monogram Stamp */}
                   <div className="absolute top-4 left-4 z-10 flex flex-col space-y-1">

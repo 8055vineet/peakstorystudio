@@ -37,3 +37,22 @@ if (typeof globalThis.localStorage === 'undefined') {
 // jsdom defines window.scrollTo but logs a noisy "Not implemented" error on
 // every call; ScrollToTop calls it on each route change. Make it a no-op.
 Object.defineProperty(window, 'scrollTo', { value: () => {}, configurable: true });
+
+// This jsdom also exposes no matchMedia; CustomCursor queries it on mount.
+// Everything matches false by default — a coarse-pointer, no-preference
+// environment — and individual tests stub their own variants when they need
+// a fine pointer or reduced motion.
+if (typeof window.matchMedia === 'undefined') {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: (query) => ({
+      matches: false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+    }),
+  });
+}

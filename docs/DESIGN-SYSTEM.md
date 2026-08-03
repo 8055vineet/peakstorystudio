@@ -111,13 +111,13 @@ territory. (The other injector, `HorizontalGallery`, was deleted in Phase 3b.)
 
 ## Motion and accessibility
 
-There is still no `prefers-reduced-motion` handling anywhere in the public site — not in
-`src/index.css`, not in `tailwind.config.js`, and not as an inline media query or JS check in
-any component. Phase 3b reduced how much motion exists (the splash sequence, marquee, custom
-cursor, and parallax hero are gone), but what remains — `animate-fade-in` transitions, the
-scroll-reveal transforms driven by `useScrollReveal`, hover zooms, and `Testimonials`'
-injected `fillProgress` — plays unconditionally for every visitor regardless of their OS-level
-reduced-motion preference. Tracked as `PS-012`, planned Phase 5.
+Motion added after Phase 3b respects `prefers-reduced-motion` from day one: the falling
+petals (`PetalsBackground`) disappear entirely for reduced-motion visitors, and the rebuilt
+`CustomCursor` never mounts for them (or for any coarse pointer). The *older* animations —
+`animate-fade-in` transitions, the scroll-reveal transforms driven by `useScrollReveal`,
+hover zooms, and `Testimonials`' injected `fillProgress` — still play unconditionally
+regardless of the OS-level preference. Closing that gap for the older set remains `PS-012`,
+planned Phase 5.
 
 ## What happened to the film/camera vernacular
 
