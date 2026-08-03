@@ -845,6 +845,15 @@ describe('admin App shell', () => {
         title: 'Palace Steps', category: 'Royal',
       })));
       await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^gallery$/i })).toBeInTheDocument());
+
+      // Every create lands as a draft (adminContent.js forces it) — the
+      // banner is what makes that state loud, with publish right here.
+      expect(screen.getByRole('status')).toHaveTextContent(/saved as draft — publish when ready/i);
+      galleryUpdate.mockResolvedValue({ id: 'gallery-9', status: 'published' });
+      galleryList.mockResolvedValueOnce([PHOTO_A]);
+      await user.click(screen.getByRole('button', { name: /publish now/i }));
+      await waitFor(() => expect(galleryUpdate).toHaveBeenCalledWith('gallery-9', { status: 'published' }));
+      await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
     });
 
     it('edits a gallery photo through ResourceForm, prefilling its values, and calls galleryQueries.update with its id', async () => {

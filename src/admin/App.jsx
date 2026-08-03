@@ -235,7 +235,8 @@ function WeddingsDashboard() {
       if (view.item?.id) {
         await mutate('update', view.item.id, payload);
       } else {
-        await mutate('create', payload);
+        const created = await mutate('create', payload);
+        setJustCreated(created);
       }
       setView({ mode: 'list' });
     } catch (err) {
@@ -282,6 +283,22 @@ function WeddingsDashboard() {
   return (
     <div>
       <h1 className="font-cinzel text-2xl font-bold text-pitch-900 mb-6">Weddings</h1>
+      {justCreated && (
+        <CreatedDraftBanner
+          label={justCreated.title ?? justCreated.couple ?? ''}
+          publishing={publishPending}
+          onPublish={async () => {
+            setPublishPending(true);
+            try {
+              await runListAction('update', justCreated.id, { status: 'published' });
+              setJustCreated(null);
+            } finally {
+              setPublishPending(false);
+            }
+          }}
+          onDismiss={() => setJustCreated(null)}
+        />
+      )}
       {listActionError && (
         <p role="alert" className="mb-4 text-xs font-semibold text-pitch-900">
           {listActionError.written
@@ -349,7 +366,8 @@ function GalleryDashboard({ prefillMediaId = null }) {
       if (view.item?.id) {
         await mutate('update', view.item.id, payload);
       } else {
-        await mutate('create', payload);
+        const created = await mutate('create', payload);
+        setJustCreated(created);
       }
       setView({ mode: 'list' });
     } catch (err) {
@@ -383,6 +401,22 @@ function GalleryDashboard({ prefillMediaId = null }) {
   return (
     <div>
       <h1 className="font-cinzel text-2xl font-bold text-pitch-900 mb-6">Gallery</h1>
+      {justCreated && (
+        <CreatedDraftBanner
+          label={justCreated.title ?? justCreated.couple ?? ''}
+          publishing={publishPending}
+          onPublish={async () => {
+            setPublishPending(true);
+            try {
+              await runListAction('update', justCreated.id, { status: 'published' });
+              setJustCreated(null);
+            } finally {
+              setPublishPending(false);
+            }
+          }}
+          onDismiss={() => setJustCreated(null)}
+        />
+      )}
       {listActionError && (
         <p role="alert" className="mb-4 text-xs font-semibold text-pitch-900">
           {listActionError.written
@@ -435,7 +469,8 @@ function FilmsDashboard() {
       if (view.item?.id) {
         await mutate('update', view.item.id, payload);
       } else {
-        await mutate('create', payload);
+        const created = await mutate('create', payload);
+        setJustCreated(created);
       }
       setView({ mode: 'list' });
     } catch (err) {
@@ -467,6 +502,22 @@ function FilmsDashboard() {
   return (
     <div>
       <h1 className="font-cinzel text-2xl font-bold text-pitch-900 mb-6">Films</h1>
+      {justCreated && (
+        <CreatedDraftBanner
+          label={justCreated.title ?? justCreated.couple ?? ''}
+          publishing={publishPending}
+          onPublish={async () => {
+            setPublishPending(true);
+            try {
+              await runListAction('update', justCreated.id, { status: 'published' });
+              setJustCreated(null);
+            } finally {
+              setPublishPending(false);
+            }
+          }}
+          onDismiss={() => setJustCreated(null)}
+        />
+      )}
       {listActionError && (
         <p role="alert" className="mb-4 text-xs font-semibold text-pitch-900">
           {listActionError.written
@@ -520,7 +571,8 @@ function TestimonialsDashboard() {
       if (view.item?.id) {
         await mutate('update', view.item.id, payload);
       } else {
-        await mutate('create', payload);
+        const created = await mutate('create', payload);
+        setJustCreated(created);
       }
       setView({ mode: 'list' });
     } catch (err) {
@@ -552,6 +604,22 @@ function TestimonialsDashboard() {
   return (
     <div>
       <h1 className="font-cinzel text-2xl font-bold text-pitch-900 mb-6">Testimonials</h1>
+      {justCreated && (
+        <CreatedDraftBanner
+          label={justCreated.title ?? justCreated.couple ?? ''}
+          publishing={publishPending}
+          onPublish={async () => {
+            setPublishPending(true);
+            try {
+              await runListAction('update', justCreated.id, { status: 'published' });
+              setJustCreated(null);
+            } finally {
+              setPublishPending(false);
+            }
+          }}
+          onDismiss={() => setJustCreated(null)}
+        />
+      )}
       {listActionError && (
         <p role="alert" className="mb-4 text-xs font-semibold text-pitch-900">
           {listActionError.written
