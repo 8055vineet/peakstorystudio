@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Camera, Menu, X, Calendar, User, LogOut, Heart, ShieldCheck } from 'lucide-react';
 
 export default function Navbar({
-  onOpenBooking,
   user,
   onOpenAuthModal,
   onOpenClientGallery,
   onLogout
 }) {
+  const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -20,12 +21,12 @@ export default function Navbar({
   }, []);
 
   const navLinks = [
-    { name: 'Home', href: '#hero' },
-    { name: 'Featured Stories', href: '#stories' },
-    { name: 'Films', href: '#films' },
-    { name: 'Gallery', href: '#gallery' },
-    { name: 'About', href: '#about' },
-    { name: 'Contact', href: '#contact' },
+    { name: 'Home', to: '/' },
+    { name: 'Gallery', to: '/gallery' },
+    { name: 'Films', to: '/films' },
+    { name: 'Stories', to: '/stories' },
+    { name: 'About', to: '/about' },
+    { name: 'Contact', to: '/contact' },
   ];
 
   return (
@@ -37,7 +38,7 @@ export default function Navbar({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         
         {/* Brand Logo */}
-        <a href="#hero" className="flex items-center space-x-3 group">
+        <Link to="/" className="flex items-center space-x-3 group">
           <div className="w-10 h-10 rounded-full border border-pitch-900/20 flex items-center justify-center bg-offwhite-50 group-hover:border-pitch-900 group-hover:bg-pitch-900 group-hover:text-offwhite-50 transition-all duration-300">
             <Camera className="w-4 h-4 text-pitch-900 group-hover:text-offwhite-50 transition-colors" />
           </div>
@@ -49,18 +50,18 @@ export default function Navbar({
               STUDIO
             </span>
           </div>
-        </a>
+        </Link>
 
         {/* Desktop Nav Links */}
         <div className="hidden md:flex items-center space-x-8">
           {navLinks.map((link) => (
-            <a
+            <Link
               key={link.name}
-              href={link.href}
+              to={link.to}
               className="text-xs uppercase tracking-[0.2em] text-pitch-900/80 hover:text-pitch-900 font-medium transition-colors relative py-1 after:content-[''] after:absolute after:bottom-0 after:left-0 after:w-0 after:h-[1.5px] after:bg-pitch-900 hover:after:w-full after:transition-all after:duration-300"
             >
               {link.name}
-            </a>
+            </Link>
           ))}
         </div>
 
@@ -104,7 +105,7 @@ export default function Navbar({
           )}
 
           <button
-            onClick={onOpenBooking}
+            onClick={() => navigate('/contact')}
             className="flex items-center space-x-2 bg-pitch-900 hover:bg-pitch-800 text-offwhite-50 font-semibold px-5 py-2.5 rounded-full text-xs uppercase tracking-[0.15em] hover:shadow-lg transition-all duration-300"
           >
             <Calendar className="w-3.5 h-3.5" />
@@ -126,14 +127,14 @@ export default function Navbar({
       {mobileMenuOpen && (
         <div className="md:hidden bg-offwhite-50 border-t border-pitch-900/10 px-6 py-6 mt-3 space-y-4 shadow-xl animate-fade-in">
           {navLinks.map((link) => (
-            <a
+            <Link
               key={link.name}
-              href={link.href}
+              to={link.to}
               onClick={() => setMobileMenuOpen(false)}
               className="block text-sm uppercase tracking-widest text-pitch-900 hover:text-charcoal-700 py-2 border-b border-pitch-900/5 font-medium"
             >
               {link.name}
-            </a>
+            </Link>
           ))}
 
           {/* User Status in Mobile */}
@@ -160,7 +161,7 @@ export default function Navbar({
             )}
 
             <button
-              onClick={() => { setMobileMenuOpen(false); onOpenBooking(); }}
+              onClick={() => { setMobileMenuOpen(false); navigate('/contact'); }}
               className="w-full bg-pitch-900 text-offwhite-50 font-bold py-3 rounded-full text-xs uppercase tracking-widest"
             >
               Book Consultation

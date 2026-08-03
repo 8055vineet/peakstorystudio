@@ -1,26 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import CustomCursor from './components/CustomCursor';
-import Navbar from './components/Navbar';
-import SplashScreen from './components/SplashScreen';
-import ScrollProgressBar from './components/ScrollProgressBar';
-import Hero from './components/Hero';
-import FeaturedStories from './components/FeaturedStories';
-import FilmsGallery from './components/FilmsGallery';
-import ColorGradingSlider from './components/ColorGradingSlider';
-import HorizontalGallery from './components/HorizontalGallery';
-import PhotoGallery from './components/PhotoGallery';
-import FilmStrip from './components/FilmStrip';
+import { Routes, Route } from 'react-router-dom';
+import { X } from 'lucide-react';
+
+import Layout from './components/Layout';
+import HomePage from './pages/HomePage';
+import GalleryPage from './pages/GalleryPage';
+import FilmsPage from './pages/FilmsPage';
+import StoriesPage from './pages/StoriesPage';
+import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
+import NotFoundPage from './pages/NotFoundPage';
+
 import LightboxModal from './components/LightboxModal';
 import AuthModal from './components/AuthModal';
 import ClientGalleryModal from './components/ClientGalleryModal';
-import AboutSection from './components/AboutSection';
-import Testimonials from './components/Testimonials';
-import BookingForm from './components/BookingForm';
-import Footer from './components/Footer';
-import SectionDivider from './components/SectionDivider';
 
 import { useWeddings, useGalleryPhotos, useFilms, useTestimonials } from './hooks/useContent';
-import { X } from 'lucide-react';
 
 export default function App() {
   const { data: stories } = useWeddings();
@@ -55,7 +50,6 @@ export default function App() {
   const [videoModalUrl, setVideoModalUrl] = useState(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [clientGalleryOpen, setClientGalleryOpen] = useState(false);
-  const [splashDone, setSplashDone] = useState(false);
 
   const handleOpenLightbox = (url, index = 0, list = []) => {
     setLightboxState({
@@ -86,81 +80,49 @@ export default function App() {
     setUser(null);
   };
 
-  const scrollToBooking = () => {
-    const el = document.getElementById('contact');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-  };
-
   return (
-    <div className="min-h-screen bg-offwhite-100 text-pitch-900 font-sans relative selection:bg-pitch-900 selection:text-offwhite-50">
-      
-      {/* Branded Splash Screen */}
-      {!splashDone && <SplashScreen onComplete={() => setSplashDone(true)} />}
+    <>
+      <Routes>
+        <Route
+          element={
+            <Layout
+              user={user}
+              onOpenAuthModal={() => setAuthModalOpen(true)}
+              onOpenClientGallery={() => setClientGalleryOpen(true)}
+              onLogout={handleLogout}
+            />
+          }
+        >
+          <Route
+            index
+            element={
+              <HomePage
+                films={films}
+                photos={photos}
+                onOpenLightbox={handleOpenLightbox}
+                onOpenVideo={(url) => setVideoModalUrl(url)}
+              />
+            }
+          />
+          <Route path="gallery" element={<GalleryPage photos={photos} onOpenLightbox={handleOpenLightbox} />} />
+          <Route path="films" element={<FilmsPage films={films} onOpenVideoModal={(url) => setVideoModalUrl(url)} />} />
+          <Route
+            path="stories"
+            element={
+              <StoriesPage
+                stories={stories}
+                onOpenLightbox={(url) => handleOpenLightbox(url)}
+                onOpenVideo={(url) => setVideoModalUrl(url)}
+              />
+            }
+          />
+          <Route path="about" element={<AboutPage testimonials={testimonials} />} />
+          <Route path="contact" element={<ContactPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Routes>
 
-      {/* Scroll Progress Bar */}
-      <ScrollProgressBar />
-
-      {/* Custom Minimalist Magnetic Cursor */}
-      <CustomCursor />
-
-      {/* Floating Navbar */}
-      <Navbar
-        onOpenBooking={scrollToBooking}
-        user={user}
-        onOpenAuthModal={() => setAuthModalOpen(true)}
-        onOpenClientGallery={() => setClientGalleryOpen(true)}
-        onLogout={handleLogout}
-      />
-
-      {/* Main Sections */}
-      <main>
-        <Hero
-          onOpenBooking={scrollToBooking}
-          onOpenFilmModal={(url) => setVideoModalUrl(url)}
-        />
-
-        <FeaturedStories
-          stories={stories}
-          onOpenLightbox={(url) => handleOpenLightbox(url)}
-          onOpenVideo={(url) => setVideoModalUrl(url)}
-        />
-
-        <SectionDivider color="#faf9f6" bgColor="#ffffff" />
-
-        <FilmsGallery
-          films={films}
-          onOpenVideoModal={(url) => setVideoModalUrl(url)}
-        />
-
-        <ColorGradingSlider />
-
-        <SectionDivider color="#ffffff" bgColor="#faf9f6" />
-
-        <HorizontalGallery />
-
-        <SectionDivider color="#faf9f6" bgColor="#ffffff" />
-
-        <PhotoGallery
-          photos={photos}
-          onOpenLightbox={handleOpenLightbox}
-        />
-
-        <FilmStrip />
-
-        <AboutSection />
-
-        <SectionDivider color="#ffffff" bgColor="#faf9f6" />
-
-        <Testimonials testimonials={testimonials} />
-
-        <SectionDivider color="#faf9f6" bgColor="#ffffff" />
-
-        <BookingForm />
-      </main>
-
-      <Footer />
-
-      {/* Modals */}
+      {/* Modals live above the routes so they work from every page */}
       {lightboxState.isOpen && (
         <LightboxModal
           activeImage={lightboxState.activeUrl}
@@ -202,7 +164,6 @@ export default function App() {
         user={user}
         photos={photos}
       />
-
-    </div>
+    </>
   );
 }

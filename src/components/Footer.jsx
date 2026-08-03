@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Camera, Instagram, Youtube, Facebook, ArrowUp } from 'lucide-react';
 
 export default function Footer() {
@@ -52,12 +53,12 @@ export default function Footer() {
               Navigation
             </h4>
             <ul className="space-y-2 text-xs uppercase tracking-widest text-charcoal-700 font-medium">
-              <li><a href="#hero" className="hover:text-pitch-900 transition-colors">Home</a></li>
-              <li><a href="#stories" className="hover:text-pitch-900 transition-colors">Featured Stories</a></li>
-              <li><a href="#films" className="hover:text-pitch-900 transition-colors">Cinematic Films</a></li>
-              <li><a href="#gallery" className="hover:text-pitch-900 transition-colors">Fine Art Gallery</a></li>
-              <li><a href="#about" className="hover:text-pitch-900 transition-colors">Our Legacy</a></li>
-              <li><a href="#contact" className="hover:text-pitch-900 transition-colors">Inquire Date</a></li>
+              <li><Link to="/" className="hover:text-pitch-900 transition-colors">Home</Link></li>
+              <li><Link to="/gallery" className="hover:text-pitch-900 transition-colors">Gallery</Link></li>
+              <li><Link to="/films" className="hover:text-pitch-900 transition-colors">Films</Link></li>
+              <li><Link to="/stories" className="hover:text-pitch-900 transition-colors">Stories</Link></li>
+              <li><Link to="/about" className="hover:text-pitch-900 transition-colors">About</Link></li>
+              <li><Link to="/contact" className="hover:text-pitch-900 transition-colors">Contact</Link></li>
             </ul>
           </div>
 

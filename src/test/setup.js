@@ -14,3 +14,26 @@ class IntersectionObserverStub {
   disconnect() {}
 }
 global.IntersectionObserver = IntersectionObserverStub;
+
+// This vitest/jsdom pairing (vitest 2.1, jsdom 26) exposes no localStorage at
+// all — `typeof localStorage` is 'undefined', not merely empty. App's session
+// persistence reads and writes it on every render, so any test that renders
+// App (the routing suite does) crashes without a stand-in. In-memory is
+// enough: no test asserts persistence across environments.
+class LocalStorageStub {
+  constructor() { this.store = new Map(); }
+  getItem(key) { return this.store.has(key) ? this.store.get(key) : null; }
+  setItem(key, value) { this.store.set(key, String(value)); }
+  removeItem(key) { this.store.delete(key); }
+  clear() { this.store.clear(); }
+}
+if (typeof globalThis.localStorage === 'undefined') {
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: new LocalStorageStub(),
+    configurable: true,
+  });
+}
+
+// jsdom defines window.scrollTo but logs a noisy "Not implemented" error on
+// every call; ScrollToTop calls it on each route change. Make it a no-op.
+Object.defineProperty(window, 'scrollTo', { value: () => {}, configurable: true });
