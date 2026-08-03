@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '../hooks/useSession';
 import { useResource } from '../hooks/useResource';
 import { listInquiries, updateInquiryStatus } from '../lib/queries/adminInquiries';
 import { listMedia } from '../lib/queries/media';
+import { getSettingsRow, updateSiteSettings } from '../lib/queries/adminSettings';
+import SettingsForm from './SettingsForm.jsx';
 import SignInForm from './SignInForm.jsx';
 import LeadsTable from './LeadsTable.jsx';
 import LeadDetail from './LeadDetail.jsx';
@@ -92,6 +94,82 @@ function MediaLibraryDashboard() {
           onRetry={reload}
         />
       </div>
+    </div>
+  );
+}
+
+// Owns the settings row and its save lifecycle; SettingsForm stays fully
+// presentational. The media library is loaded here too (one useResource
+// instance) because the three Home image slots embed MediaPicker.
+function SettingsDashboard() {
+  const mediaQueries = useMemo(() => ({ list: listMedia }), []);
+  const {
+    items: media, status: mediaStatus, error: mediaError, reload: reloadMedia,
+  } = useResource(mediaQueries);
+
+  const [row, setRow] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [pending, setPending] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [saved, setSaved] = useState(false);
+
+  function load() {
+    setLoadError(null);
+    getSettingsRow().then(setRow).catch((err) => setLoadError(err));
+  }
+  useEffect(load, []);
+
+  async function handleSave(values) {
+    setPending(true);
+    setSaved(false);
+    setSaveError(null);
+    try {
+      const next = await updateSiteSettings(values);
+      setRow(next);
+      setSaved(true);
+    } catch (err) {
+      setSaveError(err);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  if (loadError) {
+    return (
+      <div role="alert" className="p-8 text-center border border-pitch-900/15 rounded-2xl bg-offwhite-50 max-w-xl">
+        <p className="text-sm font-semibold text-pitch-900 mb-4">
+          Could not load settings: {loadError.message}
+        </p>
+        <button
+          type="button"
+          onClick={load}
+          className="px-6 py-2.5 rounded-lg bg-pitch-900 text-offwhite-50 text-xs uppercase tracking-widest font-semibold hover:bg-pitch-800 transition-colors"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (!row) {
+    return <p className="p-8 text-sm text-charcoal-700">Loading settings…</p>;
+  }
+
+  return (
+    <div>
+      <h1 className="font-cinzel text-2xl font-bold text-pitch-900 mb-6">Site Settings</h1>
+      <SettingsForm
+        initial={row}
+        media={media}
+        mediaStatus={mediaStatus}
+        mediaError={mediaError}
+        onRetryMedia={reloadMedia}
+        onUploaded={reloadMedia}
+        onSave={handleSave}
+        pending={pending}
+        error={saveError}
+        saved={saved}
+      />
     </div>
   );
 }
@@ -480,6 +558,7 @@ const DASHBOARD_TABS = [
   { key: 'gallery', label: 'Gallery' },
   { key: 'films', label: 'Films' },
   { key: 'testimonials', label: 'Testimonials' },
+  { key: 'settings', label: 'Settings' },
 ];
 
 // The admin's default landing composition. Task 7's reusable resource
@@ -515,6 +594,7 @@ function AdminDashboard() {
       {tab === 'gallery' && <GalleryDashboard />}
       {tab === 'films' && <FilmsDashboard />}
       {tab === 'testimonials' && <TestimonialsDashboard />}
+      {tab === 'settings' && <SettingsDashboard />}
     </div>
   );
 }
