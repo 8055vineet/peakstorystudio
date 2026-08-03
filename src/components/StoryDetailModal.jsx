@@ -10,7 +10,7 @@ export default function StoryDetailModal({ story, onClose, onSelectImage, onOpen
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-10 bg-pitch-950/80 backdrop-blur-xl animate-fade-in overflow-y-auto">
-      <div className="relative w-full max-w-6xl bg-offwhite-50 border border-pitch-900/15 rounded-3xl overflow-hidden shadow-2xl my-auto text-pitch-900">
+      <div className="relative w-full max-w-6xl bg-offwhite-50 border border-pitch-900/15 overflow-hidden shadow-2xl my-auto text-pitch-900">
         
         {/* Header bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-pitch-900/10 bg-offwhite-100">
@@ -39,7 +39,7 @@ export default function StoryDetailModal({ story, onClose, onSelectImage, onOpen
             <div className="lg:col-span-2 space-y-3">
               <div className="flex flex-wrap gap-2 mb-2">
                 {story.tags?.map((tag, idx) => (
-                  <span key={idx} className="text-[10px] uppercase tracking-wider text-pitch-900 bg-offwhite-200 px-3 py-1 rounded-full border border-pitch-900/10 font-semibold">
+                  <span key={idx} className="text-[10px] uppercase tracking-wider text-pitch-900 bg-offwhite-200 px-3 py-1 border border-pitch-900/10 font-semibold">
                     {tag}
                   </span>
                 ))}
@@ -52,7 +52,7 @@ export default function StoryDetailModal({ story, onClose, onSelectImage, onOpen
               </p>
             </div>
 
-            <div className="bg-offwhite-100 p-6 rounded-2xl space-y-4 border border-pitch-900/10 shadow-sm">
+            <div className="bg-offwhite-100 p-6 space-y-4 border border-pitch-900/10 shadow-sm">
               <div className="flex items-center space-x-3 text-pitch-900">
                 <Sparkles className="w-4 h-4 text-pitch-900 shrink-0" />
                 <div>
@@ -80,7 +80,7 @@ export default function StoryDetailModal({ story, onClose, onSelectImage, onOpen
               {story.videoUrl && (
                 <button
                   onClick={() => onOpenVideo(story.videoUrl)}
-                  className="w-full mt-2 flex items-center justify-center space-x-2 bg-pitch-900 text-offwhite-50 font-bold py-3 rounded-xl text-xs uppercase tracking-wider hover:bg-pitch-800 transition-all shadow-md"
+                  className="w-full mt-2 flex items-center justify-center space-x-2 bg-pitch-900 text-offwhite-50 font-bold py-3 text-xs uppercase tracking-wider hover:bg-pitch-800 transition-all shadow-md"
                 >
                   <Play className="w-4 h-4 fill-current" />
                   <span>Play Film</span>
@@ -90,7 +90,7 @@ export default function StoryDetailModal({ story, onClose, onSelectImage, onOpen
           </div>
 
           {/* Active Featured Image Display */}
-          <div className="relative rounded-2xl overflow-hidden border border-pitch-900/10 max-h-[500px] flex items-center justify-center bg-offwhite-200">
+          <div className="relative overflow-hidden border border-pitch-900/10 max-h-[500px] flex items-center justify-center bg-offwhite-200">
             <img
               src={images[activeImageIndex]}
               alt={`${story.title} preview`}
@@ -127,7 +127,7 @@ export default function StoryDetailModal({ story, onClose, onSelectImage, onOpen
                     setActiveImageIndex(idx);
                     onSelectImage(imgUrl);
                   }}
-                  className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer border-2 transition-all duration-300 img-zoom-container ${
+                  className={`relative aspect-square overflow-hidden cursor-pointer border-2 transition-all duration-300 img-zoom-container ${
                     activeImageIndex === idx ? 'border-pitch-900 shadow-md scale-95' : 'border-transparent opacity-75 hover:opacity-100'
                   }`}
                 >

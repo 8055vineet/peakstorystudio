@@ -33,7 +33,7 @@ export default function FeaturedStories({ stories, onOpenLightbox, onOpenVideo }
               <div
                 onClick={() => setSelectedStory(story)}
                 data-cursor="EXPLORE ALBUM"
-                className="group relative bg-offwhite-50 rounded-3xl overflow-hidden minimal-card cursor-pointer flex flex-col transition-all duration-500 h-full"
+                className="group relative bg-offwhite-50 overflow-hidden minimal-card cursor-pointer flex flex-col transition-all duration-500 h-full"
               >
                 {/* Cover Image Container */}
                 <div className="relative aspect-[4/5] img-zoom-container overflow-hidden">
@@ -48,7 +48,7 @@ export default function FeaturedStories({ stories, onOpenLightbox, onOpenVideo }
 
                   {/* Leica-style Date & Monogram Stamp */}
                   <div className="absolute top-4 left-4 z-10 flex flex-col space-y-1">
-                    <div className="font-mono text-[9px] uppercase tracking-widest text-offwhite-50 bg-pitch-950/70 backdrop-blur-md px-2.5 py-1 rounded border border-white/10 opacity-80">
+                    <div className="font-mono text-[9px] uppercase tracking-widest text-offwhite-50 bg-pitch-950/70 backdrop-blur-md px-2.5 py-1 border border-white/10 opacity-80">
                       PEAK STORY / {story.date.toUpperCase()}
                     </div>
                   </div>
