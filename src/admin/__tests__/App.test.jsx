@@ -433,8 +433,12 @@ describe('admin App shell', () => {
       await user.click(screen.getByRole('button', { name: /media library/i }));
 
       expect(screen.getByRole('heading', { name: /media library/i })).toBeInTheDocument();
-      await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByAltText('A couple at dusk.')).toBeInTheDocument());
       expect(listMedia).toHaveBeenCalled();
+      // The standalone library manages the collection; there is no form to
+      // select into here, so no Select buttons may render (they were once a
+      // no-op — dead controls on the screen).
+      expect(screen.queryByRole('button', { name: /select/i })).toBeNull();
     });
 
     it('still shows the leads dashboard first, unaffected by the new tab existing', async () => {
