@@ -8,7 +8,7 @@ import {
 describe('mediaUrl', () => {
   beforeEach(() => vi.resetModules());
 
-  it('reports unconfigured and returns null for every path when VITE_MEDIA_BASE_URL is unset', async () => {
+  it('reports unconfigured and returns null for a bucket key when VITE_MEDIA_BASE_URL is unset', async () => {
     vi.stubEnv('VITE_MEDIA_BASE_URL', '');
     const { mediaUrl, mediaBaseUrlConfigured } = await import('../mediaUrl.js');
 
@@ -16,19 +16,29 @@ describe('mediaUrl', () => {
     expect(mediaUrl('uploads/abc.webp')).toBeNull();
   });
 
-  it('joins the base URL and storage path when configured', async () => {
+  it('passes an already-renderable value through untouched, configured or not', async () => {
+    // Static site-served paths and absolute URLs are complete <img src>
+    // values written by scripts/load-real-content.mjs — joining a storage
+    // base in front of them is what broke every static thumbnail in the
+    // admin media library.
+    vi.stubEnv('VITE_MEDIA_BASE_URL', '');
+    let { mediaUrl } = await import('../mediaUrl.js');
+    expect(mediaUrl('/images/gallery/wedding/7.jpg')).toBe('/images/gallery/wedding/7.jpg');
+    expect(mediaUrl('https://images.unsplash.com/photo-1.jpg')).toBe('https://images.unsplash.com/photo-1.jpg');
+
+    vi.resetModules();
     vi.stubEnv('VITE_MEDIA_BASE_URL', 'https://cdn.peakstorystudio.test');
+    ({ mediaUrl } = await import('../mediaUrl.js'));
+    expect(mediaUrl('/images/gallery/wedding/7.jpg')).toBe('/images/gallery/wedding/7.jpg');
+    expect(mediaUrl('https://images.unsplash.com/photo-1.jpg')).toBe('https://images.unsplash.com/photo-1.jpg');
+  });
+
+  it('joins the base URL and a bucket key when configured, tolerating a trailing slash on the base', async () => {
+    vi.stubEnv('VITE_MEDIA_BASE_URL', 'https://cdn.peakstorystudio.test/');
     const { mediaUrl, mediaBaseUrlConfigured } = await import('../mediaUrl.js');
 
     expect(mediaBaseUrlConfigured).toBe(true);
     expect(mediaUrl('uploads/abc.webp')).toBe('https://cdn.peakstorystudio.test/uploads/abc.webp');
-  });
-
-  it('tolerates a trailing slash on the base URL and a leading slash on the storage path', async () => {
-    vi.stubEnv('VITE_MEDIA_BASE_URL', 'https://cdn.peakstorystudio.test/');
-    const { mediaUrl } = await import('../mediaUrl.js');
-
-    expect(mediaUrl('/uploads/abc.webp')).toBe('https://cdn.peakstorystudio.test/uploads/abc.webp');
   });
 
   it('returns null for a missing storage path even when configured', async () => {
