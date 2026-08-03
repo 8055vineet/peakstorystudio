@@ -90,6 +90,10 @@ const PNG_BYTES = Buffer.from(
 
 const failures = [];
 
+// Set while the settings leg has the probe quote in the database, so the
+// crash handler can restore the studio's real quote no matter what throws.
+let unrestoredQuoteText = null;
+
 function check(name, condition, detail = '') {
   if (condition) {
     console.log(`  ok    ${name}`);
@@ -375,6 +379,31 @@ async function main() {
     );
   }
 
+  console.log('\nsite settings round-trip (admin edit -> public read)');
+  const PROBE_QUOTE = 'verify-admin settings probe quote';
+  const { data: settingsBefore, error: settingsReadErr } = await admin
+    .from('site_settings').select('quote_text').eq('id', 1).single();
+  check('settings row exists to probe', !settingsReadErr && Boolean(settingsBefore), settingsReadErr?.message);
+  if (settingsBefore) {
+    unrestoredQuoteText = settingsBefore.quote_text;
+    const { error: setErr } = await session
+      .from('site_settings').update({ quote_text: PROBE_QUOTE }).eq('id', 1);
+    check('signed-in admin can update site_settings', !setErr, setErr?.message);
+
+    const { data: publicSettings, error: publicErr } = await anon
+      .from('site_settings').select('quote_text').eq('id', 1).single();
+    check(
+      'the public (anon) read sees the admin\'s edit',
+      !publicErr && publicSettings?.quote_text === PROBE_QUOTE,
+      publicErr?.message ?? publicSettings?.quote_text,
+    );
+
+    const { error: restoreErr } = await session
+      .from('site_settings').update({ quote_text: settingsBefore.quote_text }).eq('id', 1);
+    check('the original quote is restored', !restoreErr, restoreErr?.message);
+    if (!restoreErr) unrestoredQuoteText = null;
+  }
+
   await clean();
 
   console.log('');
@@ -387,6 +416,10 @@ async function main() {
 
 main().catch(async (error) => {
   console.error('verify:admin crashed:', error.message);
+  if (unrestoredQuoteText !== null) {
+    await admin.from('site_settings').update({ quote_text: unrestoredQuoteText }).eq('id', 1)
+      .then(() => {}, () => {});
+  }
   await clean().catch(() => {});
   process.exit(1);
 });

@@ -68,8 +68,18 @@ async function insertMedia(url, altText) {
 
 async function main() {
   // 1. Collect the media ids the outgoing content references, so exactly
-  //    those can be deleted afterwards (films' media must survive).
+  //    those can be deleted afterwards (films' media must survive — and so
+  //    must anything the site_settings row points at).
   const oldMedia = new Set();
+  const { data: settingsRow } = await db
+    .from('site_settings')
+    .select('hero_media_id, brand_story_media_id, closing_media_id')
+    .eq('id', 1)
+    .maybeSingle();
+  const settingsMedia = new Set(
+    [settingsRow?.hero_media_id, settingsRow?.brand_story_media_id, settingsRow?.closing_media_id]
+      .filter(Boolean),
+  );
   const { data: oldWeddings } = await db.from('weddings').select('cover_media_id');
   (oldWeddings ?? []).forEach((w) => w.cover_media_id && oldMedia.add(w.cover_media_id));
   const { data: oldWp } = await db.from('wedding_photos').select('media_id');
@@ -83,6 +93,7 @@ async function main() {
     if (error) throw new Error(`clearing ${table}: ${error.message}`);
   }
   for (const id of oldMedia) {
+    if (settingsMedia.has(id)) continue; // still referenced by site_settings
     const { error } = await db.from('media').delete().eq('id', id);
     if (error) throw new Error(`deleting old media ${id}: ${error.message}`);
   }
@@ -145,6 +156,26 @@ async function main() {
       n.wedding_photos++;
     }
   }
+
+  // 5. Point the settings' Home image slots at media rows for the three
+  //    shipped static images, so the admin Settings form shows real current
+  //    selections. Idempotent: reuses an existing media row per path.
+  async function mediaIdForPath(path, alt) {
+    const { data } = await db.from('media').select('id').eq('storage_path', path).limit(1);
+    if (data && data.length > 0) return data[0].id;
+    const id = await insertMedia(path, alt);
+    n.media++;
+    return id;
+  }
+  const heroId = await mediaIdForPath('/images/home/hero.jpg', 'A couple embracing beneath the arches of a Lucknow monument at golden hour');
+  const brandId = await mediaIdForPath('/images/home/brand-story.jpg', 'A bride in an embellished navy lehenga, framed by dark leaves');
+  const closingId = await mediaIdForPath('/images/home/closing.jpg', "A couple's hands holding their two gold wedding rings");
+  const { error: settingsErr } = await db
+    .from('site_settings')
+    .update({ hero_media_id: heroId, brand_story_media_id: brandId, closing_media_id: closingId })
+    .eq('id', 1);
+  if (settingsErr) throw new Error(`site_settings update failed: ${settingsErr.message}`);
+  n.settings = 1;
 
   console.log('loaded:', JSON.stringify(n));
 }
