@@ -31,6 +31,12 @@ const db = createClient(URL, SERVICE, { auth: { persistSession: false } });
 const GALLERY_SETS = [
   { dir: '/images/gallery/prewedding', count: 10, category: 'Pre-Wedding', title: (i) => `Pre-wedding ${i}`, alt: (i) => `Pre-wedding photograph ${i} — Peak Story Studio` },
   { dir: '/images/gallery/wedding', count: 24, category: 'Wedding', title: (i) => `Wedding day ${i}`, alt: (i) => `Wedding photograph ${i} — Peak Story Studio` },
+  // The story chapters also appear in the standalone gallery (every image the
+  // owner supplied is browsable in one place); the story keeps its own copy
+  // of the sequence in ceremony order.
+  { dir: '/images/stories/engagement', count: 11, category: 'Engagement', title: (i) => `Engagement ${i}`, alt: (i) => `Engagement photograph ${i} — Peak Story Studio` },
+  { dir: '/images/stories/haldi-mehendi', count: 12, category: 'Haldi & Mehendi', title: (i) => `Haldi & Mehendi ${i}`, alt: (i) => `Haldi and mehendi photograph ${i} — Peak Story Studio` },
+  { dir: '/images/stories/wedding', count: 7, category: 'Wedding', title: (i) => `Wedding ceremony ${i}`, alt: (i) => `Wedding ceremony photograph ${i} — Peak Story Studio` },
 ];
 
 const STORY = {

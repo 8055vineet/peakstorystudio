@@ -9,7 +9,7 @@ export default function PhotoGallery({ photos, onOpenLightbox }) {
   // Matches the categories real content actually uses (loaded by
   // scripts/load-real-content.mjs). Extend this list alongside new categories
   // in the database, or the filter buttons and the content drift apart.
-  const categories = ['All', 'Wedding', 'Pre-Wedding'];
+  const categories = ['All', 'Wedding', 'Engagement', 'Haldi & Mehendi', 'Pre-Wedding'];
 
   const filteredPhotos = activeCategory === 'All'
     ? photos
