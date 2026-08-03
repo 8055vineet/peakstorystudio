@@ -212,6 +212,62 @@ strings:
 `FILM_STRIP_FRAMES` and `EDITORIAL_GALLERY` — described above — have no table; see `PS-023` in
 [KNOWN-ISSUES.md](KNOWN-ISSUES.md).
 
+### `media`, and the two different ways a row gets there
+
+Every image `weddings`, `gallery_photos`, and `films` render is a foreign key into `media` —
+`weddings.cover_media_id`, `wedding_photos.media_id`, `gallery_photos.media_id`, and
+`films.thumbnail_media_id` — never a URL stored on the row itself. No component ever reads
+`media` directly; each query module's `SELECT` embeds it (e.g. `cover:cover_media_id
+(storage_path)` in `src/lib/queries/weddings.js`) and flattens it into the field a component
+already expects (`coverImage`, `url`, `thumbnail`).
+
+A `media` row is written by exactly one of two paths, and its `storage_path` means something
+different depending on which:
+
+- **`scripts/seed-db.mjs`** (used by `npm run db:seed`) writes each seed content item's *original*
+  URL directly into `storage_path` — an `images.unsplash.com` link or a local `/images/...` path,
+  copied verbatim from `src/data/weddingData.js`. It is already a complete, renderable URL.
+- **A real admin upload** (Phase 3; `src/hooks/useMediaUpload.js` -> `sign-upload` -> the
+  browser's own `PUT` -> `src/lib/queries/media.js`'s `createMedia`) writes a **bucket-relative
+  key** generated server-side by `sign-upload`, of the shape `uploads/<uuid>.<ext>` — never a full
+  URL, and never anything the client supplied.
+
+Nothing in the schema or the query layer distinguishes these two shapes; `storage_path` is a
+`text` column that happens to hold a full URL for every seeded row and a bucket key for every
+uploaded one. This is exactly why a genuinely uploaded, published photograph does not yet display
+on the public site — see `PS-033` in [KNOWN-ISSUES.md](KNOWN-ISSUES.md) for the full explanation
+of what turns one into an image and what doesn't (yet) turn the other into one.
+
+**`blurhash` stays null, deliberately.** The column's own migration comment
+(`supabase/migrations/20260730203451_initial_schema.sql`) anticipated it being "populated from
+Phase 3, when uploads exist," but Phase 3 made a deliberate call not to: nothing in this phase
+renders a placeholder blur, so computing a hash nothing reads would be work with no reader. `width`
+and `height` *are* recorded on every real upload (`src/hooks/useMediaUpload.js` reads them off the
+canvas it just resized, so they always match the bytes actually stored) precisely because they are
+free at upload time and are what a later fix for layout shift (`PS-018`) will need. Do not treat
+the migration comment as still describing intent — this paragraph supersedes it.
+
+**How `wedding_photos` joins weddings to media.** A wedding's *cover* photo and its *full gallery*
+are two independent relationships, not one: `weddings.cover_media_id` is a single, nullable
+foreign key straight to `media`, while `wedding_photos` is a separate join table — composite
+primary key `(wedding_id, media_id)`, **no `id` column of its own** — recording every photo
+attached to that wedding's gallery, ordered by its own `sort_order`. A wedding's cover image need
+not be one of the photos in `wedding_photos` at all (though in practice an admin usually attaches
+it to both). `src/lib/queries/weddings.js`'s `getWeddingBySlug`/`getPublishedWeddings` select both
+in one query and flatten `wedding_photos` (sorted client-side by `sort_order`) into
+`fullGallery`, an array of `storage_path` strings.
+
+The admin's write side cannot reuse the generic resource factory
+(`src/lib/queries/adminContent.js`'s `makeResourceQueries`) for `wedding_photos`, for three
+reasons verified directly against the schema before `src/lib/queries/adminWeddingPhotos.js` was
+hand-written instead: the composite primary key has no `id` for the factory's functions to key
+off; there is no `status` column for a publish toggle to act on; and the factory's `list()` has no
+per-wedding filter, so pointed at this table it would return every wedding's photos globally
+interleaved under one `sort_order` rather than one wedding's own ordered set. One invariant holds
+throughout that hand-written module: removing a `wedding_photos` row **never** deletes the
+underlying `media` row — the same photograph may be attached to another wedding, the standalone
+gallery, or nothing at all, and is deleted (if ever) only from the Media Library itself.
+
 ### Inquiry rate limiting
 
 `inquiry_rate_limits` is a per-visitor counter, keyed on `ip_hash` — a salted SHA-256 hash of the

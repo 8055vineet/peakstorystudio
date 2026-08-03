@@ -4,10 +4,13 @@ Cinematic wedding films and fine-art photography studio website.
 
 ## Status
 
-Phase 1b (v0.2b) — backend foundation. The site is a Vite + React single-page app that can read
-its content from a local Supabase (Postgres) database — see [Local database](#local-database)
-below — or fall back to the static `src/data/weddingData.js` module, which remains the default.
-See [docs/ROADMAP.md](docs/ROADMAP.md) for the full phase and version plan.
+Phase 3 (v0.4) — admin: auth, CMS, media. The public site is a Vite + React single-page app whose
+content is unconditionally read from a local Supabase (Postgres) database — see
+[Local database](#local-database) below; the static `src/data/weddingData.js` module survives only
+as the error fallback rendered when a query fails, not a second source anything can select. A
+separate, sign-in-gated admin app (`admin.html`) manages that content and the studio's booking
+inquiries — see [Running the admin locally](#running-the-admin-locally) below. See
+[docs/ROADMAP.md](docs/ROADMAP.md) for the full phase and version plan.
 
 ## Quickstart
 
@@ -34,9 +37,11 @@ landed in 20.11. CI runs Node 22.
 | `npm run db:stop` | `supabase stop` | Stops the local stack. |
 | `npm run db:reset` | `supabase db reset` | Drops the local database and replays every migration from empty. This is how a migration is proven complete. |
 | `npm run db:seed` | `node scripts/seed-db.mjs` | Copies `src/data/weddingData.js` into Postgres. Idempotent — clears content tables first, so re-running does not duplicate. |
+| `npm run db:seed-admin` | `node scripts/seed-admin.mjs` | Creates (or repairs) the local studio admin account: an `auth.users` row and a `public.profiles` row with `role = 'admin'`, from `ADMIN_EMAIL`/`ADMIN_PASSWORD`. Idempotent and safe to re-run after `npm run db:reset` — see [Running the admin locally](#running-the-admin-locally) below. |
 | `npm run db:verify` | `node scripts/verify-db.mjs` | Asserts the Row Level Security policies actually behave. **Not part of `npm test`**, because CI has no Postgres. |
-| `npm run db:functions` | `supabase functions serve --env-file supabase/functions/.env.local` | Serves Edge Functions locally, loading secrets from the git-ignored `supabase/functions/.env.local` (copy it from `supabase/functions/.env.example` first). The process never exits on its own — background it and poll, don't run it in the foreground. |
+| `npm run db:functions` | `supabase functions serve --env-file supabase/functions/.env.local` | Serves Edge Functions locally, loading secrets from the git-ignored `supabase/functions/.env.local` (copy it from `supabase/functions/.env.example` first). The process never exits on its own — background it and poll, don't run it in the foreground. Restart it after editing a function or its `.env.local`; neither reliably hot-reloads. |
 | `npm run verify:inquiry` | `node scripts/verify-inquiry.mjs` | End-to-end gate for the booking pipeline: posts real requests at the running `submit-inquiry` function and asserts against Postgres directly, because a 200 response is not evidence a row landed. Requires the database and the function server both running — see [Running the inquiry pipeline locally](#running-the-inquiry-pipeline-locally) below. |
+| `npm run verify:admin` | `vite-node scripts/verify-admin.mjs` | End-to-end gate for the admin publishing pipeline: signs in, uploads a real file through `sign-upload`, creates and publishes a wedding, then reads it back through `src/lib/queries/weddings.js` — the exact module the public site calls — and asserts every field against Postgres directly. Requires the database, the Edge Functions, and the `media` storage bucket — see [Running the admin locally](#running-the-admin-locally) below. Runs under `vite-node`, not plain `node`, because it imports a module that reads `import.meta.env`. |
 
 ## Local database
 
@@ -107,25 +112,121 @@ export SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_RO
 npm run verify:inquiry
 ```
 
+## Running the admin locally
+
+Since Phase 3 (`v0.4`), a separate admin app manages booking inquiries and every piece of site
+content (weddings and their photographs, the standalone gallery, films, testimonials) — see
+[The admin app](docs/ARCHITECTURE.md#the-admin-app) for how it's put together. It needs everything
+[Running the inquiry pipeline locally](#running-the-inquiry-pipeline-locally) above sets up, plus
+an admin account and a storage bucket for uploaded photographs.
+
+```bash
+npm run db:start                                                   # once per session
+npm run db:reset                                                   # fresh schema — safe to skip if already reset
+eval "$(supabase status -o env | sed 's/^/export /')"
+export SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+npm run db:seed
+```
+
+**Create the admin account.** `ADMIN_EMAIL`/`ADMIN_PASSWORD` are read only by
+`scripts/seed-admin.mjs` itself — export them in the shell alongside the credentials above, never
+write them to any file, committed or not (see the comment in [.env.example](.env.example)):
+
+```bash
+export ADMIN_EMAIL="admin@example.test" ADMIN_PASSWORD="local-dev-password"
+npm run db:seed-admin
+```
+
+Idempotent, and safe to re-run after another `npm run db:reset` — a fresh schema always leaves an
+admin behind rather than locking the next person out.
+
+**Create the storage bucket.** `sign-upload` presigns uploads against a bucket named `media`,
+which `supabase start` does not create for you:
+
+```bash
+curl -sf --max-time 10 -X POST "$API_URL/storage/v1/bucket" \
+  -H "Authorization: Bearer $SERVICE_ROLE_KEY" -H "apikey: $SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"id":"media","name":"media","public":false}'
+```
+
+Private (`"public":false`) is deliberate — see
+[The upload flow](docs/ARCHITECTURE.md#the-upload-flow) for why that means an uploaded photograph
+does not yet render on the public site.
+
+**Configure `sign-upload`'s storage secrets.** One code path signs against both local Supabase
+storage and Cloudflare R2 (see
+[One S3 code path](docs/ARCHITECTURE.md#one-s3-code-path-local-storage-and-cloudflare-r2-alike));
+locally it points at the S3-compatible endpoint `supabase start` already exposes:
+
+```bash
+cp supabase/functions/.env.example supabase/functions/.env.local
+```
+
+Then fill in `supabase/functions/.env.local`'s `S3_ENDPOINT`/`S3_REGION`/`S3_ACCESS_KEY_ID`/
+`S3_SECRET_ACCESS_KEY` from `supabase status -o env`'s `STORAGE_S3_URL`/`S3_PROTOCOL_REGION`/
+`S3_PROTOCOL_ACCESS_KEY_ID`/`S3_PROTOCOL_ACCESS_KEY_SECRET` (exactly, not the container-internal
+host — see that file's own comment for why), and set `S3_BUCKET=media`. The file's own comment
+gives the exact mapping.
+
+In a second terminal, serve the Edge Functions (never exits on its own — background it, and
+restart it after any edit to a function or to `.env.local`, since neither reliably hot-reloads):
+
+```bash
+npm run db:functions
+```
+
+Then, in a third terminal:
+
+```bash
+npm run dev
+```
+
+**Sign in.** Open `http://localhost:3000/admin.html` and sign in with the `ADMIN_EMAIL`/
+`ADMIN_PASSWORD` you seeded above. From there: the Leads tab works every booking inquiry
+end to end (see [Running the inquiry pipeline locally](#running-the-inquiry-pipeline-locally)
+above for how to create one to work); the Media Library, Weddings, Gallery, Films, and
+Testimonials tabs manage content, with uploads going through the pipeline described in
+[The upload flow](docs/ARCHITECTURE.md#the-upload-flow).
+
+To check the whole publishing pipeline end to end without a browser — the same check CI
+runs — with the database, the Edge Functions, and the storage bucket all up:
+
+```bash
+eval "$(supabase status -o env | sed 's/^/export /')"
+export SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+npm run verify:admin
+```
+
 ## Project layout
 
 ```
 .
+├── admin.html           # Second Vite entry point — the studio admin (see src/admin/ below)
+├── index.html           # Public-site Vite entry
 ├── src/
 │   ├── components/     # All React UI components (Hero, Navbar, galleries, modals, forms, ...)
+│   ├── admin/           # The admin app's own components (Phase 3) — never imported by src/components
+│   │   └── resources/       # Per-content-type field configs (weddings, gallery, films, testimonials)
 │   ├── data/
-│   │   └── weddingData.js   # Static content: photos, films, testimonials, stories
+│   │   └── weddingData.js   # Static content: photos, films, testimonials, stories; also the
+│   │                         # error fallback useContent.js renders on a failed query
 │   ├── hooks/
 │   │   ├── useContent.js       # Hooks components call for content (weddings, photos, films, testimonials)
+│   │   ├── useSession.js        # Admin auth state: loading | anonymous | authenticated | forbidden
+│   │   ├── useMediaUpload.js    # Drives the four-stage upload pipeline (resize/sign/PUT/record)
+│   │   ├── useResource.js       # Generic list/mutate hook the admin's five content dashboards share
 │   │   └── useScrollReveal.js
 │   ├── lib/
 │   │   ├── supabase.js         # The only module that constructs a Supabase client
-│   │   └── queries/             # Query functions useContent.js's hooks call
-│   ├── App.jsx          # Single stateful shell; owns content, session, and modal state
-│   ├── main.jsx         # Vite entry point; mounts <App /> into #root
-│   └── index.css        # Global styles and Tailwind layer
+│   │   ├── auth.js              # signIn/signOut/getSession/getProfile — no access decisions made here
+│   │   └── queries/             # Query functions useContent.js's/the admin's hooks call
+│   ├── App.jsx          # Public site's single stateful shell; owns content, session, and modal state
+│   ├── main.jsx         # Public-site Vite entry point; mounts <App /> into #root
+│   └── index.css        # Global styles and Tailwind layer, shared by both apps
 ├── supabase/
-│   └── migrations/     # Schema and Row Level Security, replayed by `npm run db:reset`
+│   ├── migrations/     # Schema and Row Level Security, replayed by `npm run db:reset`
+│   └── functions/      # Edge Functions: submit-inquiry, sign-upload, and _shared/ code both use
 ├── public/
 │   └── images/          # Static image assets served as-is
 ├── docs/                # Architecture, component, data-model, design-system, roadmap,
@@ -133,32 +234,42 @@ npm run verify:inquiry
 └── scripts/
     ├── check-docs.mjs      # Documentation consistency checker (see Scripts above)
     ├── seed-db.mjs         # Copies src/data/weddingData.js into Postgres
+    ├── seed-admin.mjs      # Creates/repairs the local admin account (see Scripts above)
     ├── verify-db.mjs       # Asserts the RLS policies actually behave
-    └── verify-inquiry.mjs  # End-to-end gate for the booking pipeline (see Scripts above)
+    ├── verify-inquiry.mjs  # End-to-end gate for the booking pipeline (see Scripts above)
+    └── verify-admin.mjs    # End-to-end gate for the admin publishing pipeline (see Scripts above)
 ```
 
-There is no router — the entire site is one page, and "navigation" is anchor-link scrolling
+There is no router on the public site — it is one page, and "navigation" is anchor-link scrolling
 within it. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full render flow and state
 ownership.
 
 ## Tech stack
 
-- **React 18.2** — component tree, all state owned by `src/App.jsx`
-- **Vite 5** — dev server and build tooling
-- **Tailwind CSS 3.4** — styling, configured in `tailwind.config.js`
+- **React 18.2** — component tree; `src/App.jsx` owns the public site's state, `src/admin/App.jsx`
+  owns the admin's
+- **Vite 5** — dev server and build tooling; two entries (`index.html`, `admin.html`) build two
+  separate bundles — see [The admin app](docs/ARCHITECTURE.md#the-admin-app)
+- **Tailwind CSS 3.4** — styling, configured in `tailwind.config.js`, shared by both apps
 - **lucide-react** — icon set used throughout the UI
 - **canvas-confetti** — fires a confetti effect on booking form submission
 - **Google Fonts** — Cinzel, Cormorant Garamond, and Plus Jakarta Sans, loaded via `<link>` tags
   in `index.html`
-- **Supabase** (`@supabase/supabase-js`) — optional local Postgres backend and Row Level Security,
-  added in Phase 1b; see [Local database](#local-database) above. The static
-  `src/data/weddingData.js` module remains the default data source.
+- **Supabase** (`@supabase/supabase-js`) — Postgres, Row Level Security, Auth (admin sign-in,
+  public signup disabled), and Edge Functions; the database is unconditionally authoritative for
+  content as of Phase 3 — see [Local database](#local-database) above. The static
+  `src/data/weddingData.js` module survives only as `useContent`'s error fallback.
+- **aws4fetch** — signs presigned S3 `PUT` URLs in the `sign-upload` Edge Function; the same code
+  path targets local Supabase Storage in development and is intended for Cloudflare R2 in
+  production (Phase 4) — see
+  [One S3 code path](docs/ARCHITECTURE.md#one-s3-code-path-local-storage-and-cloudflare-r2-alike).
 
 ## Documentation
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — render flow, state ownership, how the app is put together
 - [docs/COMPONENTS.md](docs/COMPONENTS.md) — every component, its props, and its responsibilities
-- [docs/DATA-MODEL.md](docs/DATA-MODEL.md) — shape of the static content in `src/data/weddingData.js`
+- [docs/DATA-MODEL.md](docs/DATA-MODEL.md) — the database schema, how content and media get into
+  it, and the static content in `src/data/weddingData.js` that survives only as an error fallback
 - [docs/DESIGN-SYSTEM.md](docs/DESIGN-SYSTEM.md) — palette, type scale, and dead-style inventory
 - [docs/ROADMAP.md](docs/ROADMAP.md) — phase and version plan from v0.1 through v1.0
 - [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md) — open issue register, including legal-risk and
@@ -177,11 +288,21 @@ cp .env.example .env.local
 ```
 
 Never commit `.env.local` — it is gitignored. The variables it defines are Supabase project
-credentials, Cloudflare Turnstile keys, and the WhatsApp click-to-chat number — see
+credentials, Cloudflare Turnstile keys, the WhatsApp click-to-chat number, and (optionally)
+`VITE_MEDIA_BASE_URL` for the admin's own media previews — see
 [Local database](#local-database) above. There is no data-source switch to set: an environment
 with no Supabase credentials configured still renders the static `src/data/weddingData.js`
 module, but only as the error fallback `src/hooks/useContent.js` falls back to when its query to
 an unconfigured client fails, not as a second mode a variable selects.
+
+**Two more credentials are deliberately *not* set in any file, including `.env.local`:**
+`ADMIN_EMAIL`/`ADMIN_PASSWORD` (read only by `scripts/seed-admin.mjs`) and
+`SUPABASE_SERVICE_ROLE_KEY` (read by that script and by `sign-upload`'s server-side environment,
+never by the browser). Both are exported directly in the shell before running the script that
+needs them — see [Running the admin locally](#running-the-admin-locally) above and the comment in
+[.env.example](.env.example) — because a service-role key bypasses Row Level Security entirely and
+must never reach a committed file or a `VITE_`-prefixed variable, which ships in the browser
+bundle.
 
 ## Deployment
 

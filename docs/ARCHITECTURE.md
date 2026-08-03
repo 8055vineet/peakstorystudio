@@ -19,6 +19,14 @@ module remains only as an error fallback, not a configurable second source — s
 Since Phase 1a (`v0.2a`) there is a real test suite (Vitest + React Testing Library) and real
 linting (ESLint); `npm run lint` genuinely lints, and `npm test` runs the suite.
 
+Since Phase 3 (`v0.4`) a second, separate application exists for the studio's own use: a
+sign-in-gated admin at `admin.html`, covering booking inquiries and content management (weddings,
+their photographs, the standalone gallery, films, and testimonials). It shares no bundle, no
+routing, and no component with the public site described above — see
+[The admin app](#the-admin-app) below for its own render flow, auth model, and upload pipeline.
+Everything in the rest of this section (no router, one page, anchor-link navigation) describes the
+*public* site only.
+
 ## Render flow
 
 The mount chain is:
@@ -210,6 +218,139 @@ import the single module `supabase/functions/_shared/inquiry-validation.js`: the
 directly (Supabase's own convention for code a function depends on lives under `_shared/`), and
 the browser bundle via the `@shared` alias `vite.config.js` points at that same directory. One
 file, one set of rules, so the two layers cannot drift apart.
+
+## The admin app
+
+Since Phase 3 (`v0.4`) a second, separate application exists for managing content and booking
+inquiries: `admin.html`, a second Vite entry point with its own `src/admin/` component tree,
+mounted the same way the public site is —
+
+```
+admin.html -> src/admin/main.jsx -> ReactDOM.createRoot(...).render(<ErrorBoundary><App/></ErrorBoundary>)
+```
+
+— reusing the same `ErrorBoundary` and the same `src/index.css`, but never `src/App.jsx` or
+anything under `src/components/`. `vite.config.js`'s `build.rollupOptions.input` names both
+`index.html` and `admin.html` as separate build inputs, so Vite/Rollup code-splits each entry's
+own imports into its own bundle. Task 2 confirmed this holds in the actual built output, not just
+in configuration: every admin-only string is confined to a 6.6 kB `admin-*.js` chunk, and the
+public entry's chunk carries none of it. **A visitor to the marketing site never downloads the
+dashboard.** `admin.html` also carries `<meta name="robots" content="noindex">` — an admin
+login page has no reason to appear in search results, and every reason not to advertise its own
+existence to a crawler.
+
+### Why a second entry point, not a route
+
+A leads table with filtering and a detail view does not fit inside a modal — the deleted
+`ContentManagerModal` (see "Resolved" in `docs/KNOWN-ISSUES.md`) is the cautionary example of
+trying to force a content-management surface into one. The alternative, adding a client-side
+router to the public site so `/admin` could be a route within the same app, was rejected for a
+different reason: this site has no router today (see "Known architectural limits" below), and
+introducing one just to host the admin would have pulled Phase 5's scheduled routing work
+(`PS-008`) forward into Phase 3, entangling two unrelated deliverables. A second Vite entry costs
+one config block and keeps the two concerns — and the two bundles — completely separate. Vite
+serves it at `/admin.html` in local development; Phase 4 adds a `/admin` redirect at the hosting
+layer, which is also what will finally give `Navbar`'s (currently inert) admin badge somewhere to
+link to — see `PS-030` in `docs/KNOWN-ISSUES.md`.
+
+### Authentication, and where the actual boundary is
+
+The admin app gates its own dashboard behind Supabase Auth: `src/hooks/useSession.js` resolves to
+one of four statuses — `loading`, `anonymous` (renders `SignInForm`), `authenticated` (a real
+session whose `profiles.role` is `'admin'`; renders the dashboard), or `forbidden` (a real
+session that is *not* an admin; renders a refusal screen with a sign-out button, rather than the
+sign-in form again — telling someone already signed in to sign in is a dead end). `src/lib/auth.js`
+is the only module under `src/lib/` this hook calls, and it is a sibling of `src/lib/queries/`
+under the same existing rule: **components never import the Supabase client directly.**
+`admin/App.jsx` -> `useSession` -> `src/lib/auth.js` -> `src/lib/supabase.js`, same layering the
+public site's hooks and query modules already follow.
+
+**This client-side gate decides only what the signed-in browser is shown. It is not what protects
+anything, and must never be described or relied on as though it were.** Row Level Security —
+the ten `is_admin()` policies from Phase 1b (`supabase/migrations/*_row_level_security.sql`) — is
+the actual boundary, exactly as it already is for the public site's anon key (see
+[Data flow](#data-flow) above). Task 1 verified this independently against the running database,
+not just by reading the policies: a signed-in `client`-role user got `[]` reading `inquiries`
+where an admin got the real row; every write to `weddings`, `testimonials`, `media`,
+`gallery_photos`, `films`, and `inquiries` was refused (`42501` on insert, a no-op on update or
+delete); and role escalation was blocked (`PATCH profiles role=admin` returned `[]`, and
+`rpc/is_admin` stayed `false`). A signed-in non-admin who defeats the `useSession` check entirely
+— for instance by editing the client bundle — still sees an empty dashboard and still cannot write
+anything, because Postgres refuses it regardless of what any component renders. Do not "simplify"
+this gate later on the theory that RLS makes it redundant: it is redundant by design, and that is
+the entire point — the gate is a UX courtesy, RLS is the control.
+
+Public signup is disabled (`supabase/config.toml`'s `[auth] enable_signup = false`), so the only
+accounts that exist are ones created deliberately. Authentication is email and password, not a
+magic link — password sign-in needs no email delivery configured, which keeps local development
+and CI self-contained. `scripts/seed-admin.mjs` creates (or repairs) the local admin idempotently
+against `ADMIN_EMAIL`/`ADMIN_PASSWORD`, using the service-role key to write directly to
+`auth.users` and `public.profiles` — there is no signed-in session for RLS to check yet at that
+point, which is exactly why this script, uniquely, needs that key. It is safe to run after
+`npm run db:reset` wipes the database, and safe to run again with the same email, which is what
+makes the local admin survive a schema replay instead of leaving the next person locked out.
+
+### The upload flow
+
+An admin adding a photograph triggers a four-stage pipeline, driven by `src/hooks/useMediaUpload.js`
+and shown stage-by-stage so a failure is always attributable to a specific step
+(`error.stage` ∈ `resizing | signing | uploading | recording`):
+
+1. **Resize, in the browser** (`src/lib/images.js`) — the file is re-encoded to WebP with its
+   longest edge capped at 2000px before anything leaves the machine, and the resulting width and
+   height are recorded (an already-small image is never upscaled). This is a bandwidth and quota
+   measure, not a security control.
+2. **Sign** — the browser calls the `sign-upload` Edge Function
+   (`supabase/functions/sign-upload/index.js`) with the resized file's content type and byte size.
+   The function is the actual authorization point: it asks Supabase Auth who the caller's token
+   really belongs to (`getUser`, never trusting a role claim the token merely carries), then looks
+   up that user's `profiles.role` directly with the service-role key, bypassing RLS — the one
+   place in this codebase besides `seed-admin.mjs` that key is used. A non-admin or unauthenticated
+   caller is refused before anything about the file is even considered. Only then does it check the
+   content type against an allowlist (`image/jpeg`, `image/png`, `image/webp`) and the size against
+   a ceiling, generate a storage key server-side (a fixed `uploads/` prefix plus a fresh UUID —
+   **never** the client-supplied file name, so a caller cannot choose where a file lands or
+   overwrite another object), and return a presigned `PUT` URL that expires in five minutes.
+3. **`PUT`, straight from the browser to storage** — the presigned URL is used directly; the file's
+   bytes never pass through the Edge Function or any server this project runs. `sign-upload` never
+   sees them.
+4. **Record** — the browser inserts a `media` row (`storage_path`, `width`, `height`, `alt_text`),
+   which RLS permits only for an admin. This is the one stage that can fail *after* the object is
+   already sitting in storage; see `PS-029` in `docs/KNOWN-ISSUES.md` for the orphaned-object
+   consequence, which is accepted debt, not an oversight.
+
+No optimistic UI: `useMediaUpload`'s status only reaches `'done'` once the `media` row insert is
+confirmed. A failure at any stage — including the fourth — surfaces as `'error'`, never a false
+`'done'`.
+
+**What a real upload does not yet do:** it does not make the photograph visible on the public
+site. The storage bucket is private, the server-generated key is bucket-relative
+(`uploads/<uuid>.webp`), and nothing in the public read path
+(`src/lib/queries/weddings.js`/`gallery.js`/`films.js`, or the components that render their
+`coverImage`/`url`/`thumbnail` fields as a plain `<img src>`) resolves that key into a URL the
+bucket will serve. Only pre-existing seeded media renders today, because
+`scripts/seed-db.mjs` writes each seeded row's original full URL directly into `storage_path`
+rather than a bucket key. Public read access is deliberately Phase 4 scope (a Cloudflare custom
+domain in front of R2) — see `PS-033` in `docs/KNOWN-ISSUES.md` for the full explanation. This is
+the single most important nuance for whoever wires that up: the pipeline above, the database
+schema, and the admin UI are already real and already tested end to end
+(`npm run verify:admin`); only the last mile — turning a stored key into a fetchable image URL for
+an anonymous visitor — remains.
+
+### One S3 code path, local storage and Cloudflare R2 alike
+
+`supabase/functions/_shared/s3-presign.js` (`presignPut`, built on `aws4fetch`) is the only code
+that ever signs a storage request, and it is written to speak plain S3 — nothing Supabase- or
+R2-specific. The local Supabase stack already exposes an S3-compatible endpoint
+(`STORAGE_S3_URL`) with its own access key, secret, and region; Cloudflare R2 is S3-compatible
+too. Pointing the same function at one or the other is a matter of which endpoint, region, and
+credentials its Edge Function secrets name (`S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`,
+`S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` — see `supabase/functions/.env.example`), never a code
+change. This is deliberate, not incidental: R2 has no local equivalent, and a separate storage
+implementation for development versus production is exactly the arrangement in which a bug hides
+until deployment — the local end-to-end gate (`npm run verify:admin`) would prove nothing about
+whether the code path production actually uses works at all. One code path, exercised locally by
+that gate today and by R2 for real once Phase 4 configures it, closes that gap entirely.
 
 ## Known architectural limits
 

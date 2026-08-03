@@ -11,12 +11,25 @@ with work half-finished.
 
 ## Current position
 
-**Phase 1a — Quality foundation**, **Phase 1b — Backend foundation**, and **Phase 2 —
-Inquiries real** are complete, tagged `v0.2a`, `v0.2b`, and `v0.3` respectively. A submitted
-booking inquiry now reaches Postgres through a dedicated Edge Function, protected by Turnstile
-and a per-visitor rate limit, and is acknowledged to the couple and the studio by email —
-`npm run verify:inquiry` proves the whole path end to end against a real database, and the same
-check runs in CI.
+**Phase 1a — Quality foundation**, **Phase 1b — Backend foundation**, **Phase 2 — Inquiries
+real**, and **Phase 3 — Admin: auth, CMS, media** are complete, tagged `v0.2a`, `v0.2b`, `v0.3`,
+and `v0.4` respectively. A submitted booking inquiry reaches Postgres through a dedicated Edge
+Function, protected by Turnstile and a per-visitor rate limit, and is acknowledged to the couple
+and the studio by email — `npm run verify:inquiry` proves the whole path end to end against a
+real database, and the same check runs in CI.
+
+Phase 3 added a studio-only admin (`admin.html`, a separate Vite entry with no shared bundle with
+the public site) behind Supabase Auth: a leads dashboard over `inquiries`, image upload to
+S3-compatible object storage, and full CRUD — create, edit, publish/unpublish, reorder, delete —
+over weddings and their photographs, the standalone gallery, films, and testimonials, all writing
+straight to Postgres with no `localStorage` involved anywhere. See
+[The admin app](ARCHITECTURE.md#the-admin-app) in `docs/ARCHITECTURE.md` for how it is put
+together, and `docs/KNOWN-ISSUES.md` for what it deliberately left open (`PS-029`–`PS-033`) —
+most notably that a genuinely uploaded photograph does not yet render on the public site, because
+public read access to the storage bucket is Phase 4 scope, not this one's. `npm run verify:admin`
+proves the publishing pipeline end to end — sign in, upload, publish, then read the result back
+through the exact query layer the public site calls — and the same check runs in CI alongside
+`verify:inquiry`.
 
 ## Phase and version table
 
