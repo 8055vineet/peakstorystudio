@@ -45,7 +45,7 @@ function payload(overrides = {}) {
     venue: 'Verification Venue',
     services: ['Cinematic Film'],
     message: 'Automated end-to-end probe.',
-    website: '',
+    preferred_contact_window: '',
     turnstileToken: 'verify-probe',
     ...overrides,
   };
@@ -122,19 +122,27 @@ async function main() {
   check('names VALIDATION_FAILED', invalid.body?.error === 'VALIDATION_FAILED');
   check('reports the offending fields', Boolean(invalid.body?.fields?.email && invalid.body?.fields?.phone));
 
-  console.log('\na bot filling the honeypot');
-  const bot = await post(payload({ email: `bot-${probeEmail}`, website: 'http://spam.example' }));
-  check('answers 200 so the bot learns nothing', bot.status === 200);
-  // The response is deliberately indistinguishable from a real success — the
-  // id is a freshly generated UUID matching no row, because a fixed sentinel
-  // would let a bot identify the trap by trying it once. So the only way to
-  // check this is to ask the database.
-  check('returns a success-shaped body', bot.body?.ok === true && Boolean(bot.body?.id));
+  console.log('\nthe honeypot field filled in');
+  const bot = await post(payload({ email: `bot-${probeEmail}`, preferred_contact_window: 'http://spam.example' }));
+  check('still answers 200', bot.status === 200);
+  check('returns a real id', bot.body?.ok === true && Boolean(bot.body?.id));
+  // THE LEAD MUST STILL BE STORED. This check is inverted from what it was.
+  //
+  // The honeypot used to discard the submission and answer with a fake id, so
+  // the response was indistinguishable from success. On this site's first
+  // contact with a real person, a password manager autofilled the hidden
+  // field, the server called them a bot, and a genuine booking inquiry was
+  // deleted while the couple was shown "Inquiry Received".
+  //
+  // The field is now named so autofill ignores it, and the check runs after
+  // Turnstile — anything reaching it has solved a Cloudflare challenge — so a
+  // trip is logged for review rather than acted on. An unwanted row costs ten
+  // seconds to archive; a deleted enquiry costs a wedding nobody knew about.
   const { count } = await admin
     .from('inquiries')
     .select('id', { count: 'exact', head: true })
     .eq('email', `bot-${probeEmail}`);
-  check('stored nothing despite answering 200', count === 0, `${count} rows`);
+  check('stored the lead rather than silently discarding it', count === 1, `${count} rows`);
 
   console.log('\na body larger than the cap');
   const oversized = await post(payload({ message: 'x'.repeat(70 * 1024) }));

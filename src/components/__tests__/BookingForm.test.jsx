@@ -48,6 +48,7 @@ vi.mock('../../data/contact', async (importOriginal) => ({
   WHATSAPP_NUMBER: '10000000000',
 }));
 
+const { HONEYPOT_FIELD } = await import('@shared/inquiry-validation.js');
 const { default: BookingForm } = await import('../BookingForm.jsx');
 
 async function fillValidForm(user) {
@@ -108,7 +109,7 @@ describe('BookingForm', () => {
       email: 'couple@example.com',
       venue: 'Umaid Bhawan Palace',
       weddingDate: '2027-02-14',
-      website: '',
+      [HONEYPOT_FIELD]: '',
       turnstileToken: 'test-token',
     });
   });
@@ -186,11 +187,15 @@ describe('BookingForm', () => {
 
   it('keeps a hidden honeypot out of the tab order', () => {
     const { container } = render(<BookingForm />);
-    const honeypot = container.querySelector('input[name="website"]');
+    const honeypot = container.querySelector(`input[name="${HONEYPOT_FIELD}"]`);
 
     expect(honeypot).not.toBeNull();
+    // The name must not be something a browser or password manager
+    // recognises. It was `website`, autofill filled it for a real visitor,
+    // and their booking inquiry was discarded as bot traffic.
+    expect(HONEYPOT_FIELD).not.toMatch(/website|url|company|address|email|phone/i);
     expect(honeypot).toHaveAttribute('tabindex', '-1');
-    expect(honeypot).toHaveAttribute('autocomplete', 'off');
+    expect(honeypot).not.toHaveAttribute('autocomplete', 'off');
     expect(honeypot).toHaveAttribute('aria-hidden', 'true');
     // display:none / visibility:hidden would let a spam bot's own client-side
     // rendering skip the field entirely, defeating the trap — the input must

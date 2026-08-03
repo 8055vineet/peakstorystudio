@@ -5,6 +5,18 @@
 // drift here means showing a couple an inline message the server contradicts.
 // Keep this file free of Deno and browser globals so both runtimes can load it.
 
+// The honeypot's field name. It lives here because the form and the Edge
+// Function must agree on it exactly, and a second copy would drift.
+//
+// Deliberately NOT `website`, `url`, `company`, or anything else a browser or
+// password manager recognises. That is not a style preference. The field was
+// called `website`; on this site's first contact with a real visitor their
+// password manager autofilled it, the server classified them as a bot, and a
+// genuine booking inquiry was discarded while the couple was shown "Inquiry
+// Received". Any semantically meaningful name here is a name autofill may
+// decide it knows how to complete.
+export const HONEYPOT_FIELD = 'preferred_contact_window';
+
 export const SERVICES = [
   'Cinematic Film',
   'Fine Art Photography',

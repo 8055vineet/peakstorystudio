@@ -7,7 +7,7 @@ import { useInquirySubmission } from '../hooks/useInquirySubmission';
 import { useTurnstile } from '../hooks/useTurnstile';
 import { isInquiryBackendConfigured, TURNSTILE_SITE_KEY } from '../lib/queries/inquiries';
 import { STUDIO_PHONE, STUDIO_EMAIL, STUDIO_ADDRESS } from '../data/contact';
-import { validateInquiry, SERVICES } from '@shared/inquiry-validation.js';
+import { validateInquiry, SERVICES, HONEYPOT_FIELD } from '@shared/inquiry-validation.js';
 
 // Every one of these ends by offering another way through, because the panel
 // they appear in is the last thing standing between a couple and giving up.
@@ -66,7 +66,7 @@ const EMPTY_FORM = {
   venue: '',
   services: ['Cinematic Film', 'Fine Art Photography'],
   message: '',
-  website: '',
+  [HONEYPOT_FIELD]: '',
 };
 
 function FieldError({ id, message }) {
@@ -258,12 +258,22 @@ export default function BookingForm() {
                     <div aria-hidden="true">
                       <input
                         type="text"
-                        name="website"
+                        name={HONEYPOT_FIELD}
+                        id={HONEYPOT_FIELD}
                         tabIndex={-1}
-                        autoComplete="off"
+                        // `off` is a request browsers routinely ignore — Chrome
+                        // and most password managers treat it as advisory and
+                        // fill anyway when the field's NAME looks familiar.
+                        // This one is named so nothing recognises it, and asks
+                        // for a made-up token as well, because an unknown
+                        // autocomplete value is likelier to be left alone than
+                        // a value that says "do not fill" and is overruled.
+                        autoComplete="section-none nope"
                         aria-hidden="true"
-                        value={formData.website}
-                        onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                        value={formData[HONEYPOT_FIELD]}
+                        onChange={(e) => setFormData({
+                          ...formData, [HONEYPOT_FIELD]: e.target.value,
+                        })}
                         className="absolute -left-[9999px] top-0 w-px h-px opacity-0 overflow-hidden"
                       />
                     </div>

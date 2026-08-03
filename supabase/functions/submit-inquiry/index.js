@@ -9,7 +9,7 @@
 // re-checked here.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.111.0';
-import { validateInquiry } from '../_shared/inquiry-validation.js';
+import { validateInquiry, HONEYPOT_FIELD } from '../_shared/inquiry-validation.js';
 import { verifyTurnstile } from '../_shared/turnstile.js';
 import { sendInquiryEmails } from '../_shared/email.js';
 
@@ -152,14 +152,15 @@ async function drainBody(req) {
   }
 }
 
-// A human never sees the honeypot field, so any non-empty value in it — of
-// any type, not just a string — is a bot filling in every field it can find.
-function isHoneypotTripped(website) {
-  if (website === undefined || website === null) {
+// No human ever sees this field, so a value in it — of any type, not just a
+// string — means something filled it without looking. That used to be taken
+// as proof of a bot; see the note at the call site for why it no longer is.
+function isHoneypotTripped(value) {
+  if (value === undefined || value === null) {
     return false;
   }
-  if (typeof website === 'string') {
-    return website.trim() !== '';
+  if (typeof value === 'string') {
+    return value.trim() !== '';
   }
   return true;
 }
@@ -252,16 +253,6 @@ Deno.serve(async (req) => {
     return json(400, { ok: false, error: 'MALFORMED_REQUEST' }, origin);
   }
 
-  // Honeypot. Answer 200 rather than an error: a rejection tells the bot what
-  // tripped it. The id is deliberately fake — freshly generated per request
-  // and matching no row — so the response is indistinguishable from a real
-  // success; a fixed sentinel like `id: null` would let a bot tell the trap
-  // apart from success just by trying it once and comparing.
-  if (isHoneypotTripped(payload?.website)) {
-    console.log('submit-inquiry: honeypot tripped, discarding');
-    return json(200, { ok: true, id: crypto.randomUUID() }, origin);
-  }
-
   const ip = clientIp(req);
 
   // Turnstile runs before validation (and before rate limiting) so a flood of
@@ -308,6 +299,34 @@ Deno.serve(async (req) => {
   const { valid, fields, value } = validateInquiry(payload, { today: today() });
   if (!valid) {
     return json(400, { ok: false, error: 'VALIDATION_FAILED', fields }, origin);
+  }
+
+  // Honeypot — now telemetry, and deliberately NOT a silent discard.
+  //
+  // It used to run first and throw the submission away behind a success-shaped
+  // response. On this site's first contact with a real person that is exactly
+  // what happened: a browser password manager autofilled the hidden field (it
+  // was named `website`, which autofill treats as a URL field), the server
+  // called them a bot, and a genuine booking inquiry was deleted while the
+  // couple was shown "Inquiry Received". A review had flagged the risk and
+  // could not test it without a real password manager; the first real
+  // submission proved it.
+  //
+  // Two things changed. The field is renamed so autofill stops targeting it,
+  // and this check moved BELOW the captcha — so anything reaching it has
+  // already solved a Cloudflare challenge, which a bot filling hidden fields
+  // has not. A client that passed Turnstile and tripped the honeypot is far
+  // more likely a person with an eager password manager than a bot.
+  //
+  // So it logs and stores. Turnstile is the real spam control; this is
+  // defence in depth, and defence in depth must not be the thing that loses a
+  // booking. An unwanted row costs the studio ten seconds to archive. A
+  // deleted enquiry costs them a wedding, and they never learn it existed.
+  if (isHoneypotTripped(payload?.[HONEYPOT_FIELD])) {
+    console.warn(
+      'submit-inquiry: honeypot field was filled on a captcha-passing submission — storing anyway, review it',
+      { email: value.email },
+    );
   }
 
   const db = createClient(
