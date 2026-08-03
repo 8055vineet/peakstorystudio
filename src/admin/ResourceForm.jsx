@@ -62,6 +62,16 @@ function buildInitialValues(config, initial) {
 // so the render-time reset below fires in exactly the cases a remount
 // would have covered, and no others (switching between two *unsaved* create
 // flows, both with `initial: null`, is not treated as a record change).
+//
+// Keying on the id alone is a deliberate choice with a consequence worth
+// naming: if the SAME record's values change underneath an admin who is
+// mid-edit — a background reload landing while they type — their typing is
+// kept and the newer server values are not shown until they save or cancel.
+// The alternative discards work someone is in the middle of doing, which is
+// the worse failure: a stale field they are about to overwrite anyway costs
+// nothing, while losing a half-written description costs their afternoon.
+// Nothing here writes silently, so the save still goes through the same
+// confirm-before-success path as every other mutation.
 function initialKey(initial) {
   return initial?.id ?? null;
 }
@@ -72,6 +82,12 @@ function initialKey(initial) {
 // inside a single tag is not supported — there is no escaping scheme for
 // it, and the tags field's help text says so rather than silently
 // mangling one.
+//
+// De-duplication is deliberately case-SENSITIVE: "Beach" and "beach" are
+// kept as two tags. These render on the public site, so casing is the
+// studio's editorial choice, and silently folding one into the other would
+// change published copy on their behalf. The help text says so, because a
+// rule the admin cannot see is a rule they will be surprised by.
 function parseTags(raw) {
   if (!raw) return [];
   const seen = new Set();
@@ -191,6 +207,7 @@ function Field({
         // says so rather than a tag silently getting split in two.
         <p className="mt-1 text-xs text-charcoal-500">
           Comma-separated — separate each tag with a comma. A tag cannot itself contain a comma.
+          Capitalisation is kept as you type it, so “Beach” and “beach” count as two tags.
         </p>
       )}
       {field.help && <p className="mt-1 text-xs text-charcoal-500">{field.help}</p>}
