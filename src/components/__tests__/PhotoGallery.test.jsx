@@ -5,11 +5,11 @@ import PhotoGallery from '../PhotoGallery';
 const SAMPLE = [
   {
     id: 'photo-1',
-    title: 'Royal Courtyard Portrait',
-    url: '/images/hero_royal.jpg',
-    category: 'Royal',
-    couple: 'Sam & Alex',
-    location: 'Jaipur',
+    title: 'Wedding day 1',
+    url: '/images/gallery/wedding/1.jpg',
+    category: 'Wedding',
+    couple: null,
+    location: null,
     span: 'col-span-1 row-span-1',
   },
 ];
@@ -17,8 +17,8 @@ const SAMPLE = [
 describe('PhotoGallery', () => {
   it('renders a tile per photo when the list has content', () => {
     render(<PhotoGallery photos={SAMPLE} onOpenLightbox={vi.fn()} />);
-    expect(screen.getByText('Royal Courtyard Portrait')).toBeInTheDocument();
-    // The "All" and "Royal" category badges both read the same count (1).
+    expect(screen.getByText('Wedding day 1')).toBeInTheDocument();
+    // The "All" and "Wedding" category badges both read the same count (1).
     expect(screen.getAllByText('1').length).toBe(2);
   });
 
@@ -30,7 +30,7 @@ describe('PhotoGallery', () => {
     // guarantee in.
     render(<PhotoGallery photos={[]} onOpenLightbox={vi.fn()} />);
     expect(screen.getByText(/FINE ART/)).toBeInTheDocument();
-    expect(screen.queryByText('Royal Courtyard Portrait')).not.toBeInTheDocument();
+    expect(screen.queryByText('Wedding day 1')).not.toBeInTheDocument();
     // Every category count (including "All") reads 0 rather than throwing.
     expect(screen.getAllByText('0').length).toBeGreaterThan(0);
   });

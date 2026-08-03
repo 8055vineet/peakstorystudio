@@ -6,7 +6,10 @@ export default function PhotoGallery({ photos, onOpenLightbox }) {
   const [activeCategory, setActiveCategory] = useState('All');
   const [layoutColumns, setLayoutColumns] = useState(4); // 1, 2, or 4
 
-  const categories = ['All', 'Royal', 'Candid', 'Pre-Wedding', 'Rituals', 'Details'];
+  // Matches the categories real content actually uses (loaded by
+  // scripts/load-real-content.mjs). Extend this list alongside new categories
+  // in the database, or the filter buttons and the content drift apart.
+  const categories = ['All', 'Wedding', 'Pre-Wedding'];
 
   const filteredPhotos = activeCategory === 'All'
     ? photos
