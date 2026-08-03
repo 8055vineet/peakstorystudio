@@ -5,6 +5,7 @@ import { listInquiries, updateInquiryStatus } from '../lib/queries/adminInquirie
 import { listMedia } from '../lib/queries/media';
 import { getSettingsRow, updateSiteSettings } from '../lib/queries/adminSettings';
 import SettingsForm from './SettingsForm.jsx';
+import DashboardOverview from './DashboardOverview.jsx';
 import SignInForm from './SignInForm.jsx';
 import LeadsTable from './LeadsTable.jsx';
 import LeadDetail from './LeadDetail.jsx';
@@ -561,6 +562,7 @@ function TestimonialsDashboard() {
 // though a screen reader announces both, and the same holds for Gallery,
 // Films, and Testimonials below.
 const DASHBOARD_TABS = [
+  { key: 'dashboard', label: 'Dashboard' },
   { key: 'leads', label: 'Leads' },
   { key: 'media', label: 'Media Library' },
   { key: 'weddings', label: 'Weddings' },
@@ -576,11 +578,11 @@ const DASHBOARD_TABS = [
 // the "not fetched until asked for" test in App.test.jsx), so switching
 // tabs, not mounting the shell, is what triggers each one's first load.
 function AdminDashboard() {
-  const [tab, setTab] = useState('leads');
+  const [tab, setTab] = useState('dashboard');
 
   return (
     <div>
-      <nav className="flex gap-2 mb-8" aria-label="Admin sections">
+      <nav className="flex flex-wrap gap-2 mb-8" aria-label="Admin sections">
         {DASHBOARD_TABS.map(({ key, label }) => (
           <button
             key={key}
@@ -597,6 +599,7 @@ function AdminDashboard() {
           </button>
         ))}
       </nav>
+      {tab === 'dashboard' && <DashboardOverview onNavigate={setTab} />}
       {tab === 'leads' && <InquiriesDashboard />}
       {tab === 'media' && <MediaLibraryDashboard />}
       {tab === 'weddings' && <WeddingsDashboard />}
@@ -711,13 +714,23 @@ export default function App({
     <div className="min-h-screen bg-offwhite-100 text-pitch-900">
       <header className="flex items-center justify-between px-6 py-4 border-b border-pitch-900/10">
         <span className="text-sm font-semibold">{account}</span>
-        <button
-          type="button"
-          onClick={signOut}
-          className="px-4 py-2 rounded-lg border border-pitch-900/20 text-xs uppercase tracking-widest font-semibold hover:bg-offwhite-200 transition-colors"
-        >
-          Sign Out
-        </button>
+        <div className="flex items-center gap-3">
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 rounded-lg border border-pitch-900/20 text-xs uppercase tracking-widest font-semibold hover:bg-offwhite-200 transition-colors"
+          >
+            View website
+          </a>
+          <button
+            type="button"
+            onClick={signOut}
+            className="px-4 py-2 rounded-lg border border-pitch-900/20 text-xs uppercase tracking-widest font-semibold hover:bg-offwhite-200 transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
       </header>
       <main className="p-6">{children}</main>
     </div>

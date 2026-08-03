@@ -1,12 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
-  render, screen, waitFor, act,
+  render, screen, waitFor, within, act,
 } from '@testing-library/react';
 
 const useSession = vi.fn();
 const listInquiries = vi.fn();
 const updateInquiryStatus = vi.fn();
 const listMedia = vi.fn();
+const getOverviewCounts = vi.fn();
+const getSettingsRow = vi.fn();
+const updateSiteSettings = vi.fn();
 const weddingsList = vi.fn();
 const weddingsCreate = vi.fn();
 const weddingsUpdate = vi.fn();
@@ -54,6 +57,17 @@ vi.mock('../../lib/queries/adminInquiries', () => ({
 // UploadField.test.jsx already exercises against a mocked hook of its own.
 vi.mock('../../lib/queries/media', () => ({
   listMedia: (...args) => listMedia(...args),
+}));
+
+// The Dashboard landing tab fetches counts on mount, and the Settings tab
+// reads/writes the settings row — both mocked at the query-module boundary
+// like everything above, so the shell tests stay network-free.
+vi.mock('../../lib/queries/adminOverview', () => ({
+  getOverviewCounts: (...args) => getOverviewCounts(...args),
+}));
+vi.mock('../../lib/queries/adminSettings', () => ({
+  getSettingsRow: (...args) => getSettingsRow(...args),
+  updateSiteSettings: (...args) => updateSiteSettings(...args),
 }));
 vi.mock('../../hooks/useMediaUpload', () => ({
   useMediaUpload: () => ({
@@ -251,6 +265,24 @@ beforeEach(() => {
   testimonialsUpdate.mockReset();
   testimonialsRemove.mockReset();
   testimonialsReorder.mockReset();
+  getOverviewCounts.mockReset();
+  getSettingsRow.mockReset();
+  updateSiteSettings.mockReset();
+  getOverviewCounts.mockResolvedValue({
+    newLeads: 0,
+    weddings: { published: 0, draft: 0 },
+    gallery: { published: 0, draft: 0 },
+    films: { published: 0, draft: 0 },
+    testimonials: { published: 0, draft: 0 },
+  });
+  getSettingsRow.mockResolvedValue({
+    id: 1,
+    quoteText: 'Q', quoteCredit: 'C', brandStoryHeading: 'H',
+    brandStoryP1: 'P1', brandStoryP2: 'P2',
+    heroMediaId: null, brandStoryMediaId: null, closingMediaId: null,
+    studioAddress: 'A', studioEmail: 'e@x.test', studioPhone: '+91 1',
+    whatsappNumber: '', instagramUrl: '', youtubeUrl: '',
+  });
   listInquiries.mockResolvedValue([]);
   listMedia.mockResolvedValue([]);
   weddingsList.mockResolvedValue([]);
@@ -330,7 +362,7 @@ describe('admin App shell', () => {
     expect(screen.getByRole('button', { name: 'Sign Out' })).toBeInTheDocument();
   });
 
-  it('mounts the leads dashboard by default when authenticated and no children are supplied', async () => {
+  it('lands on the dashboard overview by default, leads only on request', async () => {
     listInquiries.mockResolvedValue([{
       id: 'inq-1',
       name: 'Ananya & Rohan',
@@ -353,6 +385,20 @@ describe('admin App shell', () => {
 
     render(<App />);
 
+    // Dashboard is the landing tab; nothing fetches leads nobody asked for.
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument());
+    expect(getOverviewCounts).toHaveBeenCalled();
+    expect(listInquiries).not.toHaveBeenCalled();
+
+    // The header always offers the way back to the site itself.
+    const viewSite = screen.getByRole('link', { name: /view website/i });
+    expect(viewSite).toHaveAttribute('href', '/');
+    expect(viewSite).toHaveAttribute('target', '_blank');
+
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    const nav = screen.getByRole('navigation', { name: /admin sections/i });
+    await user.click(within(nav).getByRole('button', { name: 'Leads' }));
     expect(screen.getByText(/booking inquiries/i)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('Ananya & Rohan')).toBeInTheDocument());
     expect(listInquiries).toHaveBeenCalled();
@@ -441,12 +487,18 @@ describe('admin App shell', () => {
       expect(screen.queryByRole('button', { name: /select/i })).toBeNull();
     });
 
-    it('still shows the leads dashboard first, unaffected by the new tab existing', async () => {
+    it('still lands on the dashboard first, unaffected by the media tab existing', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
       signIn();
       render(<App />);
 
-      expect(screen.getByText(/booking inquiries/i)).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument());
       expect(screen.queryByRole('heading', { name: /media library/i })).not.toBeInTheDocument();
+
+      const user = userEvent.setup();
+      const nav = screen.getByRole('navigation', { name: /admin sections/i });
+      await user.click(within(nav).getByRole('button', { name: 'Leads' }));
+      expect(screen.getByText(/booking inquiries/i)).toBeInTheDocument();
       // Lets InquiriesDashboard's own listInquiries() call resolve — and the
       // state update that follows actually land — before the test ends, so
       // it isn't left dangling outside act().
@@ -508,7 +560,8 @@ describe('admin App shell', () => {
       expect(weddingsList).not.toHaveBeenCalled();
 
       const user = userEvent.setup();
-      await user.click(screen.getByRole('button', { name: /weddings/i }));
+      const nav = screen.getByRole('navigation', { name: /admin sections/i });
+      await user.click(within(nav).getByRole('button', { name: /weddings/i }));
 
       expect(screen.getByRole('heading', { level: 1, name: /weddings/i })).toBeInTheDocument();
       await waitFor(() => expect(screen.getByText('A Palace Wedding')).toBeInTheDocument());
