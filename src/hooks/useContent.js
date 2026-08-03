@@ -5,10 +5,12 @@ import {
   INITIAL_FILMS,
   TESTIMONIALS,
 } from '../data/weddingData';
+import { SITE_SETTINGS_FALLBACK } from '../data/siteSettingsFallback';
 import { getPublishedWeddings } from '../lib/queries/weddings';
 import { getGalleryPhotos } from '../lib/queries/gallery';
 import { getFilms } from '../lib/queries/films';
 import { getTestimonials } from '../lib/queries/testimonials';
+import { getSiteSettings } from '../lib/queries/siteSettings';
 
 // The database is unconditionally authoritative as of Phase 3 (there is no
 // longer a `VITE_DATA_SOURCE` switch to read from the static module
@@ -54,3 +56,8 @@ export const useGalleryPhotos = () => useContent(INITIAL_PHOTOS, getGalleryPhoto
 export const useFilms = () => useContent(INITIAL_FILMS, getFilms);
 
 export const useTestimonials = () => useContent(TESTIMONIALS, getTestimonials);
+
+// The site's singular content (Phase 3c): quote, Brand Story, Home images,
+// contact, socials — one settings row, same stale-beats-blank fallback as
+// the collections above.
+export const useSiteSettings = () => useContent(SITE_SETTINGS_FALLBACK, getSiteSettings);
