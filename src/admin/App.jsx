@@ -12,6 +12,9 @@ import ResourceList from './ResourceList.jsx';
 import ResourceForm from './ResourceForm.jsx';
 import WeddingPhotos from './WeddingPhotos.jsx';
 import { weddingsResource, weddingsQueries } from './resources/weddings.js';
+import { galleryResource, galleryQueries } from './resources/gallery.js';
+import { filmsResource, filmsQueries } from './resources/films.js';
+import { testimonialsResource, testimonialsQueries } from './resources/testimonials.js';
 
 // Owns the leads dashboard's data (via useResource, the generic hook Tasks
 // 7-9 will also use) and which inquiry is selected. Kept private to this
@@ -206,22 +209,280 @@ function WeddingsDashboard() {
   );
 }
 
+// Task 9's three content types — gallery photos, films, testimonials — are
+// each a standalone resource with no per-record child the way weddings has
+// WeddingPhotos, so every one of these three is WeddingsDashboard's own
+// list/form/create/edit/publish/reorder/delete shape with that one piece
+// removed, not a new pattern. Kept as three separate functions (rather than
+// one parameterized by resource+queries) for the same reason
+// InquiriesDashboard, MediaLibraryDashboard, and WeddingsDashboard already
+// aren't unified that way: this file has never reached for a shared
+// abstraction across dashboards, and introducing one for exactly these three
+// would be new code Task 9 was asked not to add, not configuration over the
+// pattern Task 7 already built.
+function GalleryDashboard() {
+  const {
+    items, status, error, reload, mutate,
+  } = useResource(galleryQueries);
+  const [view, setView] = useState({ mode: 'list' });
+  const [formPending, setFormPending] = useState(false);
+  const [formError, setFormError] = useState(null);
+  const [listActionError, setListActionError] = useState(null);
+
+  async function runListAction(name, ...args) {
+    setListActionError(null);
+    try {
+      await mutate(name, ...args);
+    } catch (err) {
+      setListActionError({ message: err?.message || 'unknown error', written: Boolean(err?.written) });
+    }
+  }
+
+  async function handleSubmit(payload) {
+    setFormPending(true);
+    setFormError(null);
+    try {
+      if (view.item?.id) {
+        await mutate('update', view.item.id, payload);
+      } else {
+        await mutate('create', payload);
+      }
+      setView({ mode: 'list' });
+    } catch (err) {
+      setFormError(err);
+    } finally {
+      setFormPending(false);
+    }
+  }
+
+  if (view.mode === 'form') {
+    return (
+      <div className="space-y-8">
+        <h1 className="font-cinzel text-2xl font-bold text-pitch-900">
+          {view.item ? 'Edit Gallery Photo' : 'Add Gallery Photo'}
+        </h1>
+        <ResourceForm
+          key={`gallery-form-${view.item?.id ?? 'new'}`}
+          config={galleryResource}
+          initial={view.item}
+          onSubmit={handleSubmit}
+          onCancel={() => setView({ mode: 'list' })}
+          pending={formPending}
+          error={formError}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h1 className="font-cinzel text-2xl font-bold text-pitch-900 mb-6">Gallery</h1>
+      {listActionError && (
+        <p role="alert" className="mb-4 text-xs font-semibold text-pitch-900">
+          {listActionError.written
+            ? `That change saved, but this screen could not refresh to confirm it (${listActionError.message}). Reload to check.`
+            : `Could not save that change: ${listActionError.message}. Please try again.`}
+        </p>
+      )}
+      <ResourceList
+        config={galleryResource}
+        items={items}
+        status={status}
+        error={error}
+        onRetry={reload}
+        onCreate={() => { setFormError(null); setView({ mode: 'form', item: null }); }}
+        onEdit={(item) => { setFormError(null); setView({ mode: 'form', item }); }}
+        onDelete={(id) => runListAction('remove', id)}
+        onToggleStatus={(id, nextStatus) => runListAction('update', id, { status: nextStatus })}
+        onReorder={(ids) => runListAction('reorder', ids)}
+      />
+    </div>
+  );
+}
+
+// Same shape as GalleryDashboard immediately above — see its own comment for
+// why this is not further unified into one generic component.
+function FilmsDashboard() {
+  const {
+    items, status, error, reload, mutate,
+  } = useResource(filmsQueries);
+  const [view, setView] = useState({ mode: 'list' });
+  const [formPending, setFormPending] = useState(false);
+  const [formError, setFormError] = useState(null);
+  const [listActionError, setListActionError] = useState(null);
+
+  async function runListAction(name, ...args) {
+    setListActionError(null);
+    try {
+      await mutate(name, ...args);
+    } catch (err) {
+      setListActionError({ message: err?.message || 'unknown error', written: Boolean(err?.written) });
+    }
+  }
+
+  async function handleSubmit(payload) {
+    setFormPending(true);
+    setFormError(null);
+    try {
+      if (view.item?.id) {
+        await mutate('update', view.item.id, payload);
+      } else {
+        await mutate('create', payload);
+      }
+      setView({ mode: 'list' });
+    } catch (err) {
+      setFormError(err);
+    } finally {
+      setFormPending(false);
+    }
+  }
+
+  if (view.mode === 'form') {
+    return (
+      <div className="space-y-8">
+        <h1 className="font-cinzel text-2xl font-bold text-pitch-900">
+          {view.item ? 'Edit Film' : 'Add Film'}
+        </h1>
+        <ResourceForm
+          key={`film-form-${view.item?.id ?? 'new'}`}
+          config={filmsResource}
+          initial={view.item}
+          onSubmit={handleSubmit}
+          onCancel={() => setView({ mode: 'list' })}
+          pending={formPending}
+          error={formError}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h1 className="font-cinzel text-2xl font-bold text-pitch-900 mb-6">Films</h1>
+      {listActionError && (
+        <p role="alert" className="mb-4 text-xs font-semibold text-pitch-900">
+          {listActionError.written
+            ? `That change saved, but this screen could not refresh to confirm it (${listActionError.message}). Reload to check.`
+            : `Could not save that change: ${listActionError.message}. Please try again.`}
+        </p>
+      )}
+      <ResourceList
+        config={filmsResource}
+        items={items}
+        status={status}
+        error={error}
+        onRetry={reload}
+        onCreate={() => { setFormError(null); setView({ mode: 'form', item: null }); }}
+        onEdit={(item) => { setFormError(null); setView({ mode: 'form', item }); }}
+        onDelete={(id) => runListAction('remove', id)}
+        onToggleStatus={(id, nextStatus) => runListAction('update', id, { status: nextStatus })}
+        onReorder={(ids) => runListAction('reorder', ids)}
+      />
+    </div>
+  );
+}
+
+// Same shape as GalleryDashboard and FilmsDashboard above — see
+// GalleryDashboard's own comment for why this is not further unified into
+// one generic component.
+function TestimonialsDashboard() {
+  const {
+    items, status, error, reload, mutate,
+  } = useResource(testimonialsQueries);
+  const [view, setView] = useState({ mode: 'list' });
+  const [formPending, setFormPending] = useState(false);
+  const [formError, setFormError] = useState(null);
+  const [listActionError, setListActionError] = useState(null);
+
+  async function runListAction(name, ...args) {
+    setListActionError(null);
+    try {
+      await mutate(name, ...args);
+    } catch (err) {
+      setListActionError({ message: err?.message || 'unknown error', written: Boolean(err?.written) });
+    }
+  }
+
+  async function handleSubmit(payload) {
+    setFormPending(true);
+    setFormError(null);
+    try {
+      if (view.item?.id) {
+        await mutate('update', view.item.id, payload);
+      } else {
+        await mutate('create', payload);
+      }
+      setView({ mode: 'list' });
+    } catch (err) {
+      setFormError(err);
+    } finally {
+      setFormPending(false);
+    }
+  }
+
+  if (view.mode === 'form') {
+    return (
+      <div className="space-y-8">
+        <h1 className="font-cinzel text-2xl font-bold text-pitch-900">
+          {view.item ? 'Edit Testimonial' : 'Add Testimonial'}
+        </h1>
+        <ResourceForm
+          key={`testimonial-form-${view.item?.id ?? 'new'}`}
+          config={testimonialsResource}
+          initial={view.item}
+          onSubmit={handleSubmit}
+          onCancel={() => setView({ mode: 'list' })}
+          pending={formPending}
+          error={formError}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h1 className="font-cinzel text-2xl font-bold text-pitch-900 mb-6">Testimonials</h1>
+      {listActionError && (
+        <p role="alert" className="mb-4 text-xs font-semibold text-pitch-900">
+          {listActionError.written
+            ? `That change saved, but this screen could not refresh to confirm it (${listActionError.message}). Reload to check.`
+            : `Could not save that change: ${listActionError.message}. Please try again.`}
+        </p>
+      )}
+      <ResourceList
+        config={testimonialsResource}
+        items={items}
+        status={status}
+        error={error}
+        onRetry={reload}
+        onCreate={() => { setFormError(null); setView({ mode: 'form', item: null }); }}
+        onEdit={(item) => { setFormError(null); setView({ mode: 'form', item }); }}
+        onDelete={(id) => runListAction('remove', id)}
+        onToggleStatus={(id, nextStatus) => runListAction('update', id, { status: nextStatus })}
+        onReorder={(ids) => runListAction('reorder', ids)}
+      />
+    </div>
+  );
+}
+
 // Short nav labels rather than each dashboard's own full heading — 'Leads'
 // stays unambiguous from InquiriesDashboard's "Booking Inquiries" <h1> even
-// though a screen reader announces both, and it leaves room for Task 9's
-// tabs (Gallery, Films, Testimonials) to read as a set.
+// though a screen reader announces both, and the same holds for Gallery,
+// Films, and Testimonials below.
 const DASHBOARD_TABS = [
   { key: 'leads', label: 'Leads' },
   { key: 'media', label: 'Media Library' },
   { key: 'weddings', label: 'Weddings' },
+  { key: 'gallery', label: 'Gallery' },
+  { key: 'films', label: 'Films' },
+  { key: 'testimonials', label: 'Testimonials' },
 ];
 
-// The admin's default landing composition. Task 9 will extend
-// DASHBOARD_TABS with gallery, films, and testimonials on top of Task 7's
-// reusable resource pattern this file already uses for weddings. A tab's
-// dashboard only fetches once it's actually opened (see the "not fetched
-// until asked for" test in App.test.jsx), so switching tabs, not mounting
-// the shell, is what triggers each one's first load.
+// The admin's default landing composition. Task 7's reusable resource
+// pattern now backs five of these six tabs (every one but Leads and Media
+// Library). A tab's dashboard only fetches once it's actually opened (see
+// the "not fetched until asked for" test in App.test.jsx), so switching
+// tabs, not mounting the shell, is what triggers each one's first load.
 function AdminDashboard() {
   const [tab, setTab] = useState('leads');
 
@@ -247,6 +508,9 @@ function AdminDashboard() {
       {tab === 'leads' && <InquiriesDashboard />}
       {tab === 'media' && <MediaLibraryDashboard />}
       {tab === 'weddings' && <WeddingsDashboard />}
+      {tab === 'gallery' && <GalleryDashboard />}
+      {tab === 'films' && <FilmsDashboard />}
+      {tab === 'testimonials' && <TestimonialsDashboard />}
     </div>
   );
 }
