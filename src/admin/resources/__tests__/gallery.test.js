@@ -40,16 +40,17 @@ describe('galleryResource config', () => {
     expect(galleryResource.columns).toContain('media_id');
   });
 
-  // src/components/PhotoGallery.jsx hardcodes its filter chips to exactly
-  // these five (plus the 'All' meta-option) — a closed set, so this is a
-  // `select`, not free text a typo could turn into an unreachable category.
-  it('uses a select for category, closed to exactly the five categories PhotoGallery.jsx filters on', () => {
+  // src/components/PhotoGallery.jsx renders ceremony sections from exactly
+  // these categories (appending unknowns rather than dropping them) — a
+  // closed set, so this is a `select`, not free text a typo could turn into
+  // a stray one-off section.
+  it('uses a select for category, matching the ceremony sections PhotoGallery.jsx renders', () => {
     const field = galleryResource.fields.find((f) => f.name === 'category');
     expect(field).toBeDefined();
     expect(field.type).toBe('select');
     expect(field.required).toBe(true);
     expect(field.options.map((o) => o.value)).toEqual(
-      ['Royal', 'Candid', 'Pre-Wedding', 'Rituals', 'Details'],
+      ['Pre-Wedding', 'Wedding', 'Engagement', 'Haldi & Mehendi'],
     );
   });
 

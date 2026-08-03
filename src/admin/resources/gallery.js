@@ -2,19 +2,16 @@ import { makeResourceQueries } from '../../lib/queries/adminContent';
 
 // gallery_photos.category (supabase/migrations/20260730203451_initial_schema.sql) is `text not
 // null` with no check constraint — Postgres would accept any string — but the public gallery
-// only ever renders five: src/components/PhotoGallery.jsx hardcodes its filter chips to exactly
-// ['All', 'Royal', 'Candid', 'Pre-Wedding', 'Rituals', 'Details'] (`All` being the "show
-// everything" meta-option, not a real category) and every one of the 8 seed rows in
-// src/data/weddingData.js's INITIAL_PHOTOS uses one of the other five. A sixth value would still
-// save, still render under "All," and simply never be reachable through the filter — invisible
-// breakage, not a crash. That makes this a genuinely closed set: `select`, not free text, so a
-// typo can't quietly orphan a photo from its own filter.
+// renders ceremony sections from these values: src/components/PhotoGallery.jsx orders the four
+// below explicitly and appends any category it doesn't know rather than dropping it. This list
+// matches the real content loaded by scripts/load-real-content.mjs; keep the two in step when a
+// ceremony type is added. A select rather than free text, so a typo can't quietly strand a
+// photo in a one-off section.
 const CATEGORY_OPTIONS = [
-  { value: 'Royal', label: 'Royal' },
-  { value: 'Candid', label: 'Candid' },
   { value: 'Pre-Wedding', label: 'Pre-Wedding' },
-  { value: 'Rituals', label: 'Rituals' },
-  { value: 'Details', label: 'Details' },
+  { value: 'Wedding', label: 'Wedding' },
+  { value: 'Engagement', label: 'Engagement' },
+  { value: 'Haldi & Mehendi', label: 'Haldi & Mehendi' },
 ];
 
 // gallery_photos.grid_span stores a literal Tailwind utility-class string, read straight through
