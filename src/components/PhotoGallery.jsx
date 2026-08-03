@@ -1,13 +1,15 @@
 import React from 'react';
 import ScrollReveal from './ScrollReveal';
 
-// The gallery as ceremony sections, per the owner's reference layout:
-// a quiet uppercase label per ceremony, then the photographs two-up in
-// their natural uploaded orientation — sharp corners, no rounding, no
-// filter buttons. A category renders only when it has photographs, so an
-// unpublished set leaves no gap. Categories the order list doesn't know
-// (added later through the admin) append after the known ones rather
-// than disappearing.
+// The gallery as ceremony sections: a quiet uppercase label per ceremony,
+// then the photographs as a dense grid of square tiles — sharp corners, no
+// rounding, no filter buttons. Tiles crop square (the owner's "square photo
+// format"); clicking opens the full uncropped photograph in the lightbox.
+// Density matters here: 64 natural-height photographs two-up produced a
+// 24,000px page where visitors never discovered the later sections. A
+// category renders only when it has photographs, so an unpublished set
+// leaves no gap. Categories the order list doesn't know (added later
+// through the admin) append after the known ones rather than disappearing.
 const SECTION_ORDER = ['Pre-Wedding', 'Wedding', 'Engagement', 'Haldi & Mehendi'];
 
 export default function PhotoGallery({ photos, onOpenLightbox }) {
@@ -27,14 +29,14 @@ export default function PhotoGallery({ photos, onOpenLightbox }) {
         {categories.map((category) => {
           const items = photos.filter((p) => p.category === category);
           return (
-            <div key={category} className="mb-16">
+            <div key={category} className="mb-14">
               <ScrollReveal>
-                <h2 className="text-center text-xs uppercase tracking-[0.3em] text-charcoal-500 mb-8">
+                <h2 className="text-center text-xs uppercase tracking-[0.3em] text-charcoal-500 mb-6">
                   {category}
                 </h2>
               </ScrollReveal>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {items.map((photo) => (
                   <button
                     key={photo.id}
@@ -46,7 +48,7 @@ export default function PhotoGallery({ photos, onOpenLightbox }) {
                       src={photo.url}
                       alt={photo.title || ''}
                       loading="lazy"
-                      className="w-full h-auto group-hover:scale-[1.02] transition-transform duration-700"
+                      className="aspect-square w-full object-cover group-hover:scale-[1.03] transition-transform duration-700"
                     />
                   </button>
                 ))}
