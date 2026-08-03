@@ -112,12 +112,21 @@ function SettingsDashboard() {
   const [pending, setPending] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [saved, setSaved] = useState(false);
+  // Bumping this refetches; the effect itself never sets state synchronously.
+  const [reloadKey, setReloadKey] = useState(0);
 
-  function load() {
+  useEffect(() => {
+    let cancelled = false;
+    getSettingsRow()
+      .then((result) => { if (!cancelled) setRow(result); })
+      .catch((err) => { if (!cancelled) setLoadError(err); });
+    return () => { cancelled = true; };
+  }, [reloadKey]);
+
+  function retryLoad() {
     setLoadError(null);
-    getSettingsRow().then(setRow).catch((err) => setLoadError(err));
+    setReloadKey((key) => key + 1);
   }
-  useEffect(load, []);
 
   async function handleSave(values) {
     setPending(true);
@@ -142,7 +151,7 @@ function SettingsDashboard() {
         </p>
         <button
           type="button"
-          onClick={load}
+          onClick={retryLoad}
           className="px-6 py-2.5 rounded-lg bg-pitch-900 text-offwhite-50 text-xs uppercase tracking-widest font-semibold hover:bg-pitch-800 transition-colors"
         >
           Retry

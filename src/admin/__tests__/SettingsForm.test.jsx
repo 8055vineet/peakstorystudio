@@ -64,7 +64,7 @@ describe('SettingsForm', () => {
   it.each([
     ['Quote', '', /keep a quote/i],
     ['Email address', 'not-an-email', /does not look right/i],
-    ['WhatsApp number', 'abc', /digits only/i],
+    ['WhatsApp number', 'abc', /or leave it empty/i],
     ['Instagram URL', 'ftp://x', /must start with http/i],
   ])('blocks save when %s is invalid', async (label, badValue, message) => {
     const { props } = await renderForm();
