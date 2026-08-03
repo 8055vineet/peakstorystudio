@@ -1,12 +1,10 @@
-// Content of the Home page that is neither database-driven nor per-component.
-//
-// THE IMAGE SLOTS ARE OWNER-SWAPPABLE FILES: to change the hero, Brand Story
-// portrait, or closing image, overwrite the file in public/images/home/ —
-// no code edit. The committed files are placeholders (Unsplash imagery the
-// site already displayed; Unsplash's license permits redistribution).
-//
-// The quote, credit, and Brand Story paragraphs are the studio's real copy,
-// confirmed by the owner on 2026-08-03 — change only at the owner's direction.
+// FALLBACK ONLY since Phase 3c: the live values live in the site_settings
+// table and are edited in the admin's Settings tab. What is here renders
+// when the database is unreachable, and serves as the prop defaults
+// components use when rendered unwired (tests). The static files in
+// public/images/home/ remain the fallback image slots for the same reason.
+// Keep this file in step with the migration's seeded values; do not edit it
+// to change the live site — use the admin.
 export const HOME_QUOTE = {
   text: 'Every journey builds toward a single, breathless moment. We are here to capture the story when it reaches its absolute peak.',
   credit: 'by abhinav',

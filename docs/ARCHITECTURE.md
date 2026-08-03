@@ -14,7 +14,12 @@ documents and commits that describe it that way predate `v0.4b`. The visual desi
 owner's approved Phase 3b redesign: a centered Cormorant Garamond wordmark, quiet cream
 surfaces, and the deep-maroon `pitch` accents.
 
-Since Phase 1b (`v0.2b`) the site reads its content from a Postgres database. As of Phase 3
+Since Phase 1b (`v0.2b`) the site reads its content from a Postgres database. Since Phase 3c
+the site's singular content (Home quote, Brand Story, Home image slots, contact details,
+social links) is database-driven too: `useSiteSettings` (the fifth `useContent` wrapper) reads
+the one-row `site_settings` table, `src/App.jsx` passes slices down as props, and
+`src/data/siteSettingsFallback.js` (built from the shipped constants) is what renders when the
+database is unreachable — components keep those constants as prop defaults. As of Phase 3
 Task 10 that database is unconditionally authoritative — the static `src/data/weddingData.js`
 module remains only as an error fallback, not a configurable second source — see
 [Data flow](#data-flow) below and `docs/DATA-MODEL.md`.
@@ -218,8 +223,15 @@ file, one set of rules, so the two layers cannot drift apart.
 ## The admin app
 
 Since Phase 3 (`v0.4`) a second, separate application exists for managing content and booking
-inquiries: `admin.html`, a second Vite entry point with its own `src/admin/` component tree,
-mounted the same way the public site is —
+inquiries: `admin.html`, a second Vite entry point with its own `src/admin/` component tree.
+Since Phase 3c (`v0.4c`) it is a complete CMS: eight tabs — **Dashboard** (the landing screen:
+new-lead count with a callout, published/draft counts per content type, each card a shortcut),
+Leads, Media Library (whose cards offer **Add to Gallery**, jumping straight into a pre-filled
+Add Gallery Photo form), Weddings, Gallery, Films, Testimonials, and **Settings** (the site's
+singular content: quote, Brand Story, the three Home images via the media picker, contact
+details, social links — backed by the one-row `site_settings` table). Every create lands as a
+draft and announces itself with a publish-now banner; the header carries a **View website**
+link. It is mounted the same way the public site is —
 
 ```
 admin.html -> src/admin/main.jsx -> ReactDOM.createRoot(...).render(<ErrorBoundary><App/></ErrorBoundary>)

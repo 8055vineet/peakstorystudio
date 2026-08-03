@@ -163,7 +163,7 @@ decorative arrays that once added more Unsplash hotlinks of their own were remov
 
 Content is read from a local Postgres database (run via `supabase start`), not from
 `weddingData.js` — the one exception being the error-fallback role described above. The schema —
-eight tables — lives in `supabase/migrations/`:
+nine tables — lives in `supabase/migrations/`:
 
 - `20260730203451_initial_schema.sql` creates `media` (image records: storage path, width,
   height, `alt_text`, `blurhash`), `weddings` (one row per wedding story, with a `slug`), the
@@ -181,6 +181,20 @@ eight tables — lives in `supabase/migrations/`:
   and creates `inquiry_rate_limits` and `consume_inquiry_rate_limit()` — the groundwork the
   Phase 2 submit-inquiry Edge Function needs before it can write a row. See
   [Inquiry rate limiting](#inquiry-rate-limiting) below.
+- `20260804100000_site_settings.sql` (Phase 3c) creates `site_settings`: the site's singular,
+  admin-editable content — quote text and credit, the three Brand Story fields, three nullable
+  media references for the Home image slots (`hero_media_id`, `brand_story_media_id`,
+  `closing_media_id`), the studio's contact details, and the two social URLs. It is one row by
+  construction (`id int primary key default 1 check (id = 1)`), created by the migration's own
+  seed insert with the owner-confirmed real values (2026-08-03/04), so a from-empty reset
+  reproduces a working site. Policies: `site_settings_read_all` (`select using (true)` — the
+  public site reads with the anon key) and `site_settings_admin_update` (`update` gated on
+  `public.is_admin()`); **no insert or delete policies exist at all.**
+  `scripts/load-real-content.mjs` points the three media references at media rows for the
+  shipped `/images/home/*.jpg` files (and its deletion pass never removes media the settings
+  row references). Read path: `src/lib/queries/siteSettings.js` → `useSiteSettings`
+  (`src/hooks/useContent.js`), falling back to `src/data/siteSettingsFallback.js`; admin write
+  path: `src/lib/queries/adminSettings.js` behind the Settings tab.
 
 `inquiries.notification_status` is a text column, defaulting to `pending`, constrained to four
 values: `pending` (the row was written but no notification attempt has happened yet), `sent` (the

@@ -1,8 +1,8 @@
-// One home for the studio's contact details.
-//
-// Confirmed real by the studio owner on 2026-08-03 (this closed PS-028):
-// the studio is in Lucknow. Change these here and nowhere else — components
-// must import them, never hardcode them.
+// FALLBACK ONLY since Phase 3c: the live contact details live in the
+// site_settings table (admin Settings tab). These owner-confirmed values
+// (2026-08-03, PS-028) render when the database is unreachable and serve as
+// prop defaults; keep them in step with the migration's seed. Do not edit
+// this file to change the live site — use the admin.
 export const STUDIO_PHONE = '+91 8881621021';
 export const STUDIO_EMAIL = 'peakstorystudio@gmail.com';
 export const STUDIO_ADDRESS = '2/231 Vastu Khand, Gomtinagar, Lucknow, UP';

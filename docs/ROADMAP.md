@@ -46,6 +46,15 @@ remains until the owner replaces it through the admin). See the
 [Phase 3b design spec](superpowers/specs/2026-08-03-multi-page-redesign-design.md) for the
 full decisions.
 
+**Phase 3c — Admin CMS completion** (`v0.4c`) finished the owner's ask that the admin edit
+*everything*: a one-row `site_settings` table (quote, Brand Story, the three Home images,
+contact, socials) behind a new Settings tab, read live by the public site with the shipped
+constants as the outage fallback; a Dashboard landing tab (counts, new-lead callout); an
+Add-to-Gallery flow from the Media Library; a publish-now banner after every draft-first
+create; and a View-website header link. `npm run verify:admin` now also proves a settings
+edit round-trips to the public read path. See the
+[Phase 3c design spec](superpowers/specs/2026-08-04-admin-cms-settings-design.md).
+
 ## Phase and version table
 
 | Version | Phase | Deliverable | Definition of done | Runs on |
@@ -57,6 +66,7 @@ full decisions.
 | **v0.3** | 2 — Inquiries real | Booking form persists; Edge Function emails studio and couple; `wa.me` button; spam protection | A submitted inquiry is in the database, in the studio inbox, and acknowledged to the couple | local |
 | **v0.4** | 3 — Admin: auth, CMS, media | Supabase Auth for admin; real CRUD; image uploads; leads dashboard | A wedding can be added and photos uploaded with no code edit and no `localStorage` | local |
 | **v0.4b** | 3b — Multi-page redesign | React Router pages per navbar option; full restyle to the owner's approved design; real Lucknow contact details | Each nav option is its own URL; no fabricated press/stat claims rendered by any component; suite green | local |
+| **v0.4c** | 3c — Admin CMS completion | `site_settings` table; Settings + Dashboard tabs; add-to-gallery; draft-state clarity | Every visitor-visible word and image is editable from the admin with no code change | local |
 | **v0.5** | 4 — First deploy | Hosted Supabase project; Cloudflare Pages deploy; CI/CD; preview deploys | Site reachable on `*.pages.dev`, `noindex` set, deploys on merge | Cloudflare Pages |
 | **v0.6** | 5 — SEO and shareable pages | Routing, per-wedding URLs, prerendering, sitemap, OG images, structured data | Every wedding has its own indexable, shareable URL | Cloudflare Pages |
 | **v0.7** | 6 — Client proofing portal | Per-client galleries, magic-link auth, persisted favourites, high-res downloads | A couple signs in and sees only their own photographs | Cloudflare Pages |
