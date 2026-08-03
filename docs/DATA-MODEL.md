@@ -56,18 +56,13 @@ Fields present on every entry: `id`, `title`, `couple`, `location`, `duration`, 
 
 Fields present on every entry: `id`, `quote`, `couple`, `event`.
 
-### `FILM_STRIP_FRAMES` — 6 entries
+### `FILM_STRIP_FRAMES` and `EDITORIAL_GALLERY` — removed in Phase 3b
 
-Fields present on every entry: `title`, `location`, `img`. Consumed by
-`src/components/FilmStrip.jsx`, the "behind the lens" marquee. Moved here from a `const`
-declared inside the component body (see `PS-015` below and in `docs/KNOWN-ISSUES.md`).
-
-### `EDITORIAL_GALLERY` — 5 entries
-
-Fields present on every entry: `id` (number), `image`, `title`, `location`. Consumed by
-`src/components/HorizontalGallery.jsx`, the horizontal-scroll "editorial showcase" carousel.
-Moved here from a module-scope `const` in that component file (see `PS-015` below and in
-`docs/KNOWN-ISSUES.md`).
+Both arrays (6 film-strip frames; 5 editorial-carousel entries) were deleted along with the
+two decorative components that consumed them — the "behind the lens" marquee and the
+horizontal "editorial showcase" carousel — when the multi-page redesign dropped those
+sections. This closed `PS-023` (neither array ever had a database table for the admin to write
+to); see Resolved in `docs/KNOWN-ISSUES.md`.
 
 ## Field-level problems
 
@@ -152,19 +147,17 @@ and `hero_royal.jpg` repeatedly (e.g. `/images/hero_royal.jpg` is reused as `sto
 point at `https://images.unsplash.com/photo-...` URLs for every other image, but `INITIAL_FILMS`
 (`src/data/weddingData.js:131-159`) does not — all three of its `thumbnail` values are local
 `/images/...` paths, with zero Unsplash URLs. `luxury_camera.jpg` is **not**
-referenced anywhere in `src/data/weddingData.js` — it is a UI asset used only by
-`src/components/SplashScreen.jsx` (the branded splash screen shown on load), entirely outside the
-content-module data described in this document. Phase 1 should not treat it as content requiring
-migration into a story/photo/film row. **Third-party dependency risk:** every hotlinked Unsplash
-URL is outside this project's control — Unsplash can rate-limit, deprecate, or 404 any of these
-URLs at any time, and the site has no fallback or caching layer, so a portion of the gallery and
-story galleries can go blank without any code change on this side. `FILM_STRIP_FRAMES` and
-`EDITORIAL_GALLERY` (both in `src/data/weddingData.js`, described above) each hotlink several
-more `images.unsplash.com` URLs of their own — until `PS-015` was resolved these lived hardcoded
-inside `src/components/FilmStrip.jsx` and `src/components/HorizontalGallery.jsx` respectively,
-independent of this data module; they have since been moved here, so the full set of Unsplash
-hotlinks Phase 1's migration needs to account for is now entirely contained in the content
-modules described in this document (see `PS-015` in `docs/KNOWN-ISSUES.md`).
+referenced anywhere in `src/data/weddingData.js` — it was a UI asset of the splash screen,
+which Phase 3b deleted; the file may still sit in `public/images/` unreferenced. Phase 3b also
+added three content-adjacent static files of its own: `public/images/home/hero.jpg`,
+`brand-story.jpg`, and `closing.jpg`, the owner-swappable Home image slots described in
+`docs/ARCHITECTURE.md` — page furniture referenced by `src/data/homeContent.js`, deliberately
+outside both the database and this module. **Third-party dependency risk:** every hotlinked
+Unsplash URL is outside this project's control — Unsplash can rate-limit, deprecate, or 404
+any of these URLs at any time, and the site has no fallback or caching layer, so a portion of
+the gallery and story galleries can go blank without any code change on this side. (The two
+decorative arrays that once added more Unsplash hotlinks of their own were removed in Phase 3b
+— see above.)
 
 ## The database
 

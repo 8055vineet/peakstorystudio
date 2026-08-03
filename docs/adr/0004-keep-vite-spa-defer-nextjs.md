@@ -19,12 +19,13 @@ current app, and keep the Vite SPA as-is rather than rebuilding on Next.js now.
 
 Alternative considered and rejected: **migrating all 23 components to Next.js now.** This would
 delay the stated priority — working inquiries and a live site — behind a framework rewrite, and
-it is not a mechanical port. Several existing pieces read `window`/`document` directly and assume
-a browser-only render: the splash screen (`src/components/SplashScreen.jsx`), the custom cursor
-(`src/components/CustomCursor.jsx`), and the scroll-reveal hook
-(`src/hooks/useScrollReveal.js`). Each of these needs SSR-safe rework — guarding browser-only APIs,
-or opting the affected components out of server rendering — before a Next.js migration could even
-match current behavior, let alone improve on it.
+it is not a mechanical port. Several pieces that existed at the time of this decision read
+`window`/`document` directly and assumed a browser-only render: the splash screen and the
+custom cursor (both components have since been deleted by Phase 3b's redesign) and the
+scroll-reveal hook (`src/hooks/useScrollReveal.js`, still present). Each of these needed
+SSR-safe rework — guarding browser-only APIs, or opting the affected components out of server
+rendering — before a Next.js migration could even match current behavior, let alone improve on
+it.
 
 ## Consequences
 

@@ -5,11 +5,14 @@ reference other docs link back to; if you are new to this codebase, start here.
 
 ## Overview
 
-Peak Story Studio is a Vite + React 18 single-page application styled with Tailwind CSS.
-There is no router. The entire site is one page: a single component tree that renders a fixed
-navbar followed by a tall stack of full-width sections, each mounted permanently in the DOM
-(nothing is route-based or lazily mounted). "Navigation" is anchor-link scrolling within that
-one page.
+Peak Story Studio is a Vite + React 18 single-page application styled with Tailwind CSS,
+routed with **react-router-dom v6** since Phase 3b (`v0.4b`): each navbar option is its own
+page at its own URL — `/`, `/gallery`, `/films`, `/stories`, `/about`, `/contact` — sharing
+one header/footer frame (`src/components/Layout.jsx`), with an unknown URL rendering
+`NotFoundPage`. Before 3b the entire site was one scrolling page navigated by anchor links;
+documents and commits that describe it that way predate `v0.4b`. The visual design is the
+owner's approved Phase 3b redesign: a centered Cormorant Garamond wordmark, quiet cream
+surfaces, and the deep-maroon `pitch` accents.
 
 Since Phase 1b (`v0.2b`) the site reads its content from a Postgres database. As of Phase 3
 Task 10 that database is unconditionally authoritative — the static `src/data/weddingData.js`
@@ -24,8 +27,8 @@ sign-in-gated admin at `admin.html`, covering booking inquiries and content mana
 their photographs, the standalone gallery, films, and testimonials). It shares no bundle, no
 routing, and no component with the public site described above — see
 [The admin app](#the-admin-app) below for its own render flow, auth model, and upload pipeline.
-Everything in the rest of this section (no router, one page, anchor-link navigation) describes the
-*public* site only.
+The admin has no React Router of its own — it is a separate Vite entry reached by filename
+(`/admin.html`), unaffected by the public site's routes.
 
 ## Render flow
 
@@ -34,22 +37,23 @@ The mount chain is:
 1. `index.html` — the Vite entry HTML. Its `<body>` contains a single `<div id="root">` and
    loads `<script type="module" src="/src/main.jsx">`.
 2. `src/main.jsx` — calls `ReactDOM.createRoot(document.getElementById('root'))` and renders
-   `<App />` wrapped in `<React.StrictMode>`.
+   `<App />` wrapped in `<React.StrictMode>` → `<ErrorBoundary>` → `<BrowserRouter>`.
+   `BrowserRouter` lives here rather than in `App` so tests can wrap `App` in `MemoryRouter`.
 3. `src/App.jsx` — the default export, and the only stateful component of consequence in the
-   tree.
+   tree. It renders the route table: a layout route (`Layout` — `ScrollToTop` + `Navbar` +
+   `<main><Outlet /></main>` + `Footer`) containing one route per page
+   (`src/pages/*.jsx`), plus the shared modals after the routes so they work from every page.
 
-`App.jsx` is the single stateful shell: it owns every piece of cross-cutting state (content,
-session, and modal visibility) and passes data and callbacks down as props. Every component it
-renders — `Hero`, `FeaturedStories`, `FilmsGallery`, `PhotoGallery`, the modals, etc. — is
-presentational with respect to that shared state; the only state those children hold is local
-UI state that never needs to escape the component (for example `Navbar`'s own `scrolled` and
+`App.jsx` is the single stateful shell: it owns every piece of cross-cutting state (session
+and modal visibility) and passes data and callbacks down as props — pages receive their
+content and handlers as props from `App`, never fetching in the page body. Every component it
+renders is presentational with respect to that shared state; the only state children hold is
+local UI state that never needs to escape the component (for example `Navbar`'s
 `mobileMenuOpen`, or `AuthModal`'s form-field values).
 
 ## State ownership
 
-`src/App.jsx` declares 6 `useState` hooks (running `grep -c "useState" src/App.jsx` reports
-7 lines, but one of those is the `import { useState, ... } from 'react'` line itself — there
-are 6 actual state declarations, listed below). As of Phase 3 Task 10, content itself
+`src/App.jsx` declares 5 `useState` hooks, listed below. As of Phase 3 Task 10, content itself
 (`stories`, `photos`, `films`, `testimonials`) is no longer state `App.jsx` owns at all — it is
 read directly from `useWeddings()`/`useGalleryPhotos()`/`useFilms()`/`useTestimonials()`
 (`src/hooks/useContent.js`), each of which manages its own loading/error state internally and
@@ -61,59 +65,54 @@ that wrote them was deleted in the same change.
 | State | Holds | Persists to localStorage? | Consumed by |
 | --- | --- | --- | --- |
 | `user` | `null`, or an object such as `{ role, name, ... }` set by a successful login | Yes — key `peak_story_user` (the key is removed with `localStorage.removeItem` when the user logs out) | `Navbar` (renders the admin/client badge and sign-out control); `ClientGalleryModal` (gates its content on `user` being present); set via `handleLoginSuccess` from `AuthModal`, cleared via `handleLogout` |
-| `lightboxState` | `{ isOpen, activeUrl, activeIndex, imagesList }` for the fullscreen image viewer | No | `LightboxModal`; opened via `handleOpenLightbox` from `FeaturedStories` and `PhotoGallery` |
-| `videoModalUrl` | A video embed URL, or `null` when no video modal is open | No | Renders the inline video-iframe modal defined directly in `App.jsx`; set via the `onOpenFilmModal` (`Hero`), `onOpenVideo` (`FeaturedStories`), and `onOpenVideoModal` (`FilmsGallery`) callbacks |
+| `lightboxState` | `{ isOpen, activeUrl, activeIndex, imagesList }` for the fullscreen image viewer | No | `LightboxModal`; opened via `handleOpenLightbox` from `HomePage`'s images grid, `PhotoGallery` (Gallery page), and `FeaturedStories` (Stories page) |
+| `videoModalUrl` | A video embed URL, or `null` when no video modal is open | No | Renders the inline video-iframe modal defined directly in `App.jsx`; set via `onOpenVideo` (`HomePage`, `FeaturedStories`) and `onOpenVideoModal` (`FilmsGallery`) callbacks |
 | `authModalOpen` | Boolean visibility flag for the sign-in modal | No | `AuthModal`; opened from `Navbar` |
 | `clientGalleryOpen` | Boolean visibility flag for the private client proofing modal | No | `ClientGalleryModal`; opened from `Navbar`, and set to `true` automatically inside `handleLoginSuccess` when a client (as opposed to admin) logs in |
-| `splashDone` | Boolean; `false` until the intro splash animation finishes | No | Gates whether `SplashScreen` renders at all (`{!splashDone && <SplashScreen ... />}`); flipped to `true` by `SplashScreen`'s own `onComplete` callback |
 
-**Modal visibility is 5 independent booleans/booleans-in-disguise with no mutual exclusion:**
-`splashDone` (inverted — the splash overlay shows while it's `false`), `lightboxState.isOpen`,
-`videoModalUrl` (truthy/falsy), `authModalOpen`, and `clientGalleryOpen`. None of these are
-derived from, or reset by, any of the
-others, so nothing stops two or more from being open at once — e.g. a user can open the
-lightbox and then the client gallery without the first ever closing. Stacking order when that
-happens is decided purely by ad hoc z-index values sprinkled across the component files, not by
-any shared constant: `LightboxModal`, the inline video modal in `App.jsx`, and
-`ClientGalleryModal` all use `z-50`; `AuthModal` uses `z-[100]`; `SplashScreen` uses `z-[999]`,
-higher than everything else. If two `z-50` modals were open together, the one mounted later in
-the JSX tree would simply win.
+**Modal visibility is 4 independent booleans/booleans-in-disguise with no mutual exclusion:**
+`lightboxState.isOpen`, `videoModalUrl` (truthy/falsy), `authModalOpen`, and
+`clientGalleryOpen`. None of these are derived from, or reset by, any of the others, so nothing
+stops two or more from being open at once. Stacking order when that happens is decided purely
+by ad hoc z-index values sprinkled across the component files, not by any shared constant:
+`LightboxModal`, the inline video modal in `App.jsx`, and `ClientGalleryModal` all use `z-50`;
+`AuthModal` uses `z-[100]`. If two `z-50` modals were open together, the one mounted later in
+the JSX tree would simply win. The modals are rendered after the route table, so all of them
+work identically from every page.
 
-## Section order
+## Routes and pages
 
-Inside `<main>` in `src/App.jsx`, sections render in this fixed order, with `SectionDivider`
-inserted between several of them:
+`src/App.jsx` renders one layout route wrapping seven child routes. Each page in `src/pages/`
+is a thin composition over the section components (see `docs/COMPONENTS.md` for the page
+table): `HomePage` is the owner's approved design section-for-section; the other pages open
+with the shared `PageHeader` and mount their section component. `ScrollToTop` (inside
+`Layout`) scrolls to the top on every route change.
 
-1. `Hero`
-2. `FeaturedStories`
-3. `SectionDivider` (`color="#faf9f6"`, `bgColor="#ffffff"`)
-4. `FilmsGallery`
-5. `ColorGradingSlider`
-6. `SectionDivider` (`color="#ffffff"`, `bgColor="#faf9f6"`)
-7. `HorizontalGallery`
-8. `SectionDivider` (`color="#faf9f6"`, `bgColor="#ffffff"`)
-9. `PhotoGallery`
-10. `FilmStrip`
-11. `AboutSection`
-12. `SectionDivider` (`color="#ffffff"`, `bgColor="#faf9f6"`)
-13. `Testimonials`
-14. `SectionDivider` (`color="#faf9f6"`, `bgColor="#ffffff"`)
-15. `BookingForm`
+Two supporting conventions arrived with routing:
 
-`Footer` renders after `</main>`, outside the section stack. Every `SectionDivider` color prop
-is a raw hex string (`#faf9f6` or `#ffffff`) passed inline rather than a Tailwind class or
-shared constant. Both values exactly duplicate colors already defined as Tailwind tokens in
-`tailwind.config.js` (`offwhite.100` is `#faf9f6`, `offwhite.50` is `#ffffff`), so the same
-color exists as both a token and a hardcoded literal with no single source of truth between
-them.
+- **Owner-swappable image slots.** Home's hero, Brand Story portrait, and closing image are
+  static page furniture, not database content. `src/data/homeContent.js` holds the quote, the
+  Brand Story copy, and the three slot paths; the files live in `public/images/home/`
+  (`hero.jpg`, `brand-story.jpg`, `closing.jpg`). **The owner changes an image by overwriting
+  the file — no code edit.**
+- **`public/_redirects`** (`/* /index.html 200`) ships now so the Phase 4 Cloudflare Pages
+  deploy serves deep links like `/gallery` correctly; static assets take precedence over
+  redirects on Pages, so `/admin.html` is unaffected. The Vite dev server already falls back
+  to `index.html` for unknown paths.
 
 ## Styling approach
 
 Styling is almost entirely Tailwind utility classes written inline on JSX elements — there are
 no CSS Modules and no styled-components; component files are Tailwind class strings plus a
-small amount of one-off inline `style={{ ... }}` for computed values (for example the
-scroll-driven parallax transform in `src/components/Hero.jsx` and the width-driven progress
-bar in `src/components/ScrollProgressBar.jsx`).
+small amount of one-off inline `style={{ ... }}` for computed values (for example
+`ScrollReveal`'s stagger delay and `Testimonials`' progress bar).
+
+The Phase 3b type roles: **Cormorant Garamond** (`font-garamond`) for the wordmark and all
+headings, **Great Vibes** (`font-script`) for the Home quote only, **Plus Jakarta Sans**
+(`font-sans`) for body and UI text. The `cinzel` token remains in `tailwind.config.js` but no
+public component uses it. The screenshot's deep-maroon accents are the existing `pitch-600`/
+`pitch-700` tokens — the redesign added no new colors, and no component carries a raw hex
+value.
 
 `src/index.css` is the one non-Tailwind styling surface. On top of the three `@tailwind`
 directives, it defines a custom layer with:
@@ -121,13 +120,10 @@ directives, it defines a custom layer with:
 - A fixed, full-viewport paper-grain overlay on `body::before` (an inline SVG fractal-noise
   data URI) for the site's tactile fine-art look.
 - Custom `::-webkit-scrollbar` styling (track, thumb, and hover colors).
-- Global cursor suppression on desktop (`cursor: none !important` above `1024px`) to make way
-  for `CustomCursor`.
-- `@keyframes` for the marquee film strip, fade-in, three directional scroll-reveal variants,
-  the splash logo pulse and fade-out, and the testimonial progress-fill bar, each paired with
-  an `.animate-*` utility class.
-- Small helper classes for progressive image blur-up loading, image hover-zoom, the horizontal
-  scroll-snap gallery, and SVG section-wave dividers.
+- `@keyframes` for fade-in, three directional scroll-reveal variants, and the testimonial
+  progress-fill bar, each paired with an `.animate-*` utility class.
+- Small helper classes for progressive image blur-up loading, image hover-zoom, and glass/card
+  panels.
 
 For the full color, type, and animation token catalogue, see `docs/DESIGN-SYSTEM.md`.
 
@@ -363,20 +359,15 @@ that gate today and by R2 for real once Phase 4 configures it, closes that gap e
 
 ## Known architectural limits
 
-- **No routing.** There is no router of any kind (no `react-router` or equivalent dependency),
-  so the entire site is one URL. Individual sections, galleries, and stories have no shareable
-  or indexable address of their own — everything lives behind anchor-link scrolling on `/`.
-- **One top-level error boundary, not per-section.** `src/components/ErrorBoundary.jsx` (added
-  in Phase 1a, `v0.2a`) implements `getDerivedStateFromError` and `componentDidCatch`, and wraps
-  the entire tree at `src/main.jsx:9`, so an unhandled render error shows a recovery screen
-  instead of unmounting to a blank page. But it is a single boundary around all of `<App />`,
-  not one per section, so a render error in any one section still replaces the whole page with
-  the recovery screen rather than degrading just that section.
-- **Three independent scroll listeners**, each attaching its own `window.addEventListener('scroll', ...)`
-  with no shared coordination: `src/components/Navbar.jsx` (toggles its background/shadow past
-  a 40px scroll threshold), `src/components/ScrollProgressBar.jsx` (computes the reading-progress
-  fill width), and `src/components/Hero.jsx` (drives the hero's parallax transform). Of the
-  three, only `Hero`'s listener is registered as passive (`{ passive: true }`); the other two
-  are not, so the browser cannot assume they won't call `preventDefault()` on the scroll event.
+- **Pages, but not per-wedding pages.** Phase 3b gave every navbar option its own URL, but an
+  individual wedding story still opens in `StoryDetailModal` rather than at a shareable,
+  indexable address of its own. Per-wedding URLs, prerendering, sitemap, and OG images are
+  Phase 5 scope (`PS-008`).
+- **One top-level error boundary, not per-page.** `src/components/ErrorBoundary.jsx` (added
+  in Phase 1a, `v0.2a`) implements `getDerivedStateFromError` and `componentDidCatch`, and
+  wraps the entire tree in `src/main.jsx` (outside `BrowserRouter`), so an unhandled render
+  error shows a recovery screen instead of unmounting to a blank page. But it is a single
+  boundary around all of `<App />`, not one per page or section, so a render error anywhere
+  still replaces the whole page with the recovery screen.
 
 See `docs/KNOWN-ISSUES.md` for the fuller catalogue of known issues beyond architecture.

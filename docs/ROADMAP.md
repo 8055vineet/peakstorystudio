@@ -31,6 +31,21 @@ proves the publishing pipeline end to end — sign in, upload, publish, then rea
 through the exact query layer the public site calls — and the same check runs in CI alongside
 `verify:inquiry`.
 
+**Phase 3b — Multi-page redesign** (`v0.4b`) was not in the original table; it was inserted at
+the owner's request, using the same a/b convention as Phase 1, when they supplied the design
+for the site they actually want: separate pages per navbar option and a new, quieter visual
+language. The public site is now routed with React Router v6 (`/`, `/gallery`, `/films`,
+`/stories`, `/about`, `/contact`), restyled to the owner's approved Home design, and carries
+the studio's **real, owner-confirmed contact details** (Lucknow — this closed `PS-028`). Ten
+single-page-era components were deleted, closing `PS-013`, `PS-020`, and `PS-023` by removal.
+Two scheduled items arrived early, deliberately: the routing *mechanism* from Phase 5 (whose
+remaining scope — per-wedding URLs, prerendering, sitemap, OG images, structured data — stays
+in Phase 5), and part of Phase 7's truthful-content pass (`PS-002` is narrowed: the fabricated
+press strip, badge, and statistics no longer render anywhere; the seeded celebrity testimonial
+remains until the owner replaces it through the admin). See the
+[Phase 3b design spec](superpowers/specs/2026-08-03-multi-page-redesign-design.md) for the
+full decisions.
+
 ## Phase and version table
 
 | Version | Phase | Deliverable | Definition of done | Runs on |
@@ -41,6 +56,7 @@ through the exact query layer the public site calls — and the same check runs 
 | **v0.2** | 1 — Quality and backend foundation | Umbrella tag for Phase 1 as a whole, reached once both 1a and 1b have merged | Combines the 1a and 1b deliverables and definitions of done above | local |
 | **v0.3** | 2 — Inquiries real | Booking form persists; Edge Function emails studio and couple; `wa.me` button; spam protection | A submitted inquiry is in the database, in the studio inbox, and acknowledged to the couple | local |
 | **v0.4** | 3 — Admin: auth, CMS, media | Supabase Auth for admin; real CRUD; image uploads; leads dashboard | A wedding can be added and photos uploaded with no code edit and no `localStorage` | local |
+| **v0.4b** | 3b — Multi-page redesign | React Router pages per navbar option; full restyle to the owner's approved design; real Lucknow contact details | Each nav option is its own URL; no fabricated press/stat claims rendered by any component; suite green | local |
 | **v0.5** | 4 — First deploy | Hosted Supabase project; Cloudflare Pages deploy; CI/CD; preview deploys | Site reachable on `*.pages.dev`, `noindex` set, deploys on merge | Cloudflare Pages |
 | **v0.6** | 5 — SEO and shareable pages | Routing, per-wedding URLs, prerendering, sitemap, OG images, structured data | Every wedding has its own indexable, shareable URL | Cloudflare Pages |
 | **v0.7** | 6 — Client proofing portal | Per-client galleries, magic-link auth, persisted favourites, high-res downloads | A couple signs in and sees only their own photographs | Cloudflare Pages |
