@@ -37,6 +37,7 @@ export default {
       fontFamily: {
         cinzel: ['Cinzel', 'serif'],
         garamond: ['Cormorant Garamond', 'serif'],
+        script: ['Great Vibes', 'cursive'],
         sans: ['Plus Jakarta Sans', 'sans-serif'],
       },
       animation: {

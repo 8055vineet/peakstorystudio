@@ -163,8 +163,8 @@ describe('BookingForm', () => {
     // A mailto link, not just the address as text — the left-hand contact
     // column already renders it as plain text, so asserting on the text alone
     // would pass even with the error panel's fallback missing entirely.
-    const mailto = screen.getByRole('link', { name: /inquiries@peakstorystudio\.com/i });
-    expect(mailto).toHaveAttribute('href', 'mailto:inquiries@peakstorystudio.com');
+    const mailto = screen.getByRole('link', { name: /peakstorystudio@gmail\.com/i });
+    expect(mailto).toHaveAttribute('href', 'mailto:peakstorystudio@gmail.com');
   });
 
   it('renders server field errors returned by the function', () => {

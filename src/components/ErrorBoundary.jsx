@@ -1,4 +1,5 @@
 import React from 'react';
+import { STUDIO_EMAIL } from '../data/contact';
 
 /**
  * Catches render-time errors anywhere below it and shows a recovery screen
@@ -43,7 +44,7 @@ export default class ErrorBoundary extends React.Component {
             Reload the page
           </button>
           <p className="text-xs text-charcoal-500">
-            If it keeps happening, email inquiries@peakstorystudio.com and tell us what you were viewing.
+            If it keeps happening, email {STUDIO_EMAIL} and tell us what you were viewing.
           </p>
         </div>
       </div>

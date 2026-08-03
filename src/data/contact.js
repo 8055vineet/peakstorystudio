@@ -1,15 +1,16 @@
 // One home for the studio's contact details.
 //
-// None of these have been confirmed by the studio yet — they arrived with the
-// seeded template. Centralising them means Phase 7's truthful-content pass has
-// a single file to correct instead of a hunt through components. Tracked as
-// PS-028 in docs/KNOWN-ISSUES.md.
-export const STUDIO_PHONE = '+91 98200 37027';
-export const STUDIO_EMAIL = 'inquiries@peakstorystudio.com';
-export const STUDIO_ADDRESS = '241 Laxmi Plaza, Andheri (W), Mumbai, India';
+// Confirmed real by the studio owner on 2026-08-03 (this closed PS-028):
+// the studio is in Lucknow. Change these here and nowhere else — components
+// must import them, never hardcode them.
+export const STUDIO_PHONE = '+91 8881621021';
+export const STUDIO_EMAIL = 'peakstorystudio@gmail.com';
+export const STUDIO_ADDRESS = '2/231 Vastu Khand, Gomtinagar, Lucknow, UP';
 
-// Digits only, country code first — an Indian mobile takes the form 91
-// followed by the ten-digit number, with no spaces, plus, or punctuation.
-// Unset means the WhatsApp button does not render at all, so no unconfirmed
-// number ships.
-export const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER ?? '';
+// Digits only, country code first — the form wa.me links require.
+export const WHATSAPP_NUMBER = '918881621021';
+
+// Owner has not supplied these yet. Empty string means the footer renders the
+// icon without a link (a plain span, not a dead anchor). Fill in when known.
+export const STUDIO_INSTAGRAM_URL = '';
+export const STUDIO_YOUTUBE_URL = '';

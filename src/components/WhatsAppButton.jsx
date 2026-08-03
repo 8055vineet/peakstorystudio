@@ -5,8 +5,8 @@ import { WHATSAPP_NUMBER } from '../data/contact';
 const DEFAULT_MESSAGE = "Hello Peak Story Studio, I'd like to ask about wedding coverage.";
 
 // wa.me needs no API, no approval, and no fee — the WhatsApp Business API is
-// deliberately out of scope. Renders nothing when unconfigured, so the site
-// never ships a number the studio has not confirmed.
+// deliberately out of scope. The number was confirmed by the owner on
+// 2026-08-03; the guard below stays as cheap defence should it ever be unset.
 export default function WhatsAppButton({ message = DEFAULT_MESSAGE, className = '' }) {
   if (!WHATSAPP_NUMBER) return null;
 
