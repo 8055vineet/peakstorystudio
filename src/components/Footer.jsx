@@ -1,7 +1,7 @@
 import React from 'react';
-import { Camera, Instagram, Youtube, Facebook, ArrowUp, PlusCircle } from 'lucide-react';
+import { Camera, Instagram, Youtube, Facebook, ArrowUp } from 'lucide-react';
 
-export default function Footer({ onOpenContentManager }) {
+export default function Footer() {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -11,7 +11,7 @@ export default function Footer({ onOpenContentManager }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Top Row: Brand & Links */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-16">
           
           {/* Col 1: Brand info */}
           <div className="md:col-span-2 space-y-4">
@@ -59,23 +59,6 @@ export default function Footer({ onOpenContentManager }) {
               <li><a href="#about" className="hover:text-pitch-900 transition-colors">Our Legacy</a></li>
               <li><a href="#contact" className="hover:text-pitch-900 transition-colors">Inquire Date</a></li>
             </ul>
-          </div>
-
-          {/* Col 3: Content Management */}
-          <div className="space-y-3">
-            <h4 className="font-cinzel text-sm font-bold text-pitch-900 uppercase tracking-wider">
-              Studio Tools
-            </h4>
-            <p className="text-xs text-charcoal-700 leading-relaxed">
-              Add your own wedding imagery or export portfolio JSON data anytime.
-            </p>
-            <button
-              onClick={onOpenContentManager}
-              className="mt-2 inline-flex items-center space-x-2 bg-offwhite-50 hover:bg-pitch-900 hover:text-offwhite-50 border border-pitch-900/20 text-pitch-900 px-4 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all shadow-sm"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>In-App Image Manager</span>
-            </button>
           </div>
 
         </div>

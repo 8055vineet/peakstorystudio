@@ -173,7 +173,10 @@ enable_refresh_token_rotation = true
 # Requires enable_refresh_token_rotation = true.
 refresh_token_reuse_interval = 10
 # Allow/disallow new user signups to your project.
-enable_signup = true
+# Disabled: the only accounts that exist are ones created deliberately
+# (scripts/seed-admin.mjs), and a leaked anon key must not be usable to
+# create one.
+enable_signup = false
 # Allow/disallow anonymous sign-ins to your project.
 enable_anonymous_sign_ins = false
 # Allow/disallow testing manual linking of accounts
@@ -417,4 +420,15 @@ enabled = true
 # This project has no TypeScript, so the entrypoint is named explicitly rather
 # than relying on the CLI's index.ts default.
 entrypoint = "./functions/submit-inquiry/index.js"
+verify_jwt = true
+
+[functions.sign-upload]
+# See the comment on submit-inquiry above: no TypeScript in this project, so
+# the entrypoint is named explicitly.
+entrypoint = "./functions/sign-upload/index.js"
+# verify_jwt = true rejects a request with no Authorization header (or an
+# unparseable one) before the function body ever runs. It is not a
+# substitute for the function's own getUser()-and-profiles.role check —
+# a valid JWT belonging to a signed-in non-admin passes this gate — it only
+# narrows what reaches the function to "at least presents some token".
 verify_jwt = true

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Camera, Maximize2, PlusCircle, LayoutGrid, Grid, Square } from 'lucide-react';
+import { Camera, Maximize2, LayoutGrid, Grid, Square } from 'lucide-react';
 import ScrollReveal from './ScrollReveal';
 
-export default function PhotoGallery({ photos, onOpenLightbox, onOpenContentManager }) {
+export default function PhotoGallery({ photos, onOpenLightbox }) {
   const [activeCategory, setActiveCategory] = useState('All');
   const [layoutColumns, setLayoutColumns] = useState(4); // 1, 2, or 4
 
@@ -67,9 +67,9 @@ export default function PhotoGallery({ photos, onOpenLightbox, onOpenContentMana
             })}
           </div>
 
-          {/* Right Controls: Grid Switcher + Add Image */}
+          {/* Right Controls: Grid Switcher */}
           <div className="flex items-center space-x-4">
-            
+
             {/* Column Layout Switcher */}
             <div className="flex items-center space-x-1 bg-offwhite-50 border border-pitch-900/15 p-1 rounded-full shadow-sm">
               <button
@@ -96,16 +96,6 @@ export default function PhotoGallery({ photos, onOpenLightbox, onOpenContentMana
                 <LayoutGrid className="w-4 h-4" />
               </button>
             </div>
-
-            {/* Add Image Button */}
-            <button
-              onClick={onOpenContentManager}
-              className="px-4 py-2 rounded-full text-xs uppercase tracking-wider font-bold bg-offwhite-50 border border-pitch-900/30 text-pitch-900 hover:bg-pitch-900 hover:text-offwhite-50 transition-all flex items-center space-x-2 shadow-sm"
-              title="Upload/add your own images to gallery"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>Add Image</span>
-            </button>
           </div>
 
         </div>

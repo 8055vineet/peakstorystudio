@@ -8,34 +8,50 @@ are listed in the Resolved section instead. "Planned phase" refers to the phase 
 [ROADMAP.md](ROADMAP.md) — that is the phase in which each issue is expected to be closed, not
 a promise about scheduling within this document.
 
-All locations were re-verified against the source files on 2026-07-30, not copied blind from
-the audit; see the task report for the verification evidence.
+Locations were re-verified against the source files on 2026-07-30, then again on 2026-08-03 at
+the close of Phase 3 (Task 12's documentation pass) — not copied blind from either audit; see the
+task reports for the verification evidence.
+
+**Eight rows were re-filed out of phase 3 in that second pass.** `PS-009`, `PS-014`, `PS-016`,
+`PS-017`, `PS-018`, `PS-020`, `PS-021`, and `PS-023` were all originally filed under phase 3 by
+the code audit, but
+[the phase 3 admin design doc](superpowers/specs/2026-08-02-phase-3-admin-design.md#scope)
+explicitly scoped every one of them **out** of that phase before work started: none shares
+anything with authentication, image uploads, or a leads dashboard except a version number, and
+"bundling them would mix security-sensitive review with cosmetics and delay a usable admin." That
+document said the register would be updated to say so rather than left contradicting it — this is
+that update. All eight now read **7** below, alongside `v1.0`'s truthful-content, performance, and
+accessibility pass, which is the last general cleanup stop before go-live and the closest match
+this roadmap has to the "dedicated polish pass" the design doc describes. Nothing about any of the
+eight issues themselves changed; only which phase is expected to close them did.
 
 | ID | Issue | Severity | Location | Planned phase |
 | --- | --- | --- | --- | --- |
 | PS-001 | Any client PIN unlocks every client's photos; no per-client scoping | Critical | `src/components/AuthModal.jsx`, `src/components/ClientGalleryModal.jsx` | 6 |
 | PS-002 | Fabricated press credentials ("AS FEATURED IN" Vogue, Harper's Bazaar, Filmfare, WedMeGood; "Vogue Fine Art Choice" badge) and real Bollywood celebrities named as clients | Critical (legal) | `src/components/AboutSection.jsx`, `src/data/weddingData.js` | 7 |
-| PS-004 | Uploaded images stored as base64 in localStorage; exceeds the ~5 MB quota | High | `src/components/ContentManagerModal.jsx` (base64 conversion), `src/App.jsx:50` (oversized write) | 3 |
-| PS-005 | Export Config JSON button sets a "Copied!" label but copies nothing | High | `src/components/ContentManagerModal.jsx` | 3 |
 | PS-007 | "Download ZIP" button is a non-functional stub that fires a browser `alert()` | Medium | `src/components/ClientGalleryModal.jsx:59` | 6 |
 | PS-008 | No routing; no shareable or indexable per-wedding URLs | High | app-wide | 5 |
-| PS-009 | Modals do not trap focus, lock body scroll, or close on Escape | Medium | all modals except `src/components/LightboxModal.jsx` | 3 |
+| PS-009 | Modals do not trap focus, lock body scroll, or close on Escape | Medium | all modals except `src/components/LightboxModal.jsx` | 7 |
 | PS-012 | No `prefers-reduced-motion` handling | Medium | `src/index.css`, app-wide | 5 |
 | PS-013 | Three scroll listeners; only Hero's is passive | Low | `src/components/Navbar.jsx`, `src/components/ScrollProgressBar.jsx`, `src/components/Hero.jsx` | 5 |
-| PS-014 | Duplicated pill-button and badge markup across many components | Low | app-wide | 3 |
-| PS-016 | 10 unused CSS rules and 7 unused palette tokens | Low | `src/index.css`, `tailwind.config.js` | 3 |
-| PS-017 | Icon-only buttons use `title` instead of `aria-label` | Low | `src/components/PhotoGallery.jsx` and others | 3 |
-| PS-018 | Hotlinked Unsplash images with no width/height; layout shift and third-party dependency | Low | `src/data/weddingData.js` | 3 |
+| PS-014 | Duplicated pill-button and badge markup across many components | Low | app-wide | 7 |
+| PS-016 | 10 unused CSS rules and 7 unused palette tokens | Low | `src/index.css`, `tailwind.config.js` | 7 |
+| PS-017 | Icon-only buttons use `title` instead of `aria-label` | Low | `src/components/PhotoGallery.jsx` and others | 7 |
+| PS-018 | Hotlinked Unsplash images with no width/height; layout shift and third-party dependency | Low | `src/data/weddingData.js` | 7 |
 | PS-019 | `dist/` build output is committed to git while also listed in `.gitignore`, so every build produces spurious diffs on tracked files | Low | `.gitignore`, `dist/` | 4 |
-| PS-020 | `SectionDivider` receives `color`/`bgColor` as raw hex strings (default `'#faf9f6'`/`'#ffffff'`, and the same two values passed explicitly from every call site) instead of Tailwind palette classes, even though both values exactly duplicate existing tokens (`offwhite-100`, `offwhite-50`) | Low | `src/components/SectionDivider.jsx:3`, `src/App.jsx:160,169,173,185,189` | 3 |
-| PS-021 | Two `react-hooks/exhaustive-deps` warnings in `useScrollReveal`'s effect: the cleanup reads `ref.current`, which may have changed by the time it runs, and the dependency array omits `options`, which the effect body actually reads. Left unfixed deliberately — a correct fix means reworking how the hook takes its options argument, a behaviour-changing refactor that belongs with the component work in Phase 3, not a mechanical lint fix | Low | `src/hooks/useScrollReveal.js:23`, `src/hooks/useScrollReveal.js:26` | 3 |
-| PS-022 | `ContentManagerModal`'s "Add Wedding Story" tab has no date input at all — `storyDate` is declared with `const [storyDate] = useState('');` and its setter is never called, so the value is permanently `''`. Every story published through the Content Manager therefore falls through to the hardcoded `date: storyDate \|\| '2025'` fallback, so all user-published stories are dated "2025" regardless of when they actually happened. | Medium | `src/components/ContentManagerModal.jsx:20`, `src/components/ContentManagerModal.jsx:78` | 3 |
-| PS-023 | `FILM_STRIP_FRAMES` (6 entries) and `EDITORIAL_GALLERY` (5 entries) stay static after the Phase 1b migration — they have no table in the approved schema, so `VITE_DATA_SOURCE=supabase` still reads them from the JavaScript file while every other collection comes from Postgres. Migrating them needs a schema decision the approved spec does not cover: the film-strip entries carry a camera/film-stock label rather than a wedding, so they are not simply more `gallery_photos`. Both are decorative strips whose editing story only matters once the CMS exists. | Low | `src/data/weddingData.js`, `src/components/FilmStrip.jsx`, `src/components/HorizontalGallery.jsx` | 3 |
-| PS-024 | The Content Manager modal is a silent no-op on the `supabase` path: `setStories`/`setPhotos` write the `localStories`/`localPhotos` state, but the rendered `stories`/`photos` read the database-backed `weddingData`/`galleryData` instead, and the matching `localStorage` write effects early-return in this mode. An admin adds a wedding story or photo, the modal reports success, and the entry appears nowhere and persists nowhere. Dormant today because `VITE_DATA_SOURCE` defaults to `static`; real from the moment anyone flips the flag ahead of Phase 3, which replaces this modal with real CRUD. | Medium | `src/App.jsx:43,62,120-126` | 3 |
-| PS-025 | `media` rows are unconditionally world-readable (`media_read_all` has no predicate), regardless of the `status` of the wedding or gallery photo that references them. The parent row is correctly hidden while in `draft`, but its cover image's `storage_path`/`alt_text` is readable by the anon key regardless. Matches the approved spec exactly (spec section 5.3), so this is a design consequence, not a deviation, and impact today is zero — every seeded row is `status='published'`. Becomes real once Phase 3 introduces a real `draft` state and Phase 3/4 make `storage_path` a real Supabase Storage URL, and matters most by Phase 6, whose deliverable is that a couple sees only their own photographs. | Medium | `supabase/migrations/20260730204126_row_level_security.sql:49-50` | 3 |
+| PS-020 | `SectionDivider` receives `color`/`bgColor` as raw hex strings (default `'#faf9f6'`/`'#ffffff'`, and the same two values passed explicitly from every call site) instead of Tailwind palette classes, even though both values exactly duplicate existing tokens (`offwhite-100`, `offwhite-50`) | Low | `src/components/SectionDivider.jsx:3`, `src/App.jsx:128,137,141,152,156` | 7 |
+| PS-021 | Two `react-hooks/exhaustive-deps` warnings in `useScrollReveal`'s effect: the cleanup reads `ref.current`, which may have changed by the time it runs, and the dependency array omits `options`, which the effect body actually reads. Left unfixed deliberately — a correct fix means reworking how the hook takes its options argument, a behaviour-changing refactor, not a mechanical lint fix. Phase 3 shipped the admin without touching this hook, so the refactor is now expected alongside the Phase 7 polish pass instead | Low | `src/hooks/useScrollReveal.js:23`, `src/hooks/useScrollReveal.js:26` | 7 |
+| PS-023 | `FILM_STRIP_FRAMES` (6 entries) and `EDITORIAL_GALLERY` (5 entries) stay static after the Phase 1b migration — they have no table in the approved schema, so the site still reads them from the JavaScript file while every other collection comes from Postgres. Migrating them needs a schema decision the approved spec does not cover: the film-strip entries carry a camera/film-stock label rather than a wedding, so they are not simply more `gallery_photos`. Both are decorative strips whose editing story only matters once the CMS exists — and it now does (Phase 3's admin) — but neither array has a table for that CMS to write to yet, and Phase 3 did not add one | Low | `src/data/weddingData.js`, `src/components/FilmStrip.jsx`, `src/components/HorizontalGallery.jsx` | 7 |
+| PS-025 | `media` rows are unconditionally world-readable (`media_read_all` has no predicate), regardless of the `status` of the wedding or gallery photo that references them. The parent row is correctly hidden while in `draft`, but its cover image's `storage_path`/`alt_text` is readable by the anon key regardless. Matches the approved spec exactly (spec section 5.3), so this is a design consequence, not a deviation. **Impact is no longer zero as of Phase 3**: the admin can now create a genuine draft wedding or gallery photo with a real uploaded cover image attached before publishing, so a draft's `media` row is real and anon-readable, not merely hypothetical. The practical exposure stays narrow — the storage bucket itself is private with no public read path (`PS-033`), so a leaked `storage_path` is not itself a way to fetch the image bytes — but the metadata (that a photo exists, its dimensions, its alt text) is no longer protected by the parent's draft status. **Re-filed from phase 3 to phase 6**: the phase 3 admin design doc never scoped this predicate fix as in-scope, deferred, or out-of-scope work — it simply wasn't discussed — so the earlier "3" was an unexamined carry-over, not a deliberate schedule, and Phase 3 shipped without touching it. Phase 6's own deliverable (a couple sees only their own photographs) is the first point a status-aware predicate is actually required, so that is where this now belongs | Medium | `supabase/migrations/20260730204126_row_level_security.sql:49-50` | 6 |
 | PS-026 | The booking form requires both a firm wedding date and a firm venue before it accepts an inquiry, so a couple who is still choosing either — arguably the most common state for an early inquiry — cannot submit at all | Medium | `supabase/functions/_shared/inquiry-validation.js`, `src/components/BookingForm.jsx` | 7 |
 | PS-027 | `ALLOWED_ORIGINS` only constrains which origins a *browser* is willing to hand the response back to; it is enforced client-side by the browser's own CORS check, not by the function refusing the request. A POST from any origin — or from a non-browser client that ignores CORS entirely, such as curl or a script — still reaches validation and still stores a row. Must not be relied on as an access control once the site is deployed | Low | `supabase/functions/submit-inquiry/index.js` | 4 |
 | PS-028 | The studio's phone number, email address, and postal address are unconfirmed — inherited unchanged from the seeded template rather than supplied by the studio | Medium | `src/data/contact.js` | 7 |
+| PS-029 | An image upload can fail after its bytes already reached storage: `sign-upload` and the `PUT` can both succeed, then the browser's insert of the `media` row can fail (network blip, a dropped session mid-upload). The object is never referenced by any row and is never cleaned up — an accepted, deliberately unbuilt gap, not an oversight. The admin is told the upload did not complete and may retry, but a retry re-signs a fresh key rather than reusing the failed one, so each failed retry leaves one more orphan | Low | `src/hooks/useMediaUpload.js`, `src/lib/queries/media.js` | Unscheduled — accepted debt; revisit if orphaned storage volume becomes material |
+| PS-030 | `Navbar`'s admin badge (a static `<div>`, not a button, since Phase 3 Task 10 removed the public-site Content Manager it used to open) has no link to `admin.html` at all. A signed-in admin browsing the public site has no visible way to reach the admin they are signed into | Low | `src/components/Navbar.jsx` | 4 — Phase 4 adds the `/admin` redirect at the hosting layer; wire the link then |
+| PS-031 | `sign-upload`'s content-type allowlist gates who *gets* a presigned URL, not what actually lands in the object it signs: the `PUT` itself is a bare HTTP request the browser controls, so nothing server-side confirms the uploaded bytes are actually of the declared type before Phase 4 configures the bucket for public serving | Low | `supabase/functions/sign-upload/index.js`, `supabase/functions/_shared/s3-presign.js` | 4 |
+| PS-032 | `addWeddingPhoto`'s "next `sort_order`" is a read-then-insert with no locking and no unique constraint on `(wedding_id, sort_order)` — two concurrent adds to the same wedding can read the same max and both insert at it. Nothing is destroyed; only the ordering among the colliding rows becomes arbitrary until an admin reorders manually. A single admin adding photos one at a time (the only UI this ships with) cannot trigger it | Low | `src/lib/queries/adminWeddingPhotos.js` | Unscheduled — accepted debt; revisit if the admin ever supports concurrent editors |
+| PS-033 | **Narrowed by Task 12b, and — after Task 13 — actually verified rather than merely claimed.** A photograph uploaded and published through the admin still does not display on a real deployment, but no longer because the query layer mishandles it — `src/lib/queries/weddings.js`, `gallery.js` and `films.js` resolve every `media.storage_path` through the shared `publicMediaUrl()` helper in `src/lib/mediaUrl.js` (promoted there from the admin-only module the admin's own previews used), which joins a real upload's bucket-relative key (e.g. `uploads/<uuid>.webp`) against `VITE_MEDIA_BASE_URL` and passes a seeded row's already-absolute URL through unchanged. Task 12b's claim that this code gap was closed was itself correct, but it shipped without re-running `npm run verify:admin` — the one gate that could have proven it — and that gate turned out to still assert raw `storage_path` equality rather than a resolved URL, passing vacuously because CI never set `VITE_MEDIA_BASE_URL` at all (both sides of the comparison collapsed to the same empty value). Task 13 fixed both halves: the assertion now expects a resolved URL, and CI sets the variable, so the gate genuinely exercises resolution rather than passing by coincidence. What remains, exactly as before, is what the phase 3 admin design doc always deferred to Phase 4: the storage bucket is still **private** with no public read path, and no environment outside CI's test run has `VITE_MEDIA_BASE_URL` pointed at a real public host yet, so a genuine upload still resolves to `''` until Phase 4 makes the bucket publicly readable and sets that variable — rendered today as a broken-image/alt-text box, not as no `<img>` at all, since nothing in the affected components guards against it (see `PS-036`). Pre-existing seeded media (`scripts/seed-db.mjs` writes each seeded row's original full URL — an `images.unsplash.com` link or a local `/images/...` path — into `storage_path` directly, not a bucket key) is unaffected either way and keeps rendering exactly as it does today | Medium | `src/lib/mediaUrl.js`, `src/lib/queries/weddings.js`, `src/lib/queries/gallery.js`, `src/lib/queries/films.js` | 4 |
+| PS-036 | `FeaturedStories`, `PhotoGallery`, `StoryDetailModal`, and `FilmsGallery` all render their `coverImage`/`url`/`thumbnail` field straight into `<img src={...}>` with no guard for an empty string — which is exactly what `publicMediaUrl()` (`src/lib/mediaUrl.js`) returns today for any admin-uploaded photo, since no environment yet has `VITE_MEDIA_BASE_URL` pointed at a real public host (`PS-033`). A visitor sees a browser's broken-image / alt-text box wherever that photo is used, not simply the absence of one — `src/lib/mediaUrl.js`'s own module comment previously claimed otherwise, corrected in Task 13 | Medium | `src/components/FeaturedStories.jsx`, `src/components/PhotoGallery.jsx`, `src/components/StoryDetailModal.jsx`, `src/components/FilmsGallery.jsx` | 4 — same phase that closes `PS-033`; add the guard alongside making the bucket genuinely servable |
 
 ### Notes on selected rows
 
@@ -55,41 +71,17 @@ client testimonial. None of this is sourced or substantiated anywhere in the rep
 live commercial site this is a false-endorsement and false-advertising exposure, independent of
 whether the underlying photography claims are true.
 
-**PS-004 — base64 uploads exceed the localStorage quota.** The two files play distinct roles.
-`ContentManagerModal.jsx`'s `handleFileUpload` reads the chosen file with
-`FileReader.readAsDataURL`, producing a full base64 data URL that is stored directly on the new
-photo object — that file contains no `localStorage` reference itself. `App.jsx` is where the
-quota is actually at risk: its `photos` state (seeded from `INITIAL_PHOTOS` plus anything added
-through the Content Manager) is written to `localStorage` on every change via
-`localStorage.setItem('peak_story_photos', JSON.stringify(photos))` at `src/App.jsx:50`. A
-handful of base64-encoded photos is enough to approach or exceed the ~5 MB per-origin quota,
-at which point that `setItem` call throws and silently stops persisting new photos. An engineer
-fixing this needs both files: the upload path that creates the oversized string, and the
-storage path that fails to hold it.
-
-**PS-024 — Content Manager is a silent no-op on the `supabase` path.** Filed from the Phase 1b
-final review. `src/App.jsx` derives `stories`/`photos` from `weddingData`/`galleryData` (the
-database) when `DATA_SOURCE === 'supabase'`, but `setStories`/`setPhotos` are still aliased to
-`setLocalStories`/`setLocalPhotos` unconditionally, and `handleAddStory`/`handleAddPhoto` call
-those setters. So on the supabase path a submission updates state nothing reads and a
-`localStorage` effect that itself early-returns in that mode — no page update, no
-`localStorage` write, no database write, yet `ContentManagerModal` reports success. The plan
-directed the read side of this (the database is authoritative) but never specified the write
-side, so this is a genuine gap, not a deviation. Not reachable today because `VITE_DATA_SOURCE`
-defaults to `static`; must not be forgotten if the flag is flipped before Phase 3 replaces this
-modal with real CRUD.
-
 **PS-025 — `media` is world-readable regardless of its parent's status.** Filed from the Phase
 1b final review. `supabase/migrations/20260730204126_row_level_security.sql`'s
 `media_read_all` policy is `for select using (true)` — no predicate — so while a draft
 wedding's own row and its `wedding_photos` join row are correctly hidden from the anon key, the
 `media` row holding its cover image's `storage_path` and `alt_text` is not. This matches the
 approved spec exactly (section 5.3's grant table gives `media` | anon | `SELECT` with no
-predicate), so it is a spec-level design consequence, not an implementer deviation, and impact
-today is zero — every seeded row is `status='published'`. It becomes real once Phase 3/4 make
-`storage_path` a real Supabase Storage URL and drafts become a normal state, and matters most by
-Phase 6, whose deliverable is that a couple sees only their own photographs. `docs/DATA-MODEL.md`
-carries the corresponding caveat next to its policy summary.
+predicate), so it is a spec-level design consequence, not an implementer deviation. As the table
+above now says, Phase 3 is what turned this from a hypothetical into a real, if narrow, gap —
+draft weddings and gallery photos with real uploaded media now exist — and the row is now
+re-filed to Phase 6, the phase whose own deliverable actually requires fixing it.
+`docs/DATA-MODEL.md` carries the corresponding caveat next to its policy summary.
 
 ## Resolved
 
@@ -134,3 +126,60 @@ One issue was closed in Phase 2 (inquiries real):
   error state with a way to reach the studio directly instead of a false confirmation.
   `npm run verify:inquiry` asserts against Postgres directly that a submission actually lands a
   row, and the same check runs in CI.
+
+Four more issues were closed in Phase 3 Task 10 (the Content Manager cutover — the database
+became unconditionally authoritative, `VITE_DATA_SOURCE` and its `dataSource.js` resolver
+(formerly under `src/lib`) were deleted, and `ContentManagerModal.jsx` was deleted along with
+every prop that wired it into
+`App.jsx`, `Navbar`, `Footer`, and `PhotoGallery`):
+
+- **PS-004 — base64 uploads exceeded the localStorage quota** — closed by deleting the only two
+  things that ever put a photo there: `ContentManagerModal.jsx`'s `handleFileUpload` (which
+  produced the oversized base64 data URL) and the `peak_story_photos` `localStorage` key
+  `App.jsx` wrote it into. Photos the admin uploads now go through Supabase Storage via
+  `src/admin/UploadField.jsx` and `src/hooks/useMediaUpload.js`, not through the browser's
+  per-origin `localStorage` quota at all.
+- **PS-005 — Export Config JSON button copied nothing** — removed along with the rest of
+  `ContentManagerModal.jsx`, not fixed in place: a "paste this into `weddingData.js`" export flow
+  has nothing to do once the database, not that file, is authoritative.
+- **PS-022 — story date input silently stuck at `''`, defaulting every published story to
+  "2025"** — the file the bug lived in (`ContentManagerModal.jsx`) is deleted, and separately
+  (Phase 3 Task 8) the admin's real wedding-story form already replaced the underlying product
+  decision this row was tracking with a genuine `type: 'date'` input (`src/admin/resources/weddings.js`)
+  bound to `weddings.event_date`, an ISO date column — not a guess, and not a second copy of the
+  old free-text fallback.
+- **PS-024 — Content Manager was a silent no-op on the `supabase` path** — moot once the modal
+  that no-opped is deleted. Real content now goes through the admin app's CRUD (`src/admin/`),
+  built across Phase 3 Tasks 1–9, which writes straight to Postgres and reports success only
+  when a write actually lands.
+
+Two more issues were found and closed in Phase 3 Task 13, the whole-branch review that returned
+DO NOT SHIP for the two rows below (both sit at a seam between Tasks 7–9, which is why twelve
+per-task reviews missed them) — see that task's report for the live-database proof:
+
+- **PS-034 — a blank optional field made the admin's headline capability, creating a record,
+  fail outright.** `ResourceForm.buildPayload` (`src/admin/ResourceForm.jsx`) emitted `''` for a
+  blank `media`/`date`/`text` field and `null` for a blank `number` field, regardless of what the
+  underlying Postgres column actually accepted — so a minimally-filled *Add Wedding* or *Add
+  Testimonial* was rejected: a blank Cover Photo raised `22P02 invalid input syntax for type
+  uuid: ""`, a blank Date raised `22007 invalid input syntax for type date: ""`, and a blank
+  Order raised `23502 null value in column "sort_order" violates not-null constraint` — and
+  `sort_order` is optional on all four content resources. Every resource config now declares an
+  explicit `emptyValue` per optional field (`null` for a nullable column, `0` for `sort_order`,
+  which is `int not null default 0`) rather than having `ResourceForm` guess one from `field.type`
+  — the guess was provably wrong, since `sortOrder` and `durationSeconds` share `type: 'number'`
+  but need opposite answers. A config that omits `emptyValue` on an optional field now fails
+  loudly (a thrown error) rather than silently guessing. Unit-tested via
+  `src/admin/__tests__/ResourceForm.test.jsx` and proved against a live Postgres instance for all
+  four resources: create with only required fields filled, then update clearing every optional
+  field, for weddings, testimonials, gallery photos, and films alike.
+- **PS-035 — every create went live immediately for three of the four content types.**
+  `makeResourceQueries.create()` (`src/lib/queries/adminContent.js`) never set `status`, since
+  `ResourceForm` deliberately never includes it in `fields` (see that file's own module comment).
+  Left alone, a new row fell through to its table's own column default — `draft` for `weddings`,
+  but `published` for `gallery_photos`, `films`, and `testimonials`
+  (`supabase/migrations/20260730203451_initial_schema.sql`) — so a half-finished gallery photo,
+  film, or testimonial was published the instant "Create" was clicked, before an admin ever
+  touched `ResourceList`'s publish toggle. `create()` now forces `status: 'draft'`
+  unconditionally for every resource, so publishing stays the deliberate, separate act the
+  toggle already required it to be.

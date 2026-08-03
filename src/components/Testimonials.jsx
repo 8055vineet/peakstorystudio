@@ -39,6 +39,21 @@ export default function Testimonials({ testimonials }) {
   // or a status filter that legitimately matches none.
   if (testimonials.length === 0) return null;
 
+  // The list can SHRINK under a stale index, which the length check above
+  // does not cover. useContent seeds with the static module and swaps in the
+  // database array when the query resolves; if the database publishes fewer
+  // testimonials than the fallback and activeIdx has already advanced — the
+  // carousel auto-advances every five seconds, and a visitor can click a nav
+  // dot or swipe while the query is still in flight — then
+  // testimonials[safeIdx] is undefined and reading .quote off it throws.
+  // The root ErrorBoundary then replaces the WHOLE homepage with an error.
+  //
+  // This project has blanked its own homepage exactly this way once before.
+  // Clamping at render is cheaper than resetting state on every array
+  // identity change, and it cannot get out of step with the index the rest
+  // of this component reads.
+  const safeIdx = Math.min(activeIdx, testimonials.length - 1);
+
   return (
     <section className="py-24 relative bg-offwhite-50 overflow-hidden border-t border-pitch-900/10 text-pitch-900">
       <style>
@@ -77,19 +92,19 @@ export default function Testimonials({ testimonials }) {
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEndHandler}
         >
-          <div key={activeIdx} className="animate-custom-fade">
+          <div key={safeIdx} className="animate-custom-fade">
             <Quote className="w-12 h-12 text-pitch-900/20 mx-auto mb-6" />
 
             <p className="font-garamond text-2xl sm:text-3xl text-pitch-900 italic leading-relaxed mb-8 font-light">
-              &ldquo;{testimonials[activeIdx].quote}&rdquo;
+              &ldquo;{testimonials[safeIdx].quote}&rdquo;
             </p>
 
             <div className="space-y-1">
               <h4 className="font-cinzel text-xl font-bold text-pitch-900">
-                {testimonials[activeIdx].couple}
+                {testimonials[safeIdx].couple}
               </h4>
               <p className="text-xs uppercase tracking-widest text-charcoal-500 font-semibold">
-                {testimonials[activeIdx].event}
+                {testimonials[safeIdx].event}
               </p>
             </div>
           </div>
@@ -101,7 +116,7 @@ export default function Testimonials({ testimonials }) {
                 key={i}
                 onClick={() => setActiveIdx(i)}
                 className={`h-2 rounded-full transition-all duration-300 ${
-                  activeIdx === i ? 'w-8 bg-pitch-900 shadow-sm' : 'w-2 bg-pitch-900/20 hover:bg-pitch-900/40'
+                  safeIdx === i ? 'w-8 bg-pitch-900 shadow-sm' : 'w-2 bg-pitch-900/20 hover:bg-pitch-900/40'
                 }`}
                 aria-label={`Go to testimonial ${i + 1}`}
               />
@@ -111,7 +126,7 @@ export default function Testimonials({ testimonials }) {
           {/* Progress Bar */}
           <div className="mt-6 max-w-[200px] mx-auto h-[2px] bg-pitch-900/10 rounded-full overflow-hidden">
             <div 
-              key={activeIdx + (isHovered ? '-paused' : '-playing')}
+              key={safeIdx + (isHovered ? '-paused' : '-playing')}
               className="h-full bg-pitch-900/40"
               style={{
                 width: isHovered ? '100%' : '100%',
