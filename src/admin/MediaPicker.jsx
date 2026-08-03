@@ -9,8 +9,13 @@ import { mediaUrl } from '../lib/mediaUrl.js';
 // LeadsTable's own guard: a hook that keeps the last known-good list around
 // through a failed reload must not read here as "we have data, render the
 // grid".
+// `onSelect` is optional: the standalone Media Library omits it (that view
+// manages the library — there is nothing there to select INTO), so no
+// Select buttons render and none can sit dead on the screen. `selectedId`
+// highlights the currently chosen row when a form embeds the picker, so a
+// click gives visible confirmation instead of silently updating state.
 export default function MediaPicker({
-  items, status, error, onRetry, onSelect,
+  items, status, error, onRetry, onSelect, selectedId,
 }) {
   if (status === 'error') {
     return (
@@ -49,8 +54,14 @@ export default function MediaPicker({
       {items.map((item) => {
         const url = mediaUrl(item.storagePath);
         const missingAlt = !item.altText;
+        const isSelected = selectedId != null && item.id === selectedId;
         return (
-          <li key={item.id} className="border border-pitch-900/10 rounded-xl overflow-hidden bg-offwhite-50">
+          <li
+            key={item.id}
+            className={`border rounded-xl overflow-hidden bg-offwhite-50 ${
+              isSelected ? 'border-pitch-900 ring-2 ring-pitch-900/30' : 'border-pitch-900/10'
+            }`}
+          >
             <div className="aspect-square bg-offwhite-200 flex items-center justify-center">
               {url ? (
                 <img
@@ -81,13 +92,20 @@ export default function MediaPicker({
                   Alt Text Missing
                 </span>
               )}
-              <button
-                type="button"
-                onClick={() => onSelect?.(item)}
-                className="w-full px-2 py-1.5 rounded-lg border border-pitch-900/20 text-pitch-900 text-[10px] uppercase tracking-widest font-semibold hover:bg-offwhite-200 transition-colors"
-              >
-                Select
-              </button>
+              {onSelect && (
+                <button
+                  type="button"
+                  onClick={() => onSelect(item)}
+                  aria-pressed={isSelected}
+                  className={`w-full px-2 py-1.5 rounded-lg border text-[10px] uppercase tracking-widest font-semibold transition-colors ${
+                    isSelected
+                      ? 'bg-pitch-900 text-offwhite-50 border-pitch-900'
+                      : 'border-pitch-900/20 text-pitch-900 hover:bg-offwhite-200'
+                  }`}
+                >
+                  {isSelected ? '✓ Selected' : 'Select'}
+                </button>
+              )}
             </div>
           </li>
         );

@@ -80,12 +80,16 @@ function MediaLibraryDashboard() {
             per the plan's own task ordering. Until then this screen is
             where an admin manages the library directly: upload, and see
             what's missing alt text. */}
+        {/* No onSelect here on purpose: this standalone view manages the
+            library (upload, spot missing alt text) — there is no form to
+            select into, so MediaPicker renders no Select buttons at all
+            rather than buttons that do nothing. Selection happens inside
+            the Gallery/Weddings/Films forms, which embed their own picker. */}
         <MediaPicker
           items={items}
           status={status}
           error={error}
           onRetry={reload}
-          onSelect={() => {}}
         />
       </div>
     </div>

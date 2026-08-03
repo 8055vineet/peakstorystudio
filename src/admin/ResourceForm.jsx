@@ -303,6 +303,7 @@ function MediaField({
         error={loadError}
         onRetry={reload}
         onSelect={(media) => onChange(media.id)}
+        selectedId={value}
       />
       {error && <p id={errorId} role="alert" className="text-xs font-semibold text-pitch-900">{error}</p>}
     </fieldset>

@@ -153,3 +153,32 @@ describe('MediaPicker', () => {
     expect(screen.getByText(/loading media/i)).toBeInTheDocument();
   });
 });
+
+describe('MediaPicker selection affordances', () => {
+  beforeEach(() => vi.resetModules());
+
+  const ITEMS2 = [
+    { id: 'm-1', storagePath: '/images/gallery/wedding/1.jpg', altText: 'One' },
+    { id: 'm-2', storagePath: '/images/gallery/wedding/2.jpg', altText: 'Two' },
+  ];
+
+  async function renderPicker(props) {
+    vi.stubEnv('VITE_MEDIA_BASE_URL', 'https://cdn.peakstorystudio.test');
+    const { default: MediaPicker } = await import('../MediaPicker.jsx');
+    return render(<MediaPicker {...props} />);
+  }
+
+  it('renders no Select buttons at all when no onSelect is provided (the standalone library)', async () => {
+    await renderPicker({ items: ITEMS2, status: 'ready', error: null, onRetry: vi.fn() });
+    expect(screen.queryByRole('button', { name: /select/i })).toBeNull();
+  });
+
+  it('marks the currently selected item so a click gives visible confirmation', async () => {
+    await renderPicker({
+      items: ITEMS2, status: 'ready', error: null, onRetry: vi.fn(), onSelect: vi.fn(), selectedId: 'm-2',
+    });
+    const selectedButton = screen.getByRole('button', { name: /✓ selected/i });
+    expect(selectedButton).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getAllByRole('button', { name: /^select$/i })).toHaveLength(1);
+  });
+});
