@@ -49,6 +49,18 @@ export async function listWeddingPhotos(weddingId) {
 // second lookup rather than trusting a caller-supplied index, so
 // WeddingPhotos.jsx never has to compute "how many photos does this wedding
 // already have" itself just to attach one more.
+//
+// KNOWN RACE, DELIBERATELY TOLERATED: the read (max sort_order) and the
+// write (insert at that max + 1) below are two separate round-trips with no
+// locking between them. Two concurrent addWeddingPhoto calls for the same
+// wedding can both read the same max and both insert at the same
+// sort_order — there is no unique constraint on (wedding_id, sort_order) to
+// even reject the second one. Nothing is destroyed when this happens; the
+// only consequence is that the photo grid's ordering among the colliding
+// rows becomes arbitrary until an admin reorders manually. A single admin
+// adding photos one at a time (the only UI this ships with) cannot trigger
+// it. Do not assume this function is transactional if it is ever called
+// from more than one place at once.
 export async function addWeddingPhoto(weddingId, mediaId) {
   const { data: existing, error: readError } = await supabase
     .from('wedding_photos')

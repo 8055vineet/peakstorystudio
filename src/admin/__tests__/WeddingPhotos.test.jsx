@@ -172,13 +172,20 @@ describe('WeddingPhotos', () => {
       await waitFor(() => expect(screen.getByText(/no photographs attached/i)).toBeInTheDocument());
     });
 
-    // The rule Task 8's brief calls out as destructive to get wrong: this
-    // component only ever calls removeWeddingPhoto (which the query layer's
-    // own test proves never touches the `media` table) — it has no import
-    // of, or call path to, anything that deletes a media row. Confirmed
-    // structurally here (no such function is even mocked/available to call)
-    // and functionally by adminWeddingPhotos.test.js's own dedicated test.
-    it('does not delete the underlying media row — only removeWeddingPhoto is called', async () => {
+    // NOT the guarantee that a photograph survives removal — that is proven
+    // only by src/lib/queries/__tests__/adminWeddingPhotos.test.js's own
+    // 'does not delete the underlying media row' test (in its
+    // describe('removeWeddingPhoto', ...) block), which spies on the real
+    // supabase.from(...) chain and fails if that function's body is ever
+    // changed to also touch `media`. removeWeddingPhoto is mocked wholesale
+    // in this file (see the vi.mock at the top), so nothing here can ever
+    // observe what that function's real body does — a bug inside it would
+    // pass this test every time. What this test DOES prove: the component
+    // itself has no second call path capable of deleting anything — it
+    // never imports or invokes any other removal-shaped function — which is
+    // a real property worth keeping, just a narrower one than the name used
+    // to claim.
+    it('has exactly one removal path: it calls removeWeddingPhoto and nothing else', async () => {
       confirmSpy.mockReturnValue(true);
       listWeddingPhotos.mockResolvedValueOnce([PHOTO_A]).mockResolvedValueOnce([]);
       removeWeddingPhoto.mockResolvedValue({ weddingId: 'wedding-1', mediaId: 'media-a' });

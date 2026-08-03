@@ -315,4 +315,223 @@ describe('admin App shell', () => {
       expect(screen.queryByRole('button', { name: /media library/i })).not.toBeInTheDocument();
     });
   });
+
+  // WeddingsDashboard (defined in App.jsx) is the main content screen this
+  // admin ships — tab switching, create/edit through ResourceForm,
+  // delete/publish-toggle/reorder through ResourceList, error surfacing for
+  // both the list load and a list-row action, and the rule that
+  // WeddingPhotos only mounts once a wedding has an id. The resource config
+  // mocked at the top of this file (title/couple/location/sortOrder, no
+  // date/media/tags fields) keeps these tests about App.jsx's own wiring —
+  // resources/__tests__/weddings.test.js and weddings.timezone.test.jsx
+  // already own the real field list and the date-shift guard.
+  describe('Weddings tab', () => {
+    function signIn() {
+      useSession.mockReturnValue({
+        ...baseState,
+        status: 'authenticated',
+        session: { user: { id: 'user-2', email: 'admin@example.test' } },
+        profile: { userId: 'user-2', role: 'admin', displayName: 'Studio Director' },
+      });
+    }
+
+    const WEDDING_A = {
+      id: 'wedding-1', title: 'A Palace Wedding', couple: 'Aisha & Dev', location: 'Udaipur', sortOrder: 0, status: 'draft',
+    };
+    const WEDDING_B = {
+      id: 'wedding-2', title: 'A Garden Wedding', couple: 'Priya & Arjun', location: 'Jaipur', sortOrder: 1, status: 'published',
+    };
+
+    it('switches to the weddings tab and lists weddings via weddingsQueries.list, not before', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      weddingsList.mockResolvedValue([WEDDING_A]);
+      signIn();
+      render(<App />);
+
+      // Weddings is not the default tab — nothing here should fetch weddings
+      // nobody has gone looking for yet, same principle as the Media
+      // Library tab's own "not fetched until asked for" test above.
+      expect(weddingsList).not.toHaveBeenCalled();
+
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: /weddings/i }));
+
+      expect(screen.getByRole('heading', { level: 1, name: /weddings/i })).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByText('A Palace Wedding')).toBeInTheDocument());
+      expect(weddingsList).toHaveBeenCalled();
+    });
+
+    it('creates a wedding through ResourceForm and calls weddingsQueries.create with the entered values', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      weddingsList.mockResolvedValueOnce([]);
+      weddingsCreate.mockResolvedValue({ id: 'wedding-9' });
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: /weddings/i }));
+      await waitFor(() => expect(screen.getByText(/no weddings yet/i)).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /add new/i }));
+      expect(screen.getByRole('heading', { name: /add wedding/i })).toBeInTheDocument();
+
+      await user.type(screen.getByLabelText(/title/i), 'A Palace Wedding');
+      await user.type(screen.getByLabelText(/couple/i), 'Aisha & Dev');
+      await user.type(screen.getByLabelText(/location/i), 'Udaipur');
+
+      weddingsList.mockResolvedValueOnce([WEDDING_A]);
+      await user.click(screen.getByRole('button', { name: /create/i }));
+
+      await waitFor(() => expect(weddingsCreate).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'A Palace Wedding', couple: 'Aisha & Dev', location: 'Udaipur',
+      })));
+      // Returns to the list screen once the create actually resolves.
+      await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /weddings/i })).toBeInTheDocument());
+    });
+
+    it('edits a wedding through ResourceForm, prefilling its values, and calls weddingsQueries.update with its id', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      weddingsList.mockResolvedValue([WEDDING_A]);
+      weddingsUpdate.mockResolvedValue({ ...WEDDING_A, location: 'Jaipur' });
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: /weddings/i }));
+      await waitFor(() => expect(screen.getByText('A Palace Wedding')).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /edit/i }));
+      expect(screen.getByRole('heading', { name: /edit wedding/i })).toBeInTheDocument();
+      expect(screen.getByLabelText(/location/i)).toHaveValue('Udaipur');
+
+      await user.clear(screen.getByLabelText(/location/i));
+      await user.type(screen.getByLabelText(/location/i), 'Jaipur');
+
+      weddingsList.mockResolvedValueOnce([{ ...WEDDING_A, location: 'Jaipur' }]);
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => expect(weddingsUpdate).toHaveBeenCalledWith('wedding-1', expect.objectContaining({ location: 'Jaipur' })));
+    });
+
+    it('a failed edit keeps the form open and shows the failure — no optimistic return to the list', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      weddingsList.mockResolvedValue([WEDDING_A]);
+      weddingsUpdate.mockRejectedValue(new Error('duplicate slug'));
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: /weddings/i }));
+      await waitFor(() => expect(screen.getByText('A Palace Wedding')).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /edit/i }));
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/duplicate slug/i));
+      // Still on the edit screen — a failed submit must not bounce back to
+      // the list as if it had succeeded.
+      expect(screen.getByRole('heading', { name: /edit wedding/i })).toBeInTheDocument();
+    });
+
+    it('deletes a wedding after confirmation and calls weddingsQueries.remove with its id', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      weddingsList.mockResolvedValueOnce([WEDDING_A]);
+      weddingsRemove.mockResolvedValue({});
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: /weddings/i }));
+      await waitFor(() => expect(screen.getByText('A Palace Wedding')).toBeInTheDocument());
+
+      weddingsList.mockResolvedValueOnce([]);
+      await user.click(screen.getByRole('button', { name: /delete/i }));
+
+      expect(confirmSpy).toHaveBeenCalled();
+      expect(weddingsRemove).toHaveBeenCalledWith('wedding-1');
+      await waitFor(() => expect(screen.getByText(/no weddings yet/i)).toBeInTheDocument());
+      confirmSpy.mockRestore();
+    });
+
+    it('a failed publish toggle leaves the old status on screen and surfaces the failure — no optimistic UI', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      weddingsList.mockResolvedValue([WEDDING_A]);
+      weddingsUpdate.mockRejectedValue(new Error('permission denied'));
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: /weddings/i }));
+      await waitFor(() => expect(screen.getByText('A Palace Wedding')).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /draft/i }));
+
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/could not save that change: permission denied/i));
+      expect(weddingsUpdate).toHaveBeenCalledWith('wedding-1', { status: 'published' });
+      // No reload ever ran (the write itself rejected), so the toggle must
+      // still read Draft rather than having flipped ahead of the database.
+      expect(screen.getByRole('button', { name: /draft/i })).toBeInTheDocument();
+    });
+
+    it('reorders weddings and calls weddingsQueries.reorder with the new id order', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      weddingsList.mockResolvedValue([WEDDING_A, WEDDING_B]);
+      weddingsReorder.mockResolvedValue({ ok: true });
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: /weddings/i }));
+      await waitFor(() => expect(screen.getByText('A Palace Wedding')).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /move down: a palace wedding/i }));
+
+      expect(weddingsReorder).toHaveBeenCalledWith(['wedding-2', 'wedding-1']);
+    });
+
+    it('shows a distinct load-error state with retry, different from the empty state', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      weddingsList.mockRejectedValueOnce(new Error('network down'));
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: /weddings/i }));
+
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/could not load weddings: network down/i));
+      expect(screen.queryByText(/no weddings yet/i)).not.toBeInTheDocument();
+
+      weddingsList.mockResolvedValueOnce([]);
+      await user.click(screen.getByRole('button', { name: /retry/i }));
+
+      await waitFor(() => expect(screen.getByText(/no weddings yet/i)).toBeInTheDocument());
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('does not render WeddingPhotos for a brand-new, unsaved wedding', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      weddingsList.mockResolvedValueOnce([]);
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: /weddings/i }));
+      await waitFor(() => expect(screen.getByText(/no weddings yet/i)).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /add new/i }));
+
+      expect(screen.getByRole('heading', { name: /add wedding/i })).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Photographs' })).not.toBeInTheDocument();
+      expect(listWeddingPhotos).not.toHaveBeenCalled();
+    });
+
+    it('renders WeddingPhotos, scoped to that wedding, once editing a wedding that has an id', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      weddingsList.mockResolvedValue([WEDDING_A]);
+      listWeddingPhotos.mockResolvedValue([]);
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: /weddings/i }));
+      await waitFor(() => expect(screen.getByText('A Palace Wedding')).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /edit/i }));
+
+      expect(screen.getByRole('heading', { name: 'Photographs' })).toBeInTheDocument();
+      await waitFor(() => expect(listWeddingPhotos).toHaveBeenCalledWith('wedding-1'));
+    });
+  });
 });
