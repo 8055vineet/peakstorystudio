@@ -101,3 +101,63 @@ jobs:
             cat /tmp/functions.log
             exit 1
           }
+
+  admin-e2e:
+    name: Admin end-to-end
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start Supabase
+        run: supabase start || { echo "::error::supabase start failed"; exit 1; }
+      - name: Create the storage bucket
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          curl -sf --max-time 10 -X POST "$API_URL/storage/v1/bucket" \
+            -H "Authorization: Bearer $SERVICE_ROLE_KEY" -H "apikey: $SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"id":"media","name":"media","public":false}' || {
+            echo "::error::creating the media storage bucket failed"
+            exit 1
+          }
+      - name: Serve the Edge Functions
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          cp supabase/functions/.env.example supabase/functions/.env.local
+          # sign-upload's S3_* vars: STORAGE_S3_URL/S3_PROTOCOL_* map to
+          # S3_ENDPOINT/S3_REGION/S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY exactly
+          # as supabase/functions/.env.example documents — see that file and
+          # the Task 4 report for why S3_ENDPOINT must be the browser-reachable
+          # host (STORAGE_S3_URL) rather than the container-internal one.
+          sed -i "s|^S3_ENDPOINT=.*|S3_ENDPOINT=$STORAGE_S3_URL|" supabase/functions/.env.local
+          sed -i "s|^S3_REGION=.*|S3_REGION=$S3_PROTOCOL_REGION|" supabase/functions/.env.local
+          sed -i "s|^S3_ACCESS_KEY_ID=.*|S3_ACCESS_KEY_ID=$S3_PROTOCOL_ACCESS_KEY_ID|" supabase/functions/.env.local
+          sed -i "s|^S3_SECRET_ACCESS_KEY=.*|S3_SECRET_ACCESS_KEY=$S3_PROTOCOL_ACCESS_KEY_SECRET|" supabase/functions/.env.local
+          sed -i "s|^S3_BUCKET=.*|S3_BUCKET=media|" supabase/functions/.env.local
+          nohup npm run db:functions > /tmp/functions.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf -o /dev/null -X OPTIONS \
+              http://127.0.0.1:54321/functions/v1/sign-upload && exit 0
+            sleep 2
+          done
+          echo "::error::Edge Function did not become ready in 120s"
+          cat /tmp/functions.log
+          exit 1
+      - name: Verify an admin can publish a wedding and the public site can see it
+        run: |
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          export SUPABASE_URL="$API_URL"
+          export SUPABASE_ANON_KEY="$ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          npm run verify:admin || {
+            echo "::error::The admin publishing pipeline did not reach the public site"
+            cat /tmp/functions.log
+            exit 1
+          }
