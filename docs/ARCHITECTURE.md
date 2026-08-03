@@ -324,18 +324,27 @@ confirmed. A failure at any stage — including the fourth — surfaces as `'err
 `'done'`.
 
 **What a real upload does not yet do:** it does not make the photograph visible on the public
-site. The storage bucket is private, the server-generated key is bucket-relative
-(`uploads/<uuid>.webp`), and nothing in the public read path
-(`src/lib/queries/weddings.js`/`gallery.js`/`films.js`, or the components that render their
-`coverImage`/`url`/`thumbnail` fields as a plain `<img src>`) resolves that key into a URL the
-bucket will serve. Only pre-existing seeded media renders today, because
+site — but the reason changed as of Task 12b, and it is narrower than it used to be. The public
+read path (`src/lib/queries/weddings.js`/`gallery.js`/`films.js`) now resolves every
+`media.storage_path` through the shared `publicMediaUrl()` helper (`src/lib/mediaUrl.js`,
+promoted there from the admin-only module the admin's own previews used): it joins a real
+upload's bucket-relative key (e.g. `uploads/<uuid>.webp`) against `VITE_MEDIA_BASE_URL` and
+passes a seeded row's already-absolute URL through unchanged. What remains is that the storage
+bucket itself is still **private**, with no public read path, and no environment has
+`VITE_MEDIA_BASE_URL` pointed at a real public host yet — so a genuine upload still resolves to
+`''` (no `<img>` shown, but see the caveat on that below) until Phase 4 makes the bucket publicly
+readable and sets that variable. Only pre-existing seeded media renders today, because
 `scripts/seed-db.mjs` writes each seeded row's original full URL directly into `storage_path`
 rather than a bucket key. Public read access is deliberately Phase 4 scope (a Cloudflare custom
 domain in front of R2) — see `PS-033` in `docs/KNOWN-ISSUES.md` for the full explanation. This is
 the single most important nuance for whoever wires that up: the pipeline above, the database
-schema, and the admin UI are already real and already tested end to end
-(`npm run verify:admin`); only the last mile — turning a stored key into a fetchable image URL for
-an anonymous visitor — remains.
+schema, and the admin UI are already real and are tested end to end (`npm run verify:admin`,
+which signs in, uploads, publishes a wedding, and asserts the public query layer's `coverImage`
+and `fullGallery` resolve `storage_path` all the way to a real URL against a `VITE_MEDIA_BASE_URL`
+CI sets for exactly this purpose — not merely that the raw key round-trips unresolved, which is
+what this gate asserted before Task 13 caught it silently passing vacuously against an unset
+variable); only the last mile — making the bucket itself servable to an anonymous visitor —
+remains.
 
 ### One S3 code path, local storage and Cloudflare R2 alike
 

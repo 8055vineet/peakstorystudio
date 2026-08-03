@@ -195,8 +195,17 @@ runs — with the database, the Edge Functions, and the storage bucket all up:
 ```bash
 eval "$(supabase status -o env | sed 's/^/export /')"
 export SUPABASE_URL="$API_URL" SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+export VITE_MEDIA_BASE_URL="$API_URL/storage/v1/object/public/media"
 npm run verify:admin
 ```
+
+`VITE_MEDIA_BASE_URL` is read by `src/lib/mediaUrl.js` — see
+[Environment](#environment) below — and without it, `scripts/verify-admin.mjs`'s check that an
+uploaded photo's `storage_path` resolves to a real URL passes vacuously (both the expected and
+actual values collapse to the same empty string) instead of proving anything. The value above is
+shaped like a real Supabase Storage public-object URL; it does not need to actually serve the
+file, since the local bucket stays private (see [The upload flow](docs/ARCHITECTURE.md#the-upload-flow)) —
+only the resolution logic is under test here.
 
 ## Project layout
 
@@ -289,8 +298,11 @@ cp .env.example .env.local
 
 Never commit `.env.local` — it is gitignored. The variables it defines are Supabase project
 credentials, Cloudflare Turnstile keys, the WhatsApp click-to-chat number, and (optionally)
-`VITE_MEDIA_BASE_URL` for the admin's own media previews — see
-[Local database](#local-database) above. There is no data-source switch to set: an environment
+`VITE_MEDIA_BASE_URL` — read by `src/lib/mediaUrl.js` for both the admin's own media previews
+*and* the public site's own query layer, which is what this variable's blast radius actually is
+once it's set; see
+[Running the admin locally](#running-the-admin-locally) above and
+[The upload flow](docs/ARCHITECTURE.md#the-upload-flow). There is no data-source switch to set: an environment
 with no Supabase credentials configured still renders the static `src/data/weddingData.js`
 module, but only as the error fallback `src/hooks/useContent.js` falls back to when its query to
 an unconfigured client fails, not as a second mode a variable selects.

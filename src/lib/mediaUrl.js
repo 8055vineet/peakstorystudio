@@ -44,11 +44,16 @@ function isAlreadyRenderable(storagePath) {
 // The public site's counterpart to mediaUrl(): every consumer here is a
 // visitor, not the admin, and a visitor cannot act on "storage is not
 // configured" the way MediaPicker's labelled placeholder lets an admin.
-// A broken-image icon on a wedding photographer's own portfolio is worse
-// than no <img> at all, so this coalesces "cannot resolve" to '' — the same
-// empty value src/lib/queries/weddings.js, gallery.js and films.js already
-// return for a cover/photo/thumbnail that does not exist, so a component
-// never needs a second "nothing to show" case to guard against.
+// This coalesces "cannot resolve" to '' — the same empty value
+// src/lib/queries/weddings.js, gallery.js and films.js already return for a
+// cover/photo/thumbnail that does not exist — so every consumer has exactly
+// one "nothing to show" value to guard against, never a second. It does NOT
+// mean no <img> is shown: FeaturedStories and PhotoGallery both render an
+// <img src={...}> unconditionally, with no guard on an empty coverImage/url,
+// so '' still reaches the DOM as `<img src="">` — which a browser renders as
+// its broken-image / alt-text state, not as nothing. '' was chosen because
+// it is the value those components already tolerate without throwing, not
+// because it renders invisibly.
 export function publicMediaUrl(storagePath) {
   if (!storagePath) return '';
   if (isAlreadyRenderable(storagePath)) return storagePath;

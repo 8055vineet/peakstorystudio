@@ -170,6 +170,16 @@ jobs:
           export SUPABASE_URL="$API_URL"
           export SUPABASE_ANON_KEY="$ANON_KEY"
           export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          # Without this, src/lib/mediaUrl.js resolves every storage_path to
+          # '' and scripts/verify-admin.mjs's coverImage/fullGallery checks
+          # pass vacuously (both sides of the comparison collapse to the same
+          # empty string) instead of proving a real URL comes out — exactly
+          # what happened when af8718b routed the public read path through
+          # publicMediaUrl() without this variable being set here. The bucket
+          # itself stays private (PS-033 in docs/KNOWN-ISSUES.md), so this
+          # does not need to be fetchable, only shaped like a real Supabase
+          # Storage public-object URL.
+          export VITE_MEDIA_BASE_URL="$API_URL/storage/v1/object/public/media"
           npm run verify:admin || {
             echo "::error::The admin publishing pipeline did not reach the public site"
             cat /tmp/functions.log

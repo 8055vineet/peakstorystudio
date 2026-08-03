@@ -51,6 +51,19 @@ if (!url || !anonKey || !serviceKey) {
 // Imported for real, not reimplemented — see the module comment above.
 const { getWeddingBySlug } = await import('../src/lib/queries/weddings.js');
 
+// VITE_MEDIA_BASE_URL is what turns a real upload's bucket-relative
+// storage_path (e.g. `uploads/<uuid>.png`) into a URL src/lib/mediaUrl.js's
+// publicMediaUrl() actually resolves — see that file and PS-033 in
+// docs/KNOWN-ISSUES.md. Reimplemented here (rather than importing mediaUrl())
+// so the expected value is computed independently of the function under
+// test — asserting `getWeddingBySlug`'s output against the very function it
+// calls internally would prove nothing if that call were ever removed.
+const mediaBaseUrl = process.env.VITE_MEDIA_BASE_URL;
+function expectedMediaUrl(storagePath) {
+  if (!mediaBaseUrl || !storagePath) return null;
+  return `${mediaBaseUrl.replace(/\/+$/, '')}/${String(storagePath).replace(/^\/+/, '')}`;
+}
+
 const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 const signUploadEndpoint = `${url}/functions/v1/sign-upload`;
 
@@ -152,6 +165,19 @@ async function clean() {
 
 async function main() {
   console.log('verify:admin — end-to-end check of the admin publishing pipeline\n');
+
+  // Checked as its own assertion, not just implied by the coverImage/
+  // fullGallery checks further down: an unset VITE_MEDIA_BASE_URL is exactly
+  // what let this gate pass vacuously before (both sides of that comparison
+  // collapsed to '', so it "passed" while proving nothing about URL
+  // resolution). Failing loudly and early here means a future CI change that
+  // drops the env var again shows up as this line, not as two
+  // easy-to-misread mismatches near the bottom of the run.
+  check(
+    'VITE_MEDIA_BASE_URL is configured for this run',
+    Boolean(mediaBaseUrl),
+    'unset — src/lib/mediaUrl.js resolves every storage_path to \'\', so the checks below would pass vacuously instead of proving a real URL comes out',
+  );
 
   try {
     await fetch(signUploadEndpoint, { method: 'OPTIONS' });
@@ -336,13 +362,15 @@ async function main() {
     check('videoUrl matches', publicWedding.videoUrl === PROBE_VIDEO_URL, publicWedding.videoUrl);
     check('tags match', JSON.stringify(publicWedding.tags) === JSON.stringify(PROBE_TAGS), JSON.stringify(publicWedding.tags));
     check(
-      "coverImage resolves to the uploaded photo's storage path",
-      publicWedding.coverImage === mediaRow?.storage_path,
+      "coverImage resolves the uploaded photo's storage_path to a real URL",
+      Boolean(expectedMediaUrl(mediaRow?.storage_path))
+        && publicWedding.coverImage === expectedMediaUrl(mediaRow?.storage_path),
       publicWedding.coverImage,
     );
     check(
-      'the attached photo appears in fullGallery',
-      publicWedding.fullGallery?.length === 1 && publicWedding.fullGallery[0] === mediaRow?.storage_path,
+      'the attached photo appears in fullGallery, resolved to a real URL',
+      publicWedding.fullGallery?.length === 1
+        && publicWedding.fullGallery[0] === expectedMediaUrl(mediaRow?.storage_path),
       JSON.stringify(publicWedding.fullGallery),
     );
   }
