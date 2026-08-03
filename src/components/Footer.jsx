@@ -1,86 +1,101 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Camera, Instagram, Youtube, Facebook, ArrowUp } from 'lucide-react';
+import { Film, Camera, Globe, Instagram, Youtube, MessageCircle } from 'lucide-react';
+import {
+  STUDIO_PHONE,
+  STUDIO_EMAIL,
+  STUDIO_ADDRESS,
+  WHATSAPP_NUMBER,
+  STUDIO_INSTAGRAM_URL,
+  STUDIO_YOUTUBE_URL,
+} from '../data/contact';
+
+// A social icon renders as a link only when its URL is known. An empty URL
+// gives a plain, non-interactive span — never a dead href="#" anchor.
+function SocialIcon({ href, label, children }) {
+  const base =
+    'w-9 h-9 rounded-full border border-pitch-900/15 text-pitch-900 flex items-center justify-center transition-colors';
+  if (!href) {
+    return <span className={base} aria-hidden="true">{children}</span>;
+  }
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={label}
+      className={`${base} hover:bg-pitch-900 hover:text-offwhite-50`}
+    >
+      {children}
+    </a>
+  );
+}
+
+const SERVICE_MARKS = [
+  { icon: Film, label: 'Wedding Films' },
+  { icon: Camera, label: 'Professional Photography' },
+  { icon: Globe, label: 'Online Delivery' },
+];
 
 export default function Footer() {
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
   return (
-    <footer className="bg-offwhite-200 text-pitch-900 border-t border-pitch-900/10 pt-16 pb-12 relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        {/* Top Row: Brand & Links */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-16">
-          
-          {/* Col 1: Brand info */}
-          <div className="md:col-span-2 space-y-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full border border-pitch-900/20 flex items-center justify-center bg-offwhite-50 shadow-sm">
-                <Camera className="w-5 h-5 text-pitch-900" />
-              </div>
-              <div>
-                <span className="font-cinzel text-xl font-bold tracking-[0.2em] text-pitch-900 block leading-none">
-                  PEAK STORY
-                </span>
-                <span className="text-[9px] uppercase tracking-[0.4em] text-charcoal-700 font-bold block mt-1">
-                  STUDIO
-                </span>
-              </div>
-            </div>
+    <footer className="bg-offwhite-50 border-t border-pitch-900/10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
-            <p className="font-garamond text-lg text-charcoal-700 italic max-w-md font-light">
-              Crafting contemporary cinematic wedding films & fine art photography for royal celebrations worldwide.
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 items-center">
+          {/* Left: wordmark */}
+          <div className="text-center md:text-left font-garamond text-xl tracking-[0.2em] text-pitch-900">
+            Peak Story Studio
+          </div>
+
+          {/* Center: the studio's real contact details, from src/data/contact.js */}
+          <div className="text-center text-xs leading-6 text-charcoal-700">
+            <p>{STUDIO_ADDRESS}</p>
+            <p>
+              Email:{' '}
+              <a href={`mailto:${STUDIO_EMAIL}`} className="hover:text-pitch-900 transition-colors">
+                {STUDIO_EMAIL}
+              </a>
             </p>
-
-            <div className="flex items-center space-x-3 pt-2">
-              <a href="https://instagram.com" target="_blank" rel="noreferrer" className="w-9 h-9 rounded-full bg-offwhite-50 border border-pitch-900/15 text-pitch-900 hover:bg-pitch-900 hover:text-offwhite-50 flex items-center justify-center transition-all shadow-sm">
-                <Instagram className="w-4 h-4" />
+            <p>
+              Phone:{' '}
+              <a href={`tel:${STUDIO_PHONE.replace(/\s/g, '')}`} className="hover:text-pitch-900 transition-colors">
+                {STUDIO_PHONE}
               </a>
-              <a href="https://youtube.com" target="_blank" rel="noreferrer" className="w-9 h-9 rounded-full bg-offwhite-50 border border-pitch-900/15 text-pitch-900 hover:bg-pitch-900 hover:text-offwhite-50 flex items-center justify-center transition-all shadow-sm">
-                <Youtube className="w-4 h-4" />
-              </a>
-              <a href="https://facebook.com" target="_blank" rel="noreferrer" className="w-9 h-9 rounded-full bg-offwhite-50 border border-pitch-900/15 text-pitch-900 hover:bg-pitch-900 hover:text-offwhite-50 flex items-center justify-center transition-all shadow-sm">
-                <Facebook className="w-4 h-4" />
-              </a>
-            </div>
+            </p>
           </div>
 
-          {/* Col 2: Navigation */}
-          <div className="space-y-3">
-            <h4 className="font-cinzel text-sm font-bold text-pitch-900 uppercase tracking-wider">
-              Navigation
-            </h4>
-            <ul className="space-y-2 text-xs uppercase tracking-widest text-charcoal-700 font-medium">
-              <li><Link to="/" className="hover:text-pitch-900 transition-colors">Home</Link></li>
-              <li><Link to="/gallery" className="hover:text-pitch-900 transition-colors">Gallery</Link></li>
-              <li><Link to="/films" className="hover:text-pitch-900 transition-colors">Films</Link></li>
-              <li><Link to="/stories" className="hover:text-pitch-900 transition-colors">Stories</Link></li>
-              <li><Link to="/about" className="hover:text-pitch-900 transition-colors">About</Link></li>
-              <li><Link to="/contact" className="hover:text-pitch-900 transition-colors">Contact</Link></li>
-            </ul>
+          {/* Right: service marks */}
+          <div className="flex items-start justify-center md:justify-end gap-8">
+            {SERVICE_MARKS.map(({ icon: Icon, label }) => (
+              <div key={label} className="flex flex-col items-center gap-2 text-charcoal-700 w-20">
+                <Icon className="w-5 h-5" aria-hidden="true" />
+                <span className="text-[9px] uppercase tracking-[0.15em] text-center leading-tight">
+                  {label}
+                </span>
+              </div>
+            ))}
           </div>
-
         </div>
 
-        {/* Bottom Bar */}
-        <div className="pt-8 border-t border-pitch-900/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-charcoal-500 font-medium">
-          <p>© {new Date().getFullYear()} PEAK STORY STUDIO. All Rights Reserved.</p>
-          
-          <div className="flex items-center space-x-2">
-            <span>Built with minimalist elegance for luxury weddings.</span>
-          </div>
-
-          <button
-            onClick={scrollToTop}
-            className="flex items-center space-x-2 text-pitch-900 hover:text-charcoal-700 transition-colors"
+        {/* Social row */}
+        <div className="mt-10 flex items-center justify-center gap-4">
+          <SocialIcon href={STUDIO_INSTAGRAM_URL} label="Instagram">
+            <Instagram className="w-4 h-4" />
+          </SocialIcon>
+          <SocialIcon href={STUDIO_YOUTUBE_URL} label="YouTube">
+            <Youtube className="w-4 h-4" />
+          </SocialIcon>
+          <SocialIcon
+            href={`https://wa.me/${WHATSAPP_NUMBER}`}
+            label="WhatsApp"
           >
-            <span className="uppercase tracking-widest text-[10px] font-bold">Back to Top</span>
-            <ArrowUp className="w-4 h-4" />
-          </button>
+            <MessageCircle className="w-4 h-4" />
+          </SocialIcon>
         </div>
 
+        <p className="mt-8 text-center text-[11px] text-charcoal-500">
+          © {new Date().getFullYear()} Peak Story Studio. All rights reserved.
+        </p>
       </div>
     </footer>
   );
