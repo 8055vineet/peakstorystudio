@@ -10,7 +10,7 @@ import Footer from './Footer';
 // this component only arranges the frame around the routed page. The petals
 // layer sits at z-0 beneath the z-10 content wrapper, so it shows through
 // the page's open cream areas but never over a photograph or control.
-export default function Layout({ user, onOpenAuthModal, onOpenClientGallery, onLogout }) {
+export default function Layout({ user, onOpenAuthModal, onOpenClientGallery, onLogout, contact }) {
   return (
     <div className="relative min-h-screen bg-offwhite-100 text-pitch-900 font-sans selection:bg-pitch-900 selection:text-offwhite-50">
       <PetalsBackground />
@@ -24,7 +24,7 @@ export default function Layout({ user, onOpenAuthModal, onOpenClientGallery, onL
           onLogout={onLogout}
         />
         <main><Outlet /></main>
-        <Footer />
+        <Footer contact={contact} />
       </div>
     </div>
   );

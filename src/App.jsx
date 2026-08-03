@@ -15,13 +15,14 @@ import LightboxModal from './components/LightboxModal';
 import AuthModal from './components/AuthModal';
 import ClientGalleryModal from './components/ClientGalleryModal';
 
-import { useWeddings, useGalleryPhotos, useFilms, useTestimonials } from './hooks/useContent';
+import { useWeddings, useGalleryPhotos, useFilms, useTestimonials, useSiteSettings } from './hooks/useContent';
 
 export default function App() {
   const { data: stories } = useWeddings();
   const { data: photos } = useGalleryPhotos();
   const { data: films } = useFilms();
   const { data: testimonials } = useTestimonials();
+  const { data: settings } = useSiteSettings();
 
   const [user, setUser] = useState(() => {
     try {
@@ -90,6 +91,7 @@ export default function App() {
               onOpenAuthModal={() => setAuthModalOpen(true)}
               onOpenClientGallery={() => setClientGalleryOpen(true)}
               onLogout={handleLogout}
+              contact={settings.contact}
             />
           }
         >
@@ -101,6 +103,9 @@ export default function App() {
                 photos={photos}
                 onOpenLightbox={handleOpenLightbox}
                 onOpenVideo={(url) => setVideoModalUrl(url)}
+                quote={settings.quote}
+                brandStory={settings.brandStory}
+                images={settings.images}
               />
             }
           />
@@ -116,8 +121,8 @@ export default function App() {
               />
             }
           />
-          <Route path="about" element={<AboutPage testimonials={testimonials} />} />
-          <Route path="contact" element={<ContactPage />} />
+          <Route path="about" element={<AboutPage testimonials={testimonials} brandStory={settings.brandStory} portraitImage={settings.images.brandStory} />} />
+          <Route path="contact" element={<ContactPage contact={settings.contact} />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

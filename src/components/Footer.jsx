@@ -1,13 +1,6 @@
 import React from 'react';
 import { Film, Camera, Globe, Instagram, Youtube, MessageCircle } from 'lucide-react';
-import {
-  STUDIO_PHONE,
-  STUDIO_EMAIL,
-  STUDIO_ADDRESS,
-  WHATSAPP_NUMBER,
-  STUDIO_INSTAGRAM_URL,
-  STUDIO_YOUTUBE_URL,
-} from '../data/contact';
+import { SITE_SETTINGS_FALLBACK } from '../data/siteSettingsFallback';
 
 // A social icon renders as a link only when its URL is known. An empty URL
 // gives a plain, non-interactive span — never a dead href="#" anchor.
@@ -36,7 +29,7 @@ const SERVICE_MARKS = [
   { icon: Globe, label: 'Online Delivery' },
 ];
 
-export default function Footer() {
+export default function Footer({ contact = SITE_SETTINGS_FALLBACK.contact }) {
   return (
     <footer className="bg-offwhite-50 border-t border-pitch-900/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -49,17 +42,17 @@ export default function Footer() {
 
           {/* Center: the studio's real contact details, from src/data/contact.js */}
           <div className="text-center text-xs leading-6 text-charcoal-700">
-            <p>{STUDIO_ADDRESS}</p>
+            <p>{contact.address}</p>
             <p>
               Email:{' '}
-              <a href={`mailto:${STUDIO_EMAIL}`} className="hover:text-pitch-900 transition-colors">
-                {STUDIO_EMAIL}
+              <a href={`mailto:${contact.email}`} className="hover:text-pitch-900 transition-colors">
+                {contact.email}
               </a>
             </p>
             <p>
               Phone:{' '}
-              <a href={`tel:${STUDIO_PHONE.replace(/\s/g, '')}`} className="hover:text-pitch-900 transition-colors">
-                {STUDIO_PHONE}
+              <a href={`tel:${contact.phone.replace(/\s/g, '')}`} className="hover:text-pitch-900 transition-colors">
+                {contact.phone}
               </a>
             </p>
           </div>
@@ -79,14 +72,14 @@ export default function Footer() {
 
         {/* Social row */}
         <div className="mt-10 flex items-center justify-center gap-4">
-          <SocialIcon href={STUDIO_INSTAGRAM_URL} label="Instagram">
+          <SocialIcon href={contact.instagramUrl} label="Instagram">
             <Instagram className="w-4 h-4" />
           </SocialIcon>
-          <SocialIcon href={STUDIO_YOUTUBE_URL} label="YouTube">
+          <SocialIcon href={contact.youtubeUrl} label="YouTube">
             <Youtube className="w-4 h-4" />
           </SocialIcon>
           <SocialIcon
-            href={`https://wa.me/${WHATSAPP_NUMBER}`}
+            href={`https://wa.me/${contact.whatsappNumber}`}
             label="WhatsApp"
           >
             <MessageCircle className="w-4 h-4" />

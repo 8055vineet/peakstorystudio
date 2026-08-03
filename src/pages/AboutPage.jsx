@@ -5,7 +5,9 @@ import { BRAND_STORY, HOME_IMAGES } from '../data/homeContent';
 
 // Brand Story text and portrait come from the shared module — one source of
 // truth for the studio's real copy, never a second typed-out copy.
-export default function AboutPage({ testimonials }) {
+export default function AboutPage({
+  testimonials, brandStory = BRAND_STORY, portraitImage = HOME_IMAGES.brandStory,
+}) {
   return (
     <div data-testid="about-page">
       <PageHeader title="About" />
@@ -13,15 +15,15 @@ export default function AboutPage({ testimonials }) {
       <section className="px-4 sm:px-6 py-14">
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           <img
-            src={HOME_IMAGES.brandStory.src}
-            alt={HOME_IMAGES.brandStory.alt}
+            src={portraitImage.src}
+            alt={portraitImage.alt}
             className="w-full max-h-[560px] object-cover"
           />
           <div className="text-center space-y-6">
             <h2 className="font-garamond text-3xl tracking-[0.15em] text-pitch-700 font-semibold uppercase">
-              {BRAND_STORY.heading}
+              {brandStory.heading}
             </h2>
-            {BRAND_STORY.paragraphs.map((paragraph) => (
+            {brandStory.paragraphs.map((paragraph) => (
               <p key={paragraph.slice(0, 24)} className="text-sm leading-7 text-charcoal-800">
                 {paragraph}
               </p>

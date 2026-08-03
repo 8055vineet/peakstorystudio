@@ -7,10 +7,10 @@ const DEFAULT_MESSAGE = "Hello Peak Story Studio, I'd like to ask about wedding 
 // wa.me needs no API, no approval, and no fee — the WhatsApp Business API is
 // deliberately out of scope. The number was confirmed by the owner on
 // 2026-08-03; the guard below stays as cheap defence should it ever be unset.
-export default function WhatsAppButton({ message = DEFAULT_MESSAGE, className = '' }) {
-  if (!WHATSAPP_NUMBER) return null;
+export default function WhatsAppButton({ number = WHATSAPP_NUMBER, message = DEFAULT_MESSAGE, className = '' }) {
+  if (!number) return null;
 
-  const href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+  const href = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 
   return (
     <a

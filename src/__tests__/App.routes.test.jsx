@@ -9,6 +9,23 @@ vi.mock('../hooks/useContent', () => ({
   useGalleryPhotos: () => ({ data: [], loading: false, error: null }),
   useFilms: () => ({ data: [], loading: false, error: null }),
   useTestimonials: () => ({ data: [], loading: false, error: null }),
+  useSiteSettings: () => ({
+    data: {
+      quote: { text: 'A settings-driven quote for testing.', credit: 'by tester' },
+      brandStory: { heading: 'The Brand Story', paragraphs: ['P one.', 'P two.'] },
+      images: {
+        hero: { src: '/images/home/hero.jpg', alt: 'hero' },
+        brandStory: { src: '/images/home/brand-story.jpg', alt: 'portrait' },
+        closing: { src: '/images/home/closing.jpg', alt: 'closing' },
+      },
+      contact: {
+        address: 'Settings Street 1', email: 'settings@example.test', phone: '+91 11111 11111',
+        whatsappNumber: '911111111111', instagramUrl: '', youtubeUrl: '',
+      },
+    },
+    loading: false,
+    error: null,
+  }),
 }));
 
 const renderAt = (path) =>
@@ -37,5 +54,22 @@ describe('routing', () => {
     renderAt('/gallery');
     expect(screen.getByRole('navigation')).toBeInTheDocument();
     expect(screen.getByRole('contentinfo')).toBeInTheDocument();
+  });
+
+  // The site's singular content comes from useSiteSettings, not constants —
+  // these three assert the settings actually reach what a visitor sees.
+  it('Home renders the settings-driven quote', () => {
+    renderAt('/');
+    expect(screen.getByText(/A settings-driven quote for testing\./)).toBeInTheDocument();
+  });
+
+  it('the footer renders the settings-driven contact details on every page', () => {
+    renderAt('/gallery');
+    expect(screen.getByText(/Settings Street 1/)).toBeInTheDocument();
+  });
+
+  it('the contact page renders the settings-driven phone', () => {
+    renderAt('/contact');
+    expect(screen.getAllByText(/\+91 11111 11111/).length).toBeGreaterThan(0);
   });
 });

@@ -6,7 +6,7 @@ import WhatsAppButton from './WhatsAppButton';
 import { useInquirySubmission } from '../hooks/useInquirySubmission';
 import { useTurnstile } from '../hooks/useTurnstile';
 import { isInquiryBackendConfigured, TURNSTILE_SITE_KEY } from '../lib/queries/inquiries';
-import { STUDIO_PHONE, STUDIO_EMAIL, STUDIO_ADDRESS } from '../data/contact';
+import { SITE_SETTINGS_FALLBACK } from '../data/siteSettingsFallback';
 import { validateInquiry, SERVICES, HONEYPOT_FIELD } from '@shared/inquiry-validation.js';
 
 // Every one of these ends by offering another way through, because the panel
@@ -78,7 +78,7 @@ function FieldError({ id, message }) {
   );
 }
 
-export default function BookingForm() {
+export default function BookingForm({ contact = SITE_SETTINGS_FALLBACK.contact }) {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [clientErrors, setClientErrors] = useState({});
   const {
@@ -179,7 +179,7 @@ export default function BookingForm() {
                 </div>
                 <div>
                   <div className="text-[10px] uppercase tracking-widest text-charcoal-500 font-bold">Direct Concierge</div>
-                  <a href={`tel:${STUDIO_PHONE.replace(/\s/g, '')}`} className="block text-base font-bold text-pitch-900 hover:text-pitch-700 transition-colors">{STUDIO_PHONE}</a>
+                  <a href={`tel:${contact.phone.replace(/\s/g, '')}`} className="block text-base font-bold text-pitch-900 hover:text-pitch-700 transition-colors">{contact.phone}</a>
                 </div>
               </div>
 
@@ -189,7 +189,7 @@ export default function BookingForm() {
                 </div>
                 <div>
                   <div className="text-[10px] uppercase tracking-widest text-charcoal-500 font-bold">Email Studio</div>
-                  <a href={`mailto:${STUDIO_EMAIL}`} className="block text-base font-bold text-pitch-900 hover:text-pitch-700 transition-colors">{STUDIO_EMAIL}</a>
+                  <a href={`mailto:${contact.email}`} className="block text-base font-bold text-pitch-900 hover:text-pitch-700 transition-colors">{contact.email}</a>
                 </div>
               </div>
 
@@ -199,11 +199,11 @@ export default function BookingForm() {
                 </div>
                 <div>
                   <div className="text-[10px] uppercase tracking-widest text-charcoal-500 font-bold">Studio Location</div>
-                  <div className="text-sm font-semibold text-pitch-900">{STUDIO_ADDRESS}</div>
+                  <div className="text-sm font-semibold text-pitch-900">{contact.address}</div>
                 </div>
               </div>
 
-              <WhatsAppButton className="mt-2" />
+              <WhatsAppButton number={contact.whatsappNumber} className="mt-2" />
             </div>
           </ScrollReveal>
 
@@ -469,12 +469,12 @@ export default function BookingForm() {
                         </div>
                         <p className="text-sm text-charcoal-700">
                           Email us at{' '}
-                          <a href={`mailto:${STUDIO_EMAIL}`} className="font-bold text-pitch-900 underline">
-                            {STUDIO_EMAIL}
+                          <a href={`mailto:${contact.email}`} className="font-bold text-pitch-900 underline">
+                            {contact.email}
                           </a>{' '}
                           and we will reply to your inquiry directly.
                         </p>
-                        <WhatsAppButton message={buildFailureMessage(formData)} />
+                        <WhatsAppButton number={contact.whatsappNumber} message={buildFailureMessage(formData)} />
                       </div>
                     )}
 

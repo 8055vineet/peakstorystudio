@@ -5,7 +5,10 @@ import { HOME_QUOTE, BRAND_STORY, HOME_IMAGES } from '../data/homeContent';
 // The Home page, section for section from the owner's approved screenshot:
 // hero image → script quote → video block → images grid → Brand Story →
 // closing image. The header and footer come from Layout.
-export default function HomePage({ films = [], photos = [], onOpenLightbox, onOpenVideo }) {
+export default function HomePage({
+  films = [], photos = [], onOpenLightbox, onOpenVideo,
+  quote = HOME_QUOTE, brandStory = BRAND_STORY, images = HOME_IMAGES,
+}) {
   const featuredFilm = films.length > 0 ? films[0] : null;
   const gridPhotos = photos.slice(0, 18);
 
@@ -14,8 +17,8 @@ export default function HomePage({ films = [], photos = [], onOpenLightbox, onOp
 
       {/* Hero */}
       <img
-        src={HOME_IMAGES.hero.src}
-        alt={HOME_IMAGES.hero.alt}
+        src={images.hero.src}
+        alt={images.hero.alt}
         className="w-full max-h-[85vh] object-cover"
       />
 
@@ -23,10 +26,10 @@ export default function HomePage({ films = [], photos = [], onOpenLightbox, onOp
       <section className="px-6 py-16 sm:py-20 text-center">
         <blockquote className="max-w-3xl mx-auto">
           <p className="font-script text-2xl sm:text-4xl text-pitch-900 leading-relaxed">
-            &ldquo;{HOME_QUOTE.text}&rdquo;
+            &ldquo;{quote.text}&rdquo;
           </p>
           <cite className="mt-4 block font-script text-lg text-charcoal-700 not-italic">
-            {HOME_QUOTE.credit}
+            {quote.credit}
           </cite>
         </blockquote>
       </section>
@@ -95,15 +98,15 @@ export default function HomePage({ films = [], photos = [], onOpenLightbox, onOp
       <section className="px-4 sm:px-6 pb-20">
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           <img
-            src={HOME_IMAGES.brandStory.src}
-            alt={HOME_IMAGES.brandStory.alt}
+            src={images.brandStory.src}
+            alt={images.brandStory.alt}
             className="w-full max-h-[560px] object-cover"
           />
           <div className="text-center space-y-6">
             <h2 className="font-garamond text-3xl tracking-[0.15em] text-pitch-700 font-semibold uppercase">
-              {BRAND_STORY.heading}
+              {brandStory.heading}
             </h2>
-            {BRAND_STORY.paragraphs.map((paragraph) => (
+            {brandStory.paragraphs.map((paragraph) => (
               <p key={paragraph.slice(0, 24)} className="text-sm leading-7 text-charcoal-800">
                 {paragraph}
               </p>
@@ -114,8 +117,8 @@ export default function HomePage({ films = [], photos = [], onOpenLightbox, onOp
 
       {/* Closing image */}
       <img
-        src={HOME_IMAGES.closing.src}
-        alt={HOME_IMAGES.closing.alt}
+        src={images.closing.src}
+        alt={images.closing.alt}
         className="w-full max-h-[70vh] object-cover"
       />
     </div>
