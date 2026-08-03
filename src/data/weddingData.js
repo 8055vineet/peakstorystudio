@@ -158,52 +158,9 @@ export const INITIAL_FILMS = [
   }
 ];
 
-// Consumed by src/components/FilmStrip.jsx — the "behind the lens" marquee of
-// analog-camera frame cards. Moved out of the component body so it isn't
-// rebuilt on every render (PS-015).
-export const FILM_STRIP_FRAMES = [
-  { title: "KODAK 400TX", location: "JODHPUR PALACE", img: "/images/hero_royal.jpg" },
-  { title: "LEICA M11", location: "AMALFI COAST", img: "/images/destination_wedding.jpg" },
-  { title: "HASSELBLAD", location: "CITY PALACE", img: "/images/bridal_portrait.jpg" },
-  { title: "CINEMA 35MM", location: "UDAIPUR LAKE", img: "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=800" },
-  { title: "KODAK PORTRA", location: "FLORENCE", img: "https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&q=80&w=800" },
-  { title: "ARRI ALEXA", location: "GOA BEACH", img: "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=800" },
-];
-
-// Consumed by src/components/HorizontalGallery.jsx — the "editorial showcase"
-// horizontal-scroll carousel (PS-015).
-export const EDITORIAL_GALLERY = [
-  {
-    id: 1,
-    image: '/images/hero_royal.jpg',
-    title: 'Royal Palace Symphony',
-    location: 'Jodhpur Palace'
-  },
-  {
-    id: 2,
-    image: '/images/destination_wedding.jpg',
-    title: 'Sunset Serenade',
-    location: 'Amalfi Coast'
-  },
-  {
-    id: 3,
-    image: '/images/bridal_portrait.jpg',
-    title: 'Regal Heritage',
-    location: 'City Palace, Udaipur'
-  },
-  {
-    id: 4,
-    image: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=1200',
-    title: 'Golden Hour Embrace',
-    location: 'Jaipur'
-  },
-  {
-    id: 5,
-    image: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=1200',
-    title: 'Candlelit Celebration',
-    location: 'Goa'
-  }
-];
+// The film-strip and editorial-gallery arrays were removed in Phase 3b along
+// with the two decorative components that consumed them (PS-023, closed by
+// deletion).
 
 export const TESTIMONIALS = [
   {

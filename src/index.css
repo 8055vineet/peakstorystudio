@@ -6,13 +6,6 @@
   color-scheme: light;
 }
 
-/* !important overrides inline cursor-* utility classes; the media query keeps the native cursor on small/touch screens where CustomCursor never renders */
-@media (min-width: 1024px) {
-  * {
-    cursor: none !important;
-  }
-}
-
 /* Fine-art tactile paper grain overlay */
 body::before {
   content: "";
@@ -60,22 +53,6 @@ body::before {
   box-shadow: 0 16px 40px -5px rgba(0, 0, 0, 0.09);
 }
 
-/* Infinite Marquee Animation for Film Strip */
-@keyframes marquee {
-  0% { transform: translateX(0%); }
-  100% { transform: translateX(-50%); }
-}
-
-.animate-marquee {
-  display: flex;
-  width: 200%;
-  animation: marquee 30s linear infinite;
-}
-
-.animate-marquee:hover {
-  animation-play-state: paused;
-}
-
 /* Fade in animation */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(12px); }
@@ -114,26 +91,6 @@ body::before {
   animation: scrollFadeRight 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Splash screen logo pulse */
-@keyframes logoPulse {
-  0%, 100% { opacity: 0.7; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.04); }
-}
-
-.animate-logo-pulse {
-  animation: logoPulse 2s ease-in-out infinite;
-}
-
-/* Splash screen fade out */
-@keyframes splashFadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-.animate-splash-out {
-  animation: splashFadeOut 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
 /* Progress bar fill animation for testimonials */
 @keyframes progressFill {
   from { width: 0%; }
@@ -165,32 +122,6 @@ body::before {
 }
 .img-zoom-container:hover img {
   transform: scale(1.05);
-}
-
-/* Horizontal gallery scroll snap */
-.horizontal-scroll {
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-.horizontal-scroll::-webkit-scrollbar {
-  display: none;
-}
-.horizontal-scroll > * {
-  scroll-snap-align: center;
-}
-
-/* SVG wave section dividers */
-.section-wave {
-  display: block;
-  width: 100%;
-  height: auto;
-  line-height: 0;
-}
-
-.section-wave svg {
-  display: block;
-  width: 100%;
 }
 
 /* Smooth scroll for entire page */
