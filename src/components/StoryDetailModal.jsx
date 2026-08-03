@@ -44,7 +44,7 @@ export default function StoryDetailModal({ story, onClose, onSelectImage, onOpen
                   </span>
                 ))}
               </div>
-              <h2 className="font-cinzel text-3xl sm:text-5xl font-bold text-pitch-900">
+              <h2 className="font-garamond text-3xl sm:text-5xl font-bold text-pitch-900">
                 {story.title}
               </h2>
               <p className="font-garamond text-xl text-charcoal-700 italic">
@@ -57,7 +57,7 @@ export default function StoryDetailModal({ story, onClose, onSelectImage, onOpen
                 <Sparkles className="w-4 h-4 text-pitch-900 shrink-0" />
                 <div>
                   <div className="text-[9px] uppercase tracking-widest text-charcoal-500 font-semibold">Couple</div>
-                  <div className="font-cinzel font-bold text-base text-pitch-900">{story.couple}</div>
+                  <div className="font-garamond font-bold text-base text-pitch-900">{story.couple}</div>
                 </div>
               </div>
 
@@ -116,7 +116,7 @@ export default function StoryDetailModal({ story, onClose, onSelectImage, onOpen
 
           {/* Album Grid Thumbnails */}
           <div>
-            <h3 className="font-cinzel text-lg font-bold text-pitch-900 mb-4">
+            <h3 className="font-garamond text-lg font-bold text-pitch-900 mb-4">
               Full Album Gallery ({images.length} Photographs)
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">

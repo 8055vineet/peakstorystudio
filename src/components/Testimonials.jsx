@@ -79,7 +79,7 @@ export default function Testimonials({ testimonials }) {
           <span>Couples & Clients Speak</span>
         </div>
 
-        <h2 className="font-cinzel text-3xl sm:text-5xl font-bold tracking-tight text-pitch-900 mb-12">
+        <h2 className="font-garamond text-3xl sm:text-5xl font-bold tracking-tight text-pitch-900 mb-12">
           LOVE NOTES & <span className="font-garamond italic font-normal">TESTIMONIALS</span>
         </h2>
 
@@ -100,7 +100,7 @@ export default function Testimonials({ testimonials }) {
             </p>
 
             <div className="space-y-1">
-              <h4 className="font-cinzel text-xl font-bold text-pitch-900">
+              <h4 className="font-garamond text-xl font-bold text-pitch-900">
                 {testimonials[safeIdx].couple}
               </h4>
               <p className="text-xs uppercase tracking-widest text-charcoal-500 font-semibold">

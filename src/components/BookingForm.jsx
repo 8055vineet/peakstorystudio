@@ -163,7 +163,7 @@ export default function BookingForm() {
               <span>Reserve Your Wedding Date</span>
             </div>
 
-            <h2 className="font-cinzel text-3xl sm:text-5xl font-bold tracking-tight leading-tight text-pitch-900">
+            <h2 className="font-garamond text-3xl sm:text-5xl font-bold tracking-tight leading-tight text-pitch-900">
               LET&apos;S CREATE YOUR <br />
               <span className="font-garamond italic font-normal">MASTERPIECE</span>
             </h2>
@@ -179,7 +179,7 @@ export default function BookingForm() {
                 </div>
                 <div>
                   <div className="text-[10px] uppercase tracking-widest text-charcoal-500 font-bold">Direct Concierge</div>
-                  <div className="text-base font-bold text-pitch-900">{STUDIO_PHONE}</div>
+                  <a href={`tel:${STUDIO_PHONE.replace(/\s/g, '')}`} className="block text-base font-bold text-pitch-900 hover:text-pitch-700 transition-colors">{STUDIO_PHONE}</a>
                 </div>
               </div>
 
@@ -189,7 +189,7 @@ export default function BookingForm() {
                 </div>
                 <div>
                   <div className="text-[10px] uppercase tracking-widest text-charcoal-500 font-bold">Email Studio</div>
-                  <div className="text-base font-bold text-pitch-900">{STUDIO_EMAIL}</div>
+                  <a href={`mailto:${STUDIO_EMAIL}`} className="block text-base font-bold text-pitch-900 hover:text-pitch-700 transition-colors">{STUDIO_EMAIL}</a>
                 </div>
               </div>
 
@@ -217,7 +217,7 @@ export default function BookingForm() {
                     <div className="w-20 h-20 rounded-full bg-offwhite-200 border-2 border-pitch-900 flex items-center justify-center mx-auto text-pitch-900">
                       <CheckCircle2 className="w-10 h-10" />
                     </div>
-                    <h3 className="font-cinzel text-3xl font-bold text-pitch-900">
+                    <h3 className="font-garamond text-3xl font-bold text-pitch-900">
                       Inquiry Received!
                     </h3>
                     <p className="font-garamond text-xl text-charcoal-700 italic max-w-md mx-auto">

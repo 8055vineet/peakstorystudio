@@ -28,7 +28,7 @@ export default function ClientGalleryModal({ isOpen, onClose, user, photos }) {
               <Sparkles className="w-4 h-4 text-amber-600" />
               <span>Private Client Proofing Portal</span>
             </div>
-            <h2 className="font-cinzel text-xl sm:text-3xl font-bold text-pitch-900">
+            <h2 className="font-garamond text-xl sm:text-3xl font-bold text-pitch-900">
               {user.name} <span className="font-garamond italic font-normal text-charcoal-700">— {user.location || 'Wedding Album'}</span>
             </h2>
           </div>
@@ -91,7 +91,7 @@ export default function ClientGalleryModal({ isOpen, onClose, user, photos }) {
           {displayedPhotos.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center text-charcoal-500">
               <ImageIcon className="w-12 h-12 mb-4 opacity-40" />
-              <p className="font-cinzel text-lg font-bold text-pitch-900">No Favorites Selected Yet</p>
+              <p className="font-garamond text-lg font-bold text-pitch-900">No Favorites Selected Yet</p>
               <p className="font-garamond italic text-sm mt-1">Click the heart icon on any photo to add it to your photobook selection.</p>
             </div>
           ) : (
@@ -126,7 +126,7 @@ export default function ClientGalleryModal({ isOpen, onClose, user, photos }) {
 
                     {/* Photo Info overlay */}
                     <div className="p-3 bg-offwhite-50 border-t border-pitch-900/10 flex items-center justify-between text-xs">
-                      <span className="font-cinzel font-bold text-pitch-900 truncate">
+                      <span className="font-garamond font-bold text-pitch-900 truncate">
                         {photo.title || `Photo #${photo.id}`}
                       </span>
                       {isFav && (

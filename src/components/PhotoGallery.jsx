@@ -30,7 +30,7 @@ export default function PhotoGallery({ photos, onOpenLightbox }) {
               <Camera className="w-4 h-4" />
               <span>Fine Art Photography</span>
             </div>
-            <h2 className="font-cinzel text-3xl sm:text-5xl font-bold tracking-tight text-pitch-900">
+            <h2 className="font-garamond text-3xl sm:text-5xl font-bold tracking-tight text-pitch-900">
               THE FINE ART <span className="font-garamond italic font-normal">GALLERY</span>
             </h2>
             <p className="font-garamond text-xl text-charcoal-700 italic font-light">
@@ -137,7 +137,7 @@ export default function PhotoGallery({ photos, onOpenLightbox }) {
                 <span className="text-[9px] uppercase tracking-widest text-pitch-900 bg-offwhite-50 px-2.5 py-0.5 rounded-full font-bold mb-1 inline-block">
                   {photo.category}
                 </span>
-                <h4 className="font-cinzel text-lg font-bold text-offwhite-50">
+                <h4 className="font-garamond text-lg font-bold text-offwhite-50">
                   {photo.title}
                 </h4>
                 {photo.couple && (

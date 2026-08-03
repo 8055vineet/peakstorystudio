@@ -17,7 +17,7 @@ export default function FeaturedStories({ stories, onOpenLightbox, onOpenVideo }
               <Sparkles className="w-3.5 h-3.5" />
               <span>Handpicked Wedding Features</span>
             </div>
-            <h2 className="font-cinzel text-3xl sm:text-5xl font-bold tracking-tight text-pitch-900">
+            <h2 className="font-garamond text-3xl sm:text-5xl font-bold tracking-tight text-pitch-900">
               FEATURED <span className="font-garamond italic font-normal text-pitch-900">WEDDING STORIES</span>
             </h2>
             <p className="font-garamond text-xl text-charcoal-700 italic font-light">
@@ -65,7 +65,7 @@ export default function FeaturedStories({ stories, onOpenLightbox, onOpenVideo }
                       <span>{story.location}</span>
                     </div>
 
-                    <h3 className="font-cinzel text-2xl font-bold text-offwhite-50 group-hover:text-white transition-colors">
+                    <h3 className="font-garamond text-2xl font-bold text-offwhite-50 group-hover:text-white transition-colors">
                       {story.title}
                     </h3>
 

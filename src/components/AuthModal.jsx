@@ -70,7 +70,7 @@ export default function AuthModal({ isOpen, onClose, onLoginSuccess }) {
         <div className="flex items-center justify-between px-6 py-5 border-b border-pitch-900/10 bg-offwhite-100">
           <div className="flex items-center space-x-3">
             <Lock className="w-5 h-5 text-pitch-900" />
-            <h2 className="text-sm font-cinzel font-bold tracking-widest text-pitch-900">
+            <h2 className="text-sm font-garamond font-bold tracking-widest text-pitch-900">
               Access Portal
             </h2>
           </div>

@@ -15,7 +15,7 @@ export default function FilmsGallery({ films, onOpenVideoModal }) {
                 <Film className="w-4 h-4" />
                 <span>Cinema & Teaser Showcase</span>
               </div>
-              <h2 className="font-cinzel text-3xl sm:text-5xl font-bold tracking-tight">
+              <h2 className="font-garamond text-3xl sm:text-5xl font-bold tracking-tight">
                 CINEMATIC <span className="font-garamond italic font-normal">WEDDING FILMS</span>
               </h2>
             </div>
@@ -61,7 +61,7 @@ export default function FilmsGallery({ films, onOpenVideoModal }) {
                   <span className="text-[10px] uppercase tracking-widest text-charcoal-500 font-bold block">
                     {film.location}
                   </span>
-                  <h3 className="font-cinzel text-xl font-bold text-pitch-900 group-hover:text-charcoal-700 transition-colors">
+                  <h3 className="font-garamond text-xl font-bold text-pitch-900 group-hover:text-charcoal-700 transition-colors">
                     {film.title}
                   </h3>
                   <p className="font-garamond text-base text-charcoal-700 italic">

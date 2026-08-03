@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, within, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const submit = vi.fn();
@@ -160,10 +160,11 @@ describe('BookingForm', () => {
     render(<BookingForm />);
 
     expect(screen.getByText(pattern)).toBeInTheDocument();
-    // A mailto link, not just the address as text — the left-hand contact
-    // column already renders it as plain text, so asserting on the text alone
-    // would pass even with the error panel's fallback missing entirely.
-    const mailto = screen.getByRole('link', { name: /peakstorystudio@gmail\.com/i });
+    // Scoped to the error panel (role="alert") — the left-hand contact column
+    // now carries its own mailto link, so an unscoped query would pass even
+    // with the panel's fallback missing entirely.
+    const panel = screen.getByRole('alert');
+    const mailto = within(panel).getByRole('link', { name: /peakstorystudio@gmail\.com/i });
     expect(mailto).toHaveAttribute('href', 'mailto:peakstorystudio@gmail.com');
   });
 

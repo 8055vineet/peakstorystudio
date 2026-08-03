@@ -108,7 +108,7 @@ export default function LightboxModal({ activeImage, activeIndex, imagesList, on
       {/* Bottom Caption Bar */}
       {currentPhoto.title && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-offwhite-50 text-pitch-900 border border-pitch-900/15 px-6 py-3 rounded-full text-center shadow-lg">
-          <h4 className="font-cinzel text-sm font-bold">
+          <h4 className="font-garamond text-sm font-bold">
             {currentPhoto.title}
           </h4>
           {currentPhoto.couple && (

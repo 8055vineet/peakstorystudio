@@ -31,7 +31,7 @@ export default class ErrorBoundary extends React.Component {
     return (
       <div className="min-h-screen bg-offwhite-100 text-pitch-900 flex items-center justify-center p-6">
         <div className="max-w-md text-center space-y-5">
-          <h1 className="font-cinzel text-2xl font-bold tracking-tight">
+          <h1 className="font-garamond text-2xl font-bold tracking-tight">
             Something went wrong
           </h1>
           <p className="font-garamond text-lg text-charcoal-700 italic">
