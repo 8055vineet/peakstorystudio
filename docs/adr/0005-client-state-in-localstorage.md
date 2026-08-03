@@ -2,7 +2,15 @@
 
 ## Status
 
-Accepted
+Accepted, then **superseded in part by Phase 3 (v0.4)**.
+
+The content half of this decision is gone. `peak_story_stories` and `peak_story_photos` no
+longer exist: Phase 3 made Postgres authoritative for content, deleted the Content Manager that
+wrote those keys, and replaced it with a real admin at `admin.html`. The Context below describes
+the state this ADR was written in, and is kept as the record of why the original choice was
+made — not as a description of the code today.
+
+`peak_story_user` and the session concerns in the Consequences section still stand.
 
 ## Context
 
