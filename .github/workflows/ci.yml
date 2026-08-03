@@ -75,7 +75,14 @@ jobs:
       - run: npm ci
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned rather than `latest`. Both end-to-end jobs read credentials
+          # out of `supabase status -o env` by field name — API_URL, ANON_KEY,
+          # SERVICE_ROLE_KEY, and for the admin job STORAGE_S3_URL and
+          # S3_PROTOCOL_*. A CLI release that renames any of those makes the
+          # mapping silently yield empty values, and the job then fails
+          # somewhere downstream that looks nothing like the real cause. This
+          # is the version those field names were verified against.
+          version: 2.110.0
       - name: Start Supabase
         run: supabase start || { echo "::error::supabase start failed"; exit 1; }
       - name: Serve the Edge Function
@@ -114,7 +121,14 @@ jobs:
       - run: npm ci
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          # Pinned rather than `latest`. Both end-to-end jobs read credentials
+          # out of `supabase status -o env` by field name — API_URL, ANON_KEY,
+          # SERVICE_ROLE_KEY, and for the admin job STORAGE_S3_URL and
+          # S3_PROTOCOL_*. A CLI release that renames any of those makes the
+          # mapping silently yield empty values, and the job then fails
+          # somewhere downstream that looks nothing like the real cause. This
+          # is the version those field names were verified against.
+          version: 2.110.0
       - name: Start Supabase
         run: supabase start || { echo "::error::supabase start failed"; exit 1; }
       - name: Create the storage bucket
