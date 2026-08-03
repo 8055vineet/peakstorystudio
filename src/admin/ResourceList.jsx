@@ -62,7 +62,7 @@ function renderCell(item, column, config) {
 // useResource's job, one level up, in whatever screen wires
 // onToggleStatus/onDelete/onReorder to mutate().
 export default function ResourceList({
-  config, items, status, error, onEdit, onCreate, onDelete, onToggleStatus, onReorder,
+  config, items, status, error, onEdit, onCreate, onDelete, onToggleStatus, onReorder, onRetry,
 }) {
   const label = config.label ?? 'Items';
   const singularLabel = label.toLowerCase();
@@ -112,9 +112,19 @@ export default function ResourceList({
 
       {status === 'error' && (
         <div role="alert" className="p-10 text-center border border-pitch-900/15 rounded-2xl bg-offwhite-50">
-          <p className="text-sm font-semibold text-pitch-900">
+          <p className="text-sm font-semibold text-pitch-900 mb-4">
             Could not load {singularLabel}{error?.message ? `: ${error.message}` : '.'}
           </p>
+          {/* A broken load must never be visually mistaken for "nothing
+              published yet" — the studio needs to be able to tell its own
+              site is actually empty apart from this screen having failed. */}
+          <button
+            type="button"
+            onClick={() => onRetry?.()}
+            className="px-6 py-2.5 rounded-lg bg-pitch-900 text-offwhite-50 text-xs uppercase tracking-widest font-semibold hover:bg-pitch-800 transition-colors"
+          >
+            Retry
+          </button>
         </div>
       )}
 

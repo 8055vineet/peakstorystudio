@@ -53,6 +53,7 @@ function baseProps(overrides = {}) {
     onDelete: vi.fn(),
     onToggleStatus: vi.fn(),
     onReorder: vi.fn(),
+    onRetry: vi.fn(),
     ...overrides,
   };
 }
@@ -209,7 +210,7 @@ describe('ResourceList', () => {
     expect(onEdit).toHaveBeenCalledWith(ITEMS[1]);
   });
 
-  it('shows a distinct load-error state', () => {
+  it('shows a distinct load-error state with a retry control — not the empty state', () => {
     render(<ResourceList {...baseProps({
       items: [], status: 'error', error: new Error('permission denied'),
     })}
@@ -217,6 +218,24 @@ describe('ResourceList', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent(/could not load/i);
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    // A broken screen must never read as "no content yet" — the studio
+    // needs to be able to tell its own site is actually empty apart from
+    // this screen having failed to load it.
+    expect(screen.queryByText(/no widgets yet/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it('calls onRetry when the retry control is clicked', async () => {
+    const onRetry = vi.fn();
+    const user = userEvent.setup();
+    render(<ResourceList {...baseProps({
+      items: [], status: 'error', error: new Error('boom'), onRetry,
+    })}
+    />);
+
+    await user.click(screen.getByRole('button', { name: /retry/i }));
+
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
   it('still shows the error state even if items happen to be non-empty', () => {
@@ -226,6 +245,7 @@ describe('ResourceList', () => {
 
     expect(screen.getByRole('alert')).toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
 
   it('shows a loading state when status is loading and no items are held yet', () => {

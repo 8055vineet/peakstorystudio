@@ -25,13 +25,13 @@ const { default: ResourceForm } = await import('../ResourceForm.jsx');
 
 // A fixture config, not one of the five real content tables — proves
 // ResourceForm is generic. Covers every field `type` the contract defines:
-// text, textarea, date, number, select, and media.
+// text, textarea, date, number, select, tags, and media.
 const CONFIG = {
   key: 'widgets',
   label: 'Widgets',
   table: 'widgets',
   columns: [
-    'id', 'name', 'category', 'description', 'launch_date', 'weight', 'cover_media_id', 'sort_order', 'status',
+    'id', 'name', 'category', 'description', 'launch_date', 'weight', 'cover_media_id', 'tags', 'sort_order', 'status',
   ],
   defaultSort: 'sort_order',
   listColumns: [
@@ -51,6 +51,7 @@ const CONFIG = {
     { name: 'launchDate', label: 'Launch Date', type: 'date', required: false },
     { name: 'weight', label: 'Weight', type: 'number', required: false },
     { name: 'coverMediaId', label: 'Cover Photo', type: 'media', required: false },
+    { name: 'tags', label: 'Tags', type: 'tags', required: false },
   ],
 };
 
@@ -131,6 +132,55 @@ describe('ResourceForm', () => {
     // The no-op stub queries object still resolves (to []) on mount — let
     // that settle inside act() too, even though nothing here depends on it.
     await waitFor(() => expect(listMedia).not.toHaveBeenCalled());
+  });
+
+  // Task 7 review: without a remount, ResourceForm must not let a record A's
+  // edited-but-unsaved values survive into a submission that writes under
+  // record B's id. The documented `key={initial?.id ?? 'new'}` guidance at
+  // the call site is belt-and-braces, not the enforcement — this component
+  // must be correct even when a call site forgets it.
+  describe('when `initial` changes to a different record without remounting', () => {
+    const RECORD_A = {
+      id: 'record-a', name: 'Record A', category: 'a', description: '', launchDate: '', weight: null, coverMediaId: '', tags: [],
+    };
+    const RECORD_B = {
+      id: 'record-b', name: 'Record B', category: 'b', description: '', launchDate: '', weight: null, coverMediaId: '', tags: [],
+    };
+
+    it("shows the new record's values instead of edits made to the previous one", async () => {
+      const user = userEvent.setup();
+      const { rerender } = render(<ResourceForm {...baseProps({ initial: RECORD_A })} />);
+
+      await user.clear(screen.getByLabelText(/^name/i));
+      await user.type(screen.getByLabelText(/^name/i), 'Edited but never saved');
+      expect(screen.getByLabelText(/^name/i)).toHaveValue('Edited but never saved');
+
+      rerender(<ResourceForm {...baseProps({ initial: RECORD_B })} />);
+
+      // Must show record B's own value — never A's edited-but-unsaved text
+      // under B's identity. Losing this means a submission would carry A's
+      // field data but write it under B's id: one record silently
+      // overwritten with another's content, on a live commercial site, with
+      // no error anywhere.
+      expect(screen.getByLabelText(/^name/i)).toHaveValue('Record B');
+      await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+    });
+
+    it('clears a validation error left over from the previous record', async () => {
+      const user = userEvent.setup();
+      const { rerender } = render(<ResourceForm {...baseProps({
+        initial: { ...RECORD_A, name: '' },
+      })}
+      />);
+
+      await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
+      expect(screen.getByText(/name is required/i)).toBeInTheDocument();
+
+      rerender(<ResourceForm {...baseProps({ initial: RECORD_B })} />);
+
+      expect(screen.queryByText(/name is required/i)).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+    });
   });
 
   describe('required fields', () => {
@@ -218,6 +268,63 @@ describe('ResourceForm', () => {
       await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
 
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ launchDate: '2026-01-05' }));
+    });
+  });
+
+  describe('tags field', () => {
+    it('renders a text control with help text explaining the comma format', async () => {
+      render(<ResourceForm {...baseProps()} />);
+
+      expect(screen.getByLabelText(/^tags/i)).toHaveAttribute('type', 'text');
+      expect(screen.getByText(/comma-separated/i)).toBeInTheDocument();
+      // weddings.tags is text[] with no escaping scheme — decided not worth
+      // supporting a comma inside a single tag, so this is stated rather
+      // than silently mangled if someone types one.
+      expect(screen.getByText(/cannot itself contain a comma/i)).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+    });
+
+    it('round-trips an initial array of tags into a comma-separated value, unchanged on submit', async () => {
+      const onSubmit = vi.fn();
+      const user = userEvent.setup();
+      render(<ResourceForm {...baseProps({
+        initial: {
+          name: 'Existing', category: 'a', description: '', launchDate: '', weight: null, coverMediaId: '', tags: ['Beach', 'Sunset'],
+        },
+        onSubmit,
+      })}
+      />);
+
+      expect(screen.getByLabelText(/^tags/i)).toHaveValue('Beach, Sunset');
+
+      await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
+
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ tags: ['Beach', 'Sunset'] }));
+    });
+
+    it('parses typed tags into a trimmed, de-duplicated array', async () => {
+      const onSubmit = vi.fn();
+      const user = userEvent.setup();
+      render(<ResourceForm {...baseProps({ onSubmit })} />);
+
+      await user.type(screen.getByLabelText(/^name/i), 'Widget One');
+      await user.selectOptions(screen.getByLabelText(/category/i), 'a');
+      await user.type(screen.getByLabelText(/^tags/i), ' Beach ,  Sunset ,Beach,');
+      await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
+
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ tags: ['Beach', 'Sunset'] }));
+    });
+
+    it('submits an empty array, not [""], when the tags field is left blank', async () => {
+      const onSubmit = vi.fn();
+      const user = userEvent.setup();
+      render(<ResourceForm {...baseProps({ onSubmit })} />);
+
+      await user.type(screen.getByLabelText(/^name/i), 'Widget One');
+      await user.selectOptions(screen.getByLabelText(/category/i), 'a');
+      await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
+
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ tags: [] }));
     });
   });
 

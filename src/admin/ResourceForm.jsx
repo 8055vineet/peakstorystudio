@@ -27,28 +27,62 @@ import UploadField from './UploadField.jsx';
 // `mutate('update', id, { status })` call one level up.
 //
 // field.type is one of: 'text', 'textarea', 'date', 'number', 'select'
-// (carries `options: [{ value, label }]`), or 'media' (renders MediaPicker
-// + UploadField from Task 6 and stores a media id).
+// (carries `options: [{ value, label }]`), 'tags' (a comma-separated text
+// input reading and writing a real string[], for a Postgres text[] column
+// such as weddings.tags), or 'media' (renders MediaPicker + UploadField
+// from Task 6 and stores a media id).
 //
-// Like useResource's queries object (see that hook's own module comment)
-// and MediaPicker's items, this component derives its editable `values`
-// from `initial` exactly once, via useState's lazy initializer, on mount —
-// it does not watch `initial` for later identity changes. A caller
-// switching which item is being edited (or from editing to creating) must
-// remount this component — e.g. `key={initial?.id ?? 'new'}` — the same
-// discipline useResource's own module comment asks of a caller switching
-// which resource's queries it is handed.
+// This component derives its editable `values` from `initial` — see
+// `initialKey`/the render-time reset below for how it stays correct even if
+// a caller reuses one mounted ResourceForm across two different records
+// without remounting it (Task 7 review: verified experimentally that
+// without this, editing record A then re-rendering with record B left A's
+// edited values on screen while `initial` was B — a submission in that
+// state would silently overwrite B's row with A's content). Prefer
+// `key={initial?.id ?? 'new'}` at the call site regardless — it avoids the
+// wasted render this fallback needs — but this component must be correct
+// without it.
 function buildInitialValues(config, initial) {
   const values = {};
   config.fields.forEach((field) => {
     const raw = initial ? initial[field.name] : undefined;
     if (field.type === 'number') {
       values[field.name] = raw === null || raw === undefined ? '' : String(raw);
+    } else if (field.type === 'tags') {
+      values[field.name] = Array.isArray(raw) ? raw.join(', ') : '';
     } else {
       values[field.name] = raw ?? '';
     }
   });
   return values;
+}
+
+// The key that identifies "which record" ResourceForm is currently editing
+// — matches the `key={initial?.id ?? 'new'}` a call site is asked to use,
+// so the render-time reset below fires in exactly the cases a remount
+// would have covered, and no others (switching between two *unsaved* create
+// flows, both with `initial: null`, is not treated as a record change).
+function initialKey(initial) {
+  return initial?.id ?? null;
+}
+
+// Splits a typed "a, b, b, c" into ['a', 'b', 'c']: each piece trimmed,
+// empty pieces dropped (so a blank field, or a trailing comma, never
+// becomes ['']), duplicates removed while keeping first-seen order. A comma
+// inside a single tag is not supported — there is no escaping scheme for
+// it, and the tags field's help text says so rather than silently
+// mangling one.
+function parseTags(raw) {
+  if (!raw) return [];
+  const seen = new Set();
+  const tags = [];
+  raw.split(',').map((tag) => tag.trim()).filter(Boolean).forEach((tag) => {
+    if (!seen.has(tag)) {
+      seen.add(tag);
+      tags.push(tag);
+    }
+  });
+  return tags;
 }
 
 function validate(config, values) {
@@ -68,6 +102,8 @@ function buildPayload(config, values) {
     const raw = values[field.name];
     if (field.type === 'number') {
       payload[field.name] = raw === '' ? null : Number(raw);
+    } else if (field.type === 'tags') {
+      payload[field.name] = parseTags(raw);
     } else {
       payload[field.name] = raw;
     }
@@ -146,6 +182,17 @@ function Field({
         {field.label}{field.required && ' *'}
       </label>
       {control}
+      {field.type === 'tags' && (
+        // Fixed, not config-authored: every 'tags' field gets the same
+        // explanation, since the parsing rule (split on comma, no escaping)
+        // is a property of this component, not something a resource config
+        // should have to restate. Comma-inside-a-tag was deliberately not
+        // supported — no escaping scheme was worth adding for it — so this
+        // says so rather than a tag silently getting split in two.
+        <p className="mt-1 text-xs text-charcoal-500">
+          Comma-separated — separate each tag with a comma. A tag cannot itself contain a comma.
+        </p>
+      )}
       {field.help && <p className="mt-1 text-xs text-charcoal-500">{field.help}</p>}
       {error && <p id={errorId} role="alert" className="mt-2 text-xs font-semibold text-pitch-900">{error}</p>}
     </div>
@@ -197,8 +244,40 @@ function MediaField({
 export default function ResourceForm({
   config, initial, onSubmit, onCancel, pending, error,
 }) {
-  const [values, setValues] = useState(() => buildInitialValues(config, initial));
-  const [fieldErrors, setFieldErrors] = useState({});
+  // `values` and `fieldErrors` are bundled with the key of the record they
+  // belong to, so the check below can tell "the record being edited
+  // changed" apart from "a field on the current record changed" — those
+  // must not be handled the same way; only the first should ever discard
+  // in-progress edits.
+  const [formState, setFormState] = useState(() => ({
+    key: initialKey(initial),
+    values: buildInitialValues(config, initial),
+    fieldErrors: {},
+  }));
+
+  // Re-derives `values` (and drops any leftover `fieldErrors`) the moment
+  // `initial` identifies a different record than what `formState` was built
+  // from — comparing during render and conditionally calling setState is
+  // the documented React pattern for state that must reset when a specific
+  // prop changes (https://react.dev/learn/you-might-not-need-an-effect
+  // #adjusting-some-state-when-a-prop-changes), not a side effect: it does
+  // not loop, because the branch is only taken when the keys actually
+  // differ, and it resolves before this render commits, so the DOM never
+  // shows a frame of record A's stale values under record B's id. This is
+  // what keeps ResourceForm correct even when a call site forgets the
+  // `key={initial?.id ?? 'new'}` remount this component's own module
+  // comment recommends — Task 7 review confirmed experimentally that
+  // without it, A's edited values survived a swap to B and would have been
+  // submitted under B's id.
+  const currentKey = initialKey(initial);
+  if (formState.key !== currentKey) {
+    setFormState({
+      key: currentKey,
+      values: buildInitialValues(config, initial),
+      fieldErrors: {},
+    });
+  }
+  const { values, fieldErrors } = formState;
 
   const hasMediaField = config.fields.some((field) => field.type === 'media');
   // A resource with no `media` field must never fetch the media library —
@@ -214,13 +293,13 @@ export default function ResourceForm({
   const isEditing = Boolean(initial);
 
   function handleFieldChange(name, next) {
-    setValues((prev) => ({ ...prev, [name]: next }));
+    setFormState((prev) => ({ ...prev, values: { ...prev.values, [name]: next } }));
   }
 
   function handleSubmit(e) {
     e.preventDefault();
     const nextErrors = validate(config, values);
-    setFieldErrors(nextErrors);
+    setFormState((prev) => ({ ...prev, fieldErrors: nextErrors }));
     if (Object.keys(nextErrors).length > 0) return;
     onSubmit?.(buildPayload(config, values));
   }
