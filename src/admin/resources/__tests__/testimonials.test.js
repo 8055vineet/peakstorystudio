@@ -51,6 +51,16 @@ describe('testimonialsResource config', () => {
     expect(eventField.required).toBe(false);
   });
 
+  // `event` is a nullable text column; `sort_order` is `int not null
+  // default 0` (supabase/migrations/20260730203451_initial_schema.sql) — a
+  // blank field must clear to what its own column expects, not null for
+  // sort_order, which Postgres rejects with 23502.
+  it('declares emptyValue null for event and 0 for sort_order', () => {
+    const byName = (name) => testimonialsResource.fields.find((f) => f.name === name);
+    expect(byName('event').emptyValue).toBeNull();
+    expect(byName('sortOrder').emptyValue).toBe(0);
+  });
+
   it('lists couple, event, and status — not the quote itself — as the columns an admin sees at a glance', () => {
     expect(testimonialsResource.listColumns.map((c) => c.name)).toEqual(
       expect.arrayContaining(['couple', 'event', 'status']),

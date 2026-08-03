@@ -29,8 +29,15 @@ export const testimonialsResource = {
       help: 'Use only words someone actually gave you. Never attribute a quote to a real person who did not say it.',
     },
     { name: 'couple', label: 'Couple', type: 'text', required: true },
-    { name: 'event', label: 'Event', type: 'text', required: false },
-    { name: 'sortOrder', label: 'Order', type: 'number', required: false },
+    // `event` is a nullable `text` column.
+    {
+      name: 'event', label: 'Event', type: 'text', required: false, emptyValue: null,
+    },
+    // `sort_order` is `int not null default 0` — the column's own default,
+    // never `null`, which Postgres rejects with `23502`.
+    {
+      name: 'sortOrder', label: 'Order', type: 'number', required: false, emptyValue: 0,
+    },
   ],
 };
 

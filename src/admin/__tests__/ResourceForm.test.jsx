@@ -47,11 +47,27 @@ const CONFIG = {
       required: true,
       options: [{ value: 'a', label: 'Category A' }, { value: 'b', label: 'Category B' }],
     },
-    { name: 'description', label: 'Description', type: 'textarea', required: false },
-    { name: 'launchDate', label: 'Launch Date', type: 'date', required: false },
-    { name: 'weight', label: 'Weight', type: 'number', required: false },
-    { name: 'coverMediaId', label: 'Cover Photo', type: 'media', required: false },
+    {
+      name: 'description', label: 'Description', type: 'textarea', required: false, emptyValue: null,
+    },
+    {
+      name: 'launchDate', label: 'Launch Date', type: 'date', required: false, emptyValue: null,
+    },
+    // A genuinely nullable number column (mirrors films.duration_seconds).
+    {
+      name: 'weight', label: 'Weight', type: 'number', required: false, emptyValue: null,
+    },
+    {
+      name: 'coverMediaId', label: 'Cover Photo', type: 'media', required: false, emptyValue: null,
+    },
     { name: 'tags', label: 'Tags', type: 'tags', required: false },
+    // A `not null default 0` number column (mirrors every resource's
+    // sort_order) — declares the OPPOSITE emptyValue from `weight` above
+    // despite sharing `type: 'number'`, which is the whole point: type alone
+    // cannot decide this, so each field must say so itself.
+    {
+      name: 'sortOrder', label: 'Order', type: 'number', required: false, emptyValue: 0,
+    },
   ],
 };
 
@@ -213,9 +229,89 @@ describe('ResourceForm', () => {
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
         name: 'Widget One',
         category: 'a',
-        description: '',
+        description: null,
         weight: null,
       }));
+    });
+
+    // The bug this fixes: every optional field used to clear to '' (text,
+    // date, media) or null (number), decided by `type` alone — so a blank
+    // Cover Photo became `''` (Postgres: `22P02 invalid input syntax for
+    // type uuid`), a blank Date became `''` (`22007`), and a blank Order
+    // became `null` against a `not null default 0` column (`23502`). Every
+    // optional field here is left blank and must clear to exactly what its
+    // own config declares, not what its `type` would suggest.
+    it("clears every blank optional field to its own field's declared emptyValue, not a value guessed from its type", async () => {
+      const onSubmit = vi.fn();
+      const user = userEvent.setup();
+      render(<ResourceForm {...baseProps({ onSubmit })} />);
+
+      await user.type(screen.getByLabelText(/^name/i), 'Widget One');
+      await user.selectOptions(screen.getByLabelText(/category/i), 'a');
+      await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+      await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
+
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+        // date and media both clear to null, never the '' that broke
+        // Postgres — same emptyValue, different types, because the config
+        // says so on each field individually, not because of a type rule.
+        launchDate: null,
+        coverMediaId: null,
+        // `weight` and `sortOrder` are both `type: 'number'` but declare
+        // opposite emptyValues — proof this is no longer type-inferred.
+        weight: null,
+        sortOrder: 0,
+        tags: [],
+      }));
+    });
+  });
+
+  describe('a resource config with a misconfigured optional field', () => {
+    // Every optional field (other than `tags`) must declare its own
+    // `emptyValue` — see ResourceForm.jsx's own module comment. A config
+    // that omits one is a bug in that config, not a runtime state to paper
+    // over by guessing, so this must fail loudly rather than silently emit
+    // '' or null on its own initiative.
+    it('throws rather than guessing an emptyValue for an optional field that declares none', async () => {
+      const BROKEN_CONFIG = {
+        ...CONFIG,
+        fields: CONFIG.fields.map((field) => (
+          field.name === 'weight' ? { name: 'weight', label: 'Weight', type: 'number', required: false } : field
+        )),
+      };
+      const onSubmit = vi.fn();
+      const user = userEvent.setup();
+      render(<ResourceForm {...baseProps({ config: BROKEN_CONFIG, onSubmit })} />);
+
+      await user.type(screen.getByLabelText(/^name/i), 'Widget One');
+      await user.selectOptions(screen.getByLabelText(/category/i), 'a');
+      await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+
+      // The throw happens inside a React event handler, not a render, so no
+      // error boundary catches it and `user.click()` itself still resolves
+      // — jsdom reports it as an uncaught exception on `window` instead
+      // (once per dispatch phase it bubbles through — the click and the
+      // form's own submit — so more than one is expected here, not a sign
+      // the error fired more than once from application code). Capturing
+      // that (and suppressing its default "unhandled" reporting with
+      // preventDefault) is what lets this test observe it directly, rather
+      // than asserting the weaker, indirect fact that onSubmit was never
+      // called.
+      const caught = [];
+      const onWindowError = (event) => {
+        caught.push(event.error);
+        event.preventDefault();
+      };
+      window.addEventListener('error', onWindowError);
+      try {
+        await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
+      } finally {
+        window.removeEventListener('error', onWindowError);
+      }
+
+      expect(caught.length).toBeGreaterThanOrEqual(1);
+      caught.forEach((err) => expect(err.message).toMatch(/emptyValue/));
+      expect(onSubmit).not.toHaveBeenCalled();
     });
   });
 

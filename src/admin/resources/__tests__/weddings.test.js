@@ -52,6 +52,19 @@ describe('weddingsResource config', () => {
     expect(weddingsResource.columns).toContain('event_date');
   });
 
+  // event_date and cover_media_id are nullable columns (supabase/migrations/
+  // 20260730203451_initial_schema.sql); sort_order is `int not null default
+  // 0`. A blank field must clear to what its OWN column expects — never '',
+  // which Postgres rejects with 22P02 for a uuid/date column, and never
+  // null for sort_order, which Postgres rejects with 23502.
+  it('declares emptyValue null for every nullable optional field, and 0 for sort_order', () => {
+    const byName = (name) => weddingsResource.fields.find((f) => f.name === name);
+    expect(byName('eventDate').emptyValue).toBeNull();
+    expect(byName('summary').emptyValue).toBeNull();
+    expect(byName('coverMediaId').emptyValue).toBeNull();
+    expect(byName('sortOrder').emptyValue).toBe(0);
+  });
+
   it('uses the tags field type for tags — rendered on the public site by StoryDetailModal', () => {
     const tagsField = weddingsResource.fields.find((f) => f.name === 'tags');
     expect(tagsField).toBeDefined();

@@ -16,7 +16,7 @@ import UploadField from './UploadField.jsx';
 //     columns: [...snake_case Postgres columns...],
 //     defaultSort: 'sort_order',
 //     listColumns: [{ name, label }],   // consumed by ResourceList, not here
-//     fields: [{ name, label, type, required, help?, options? }],
+//     fields: [{ name, label, type, required, emptyValue?, help?, options? }],
 //   }
 //
 // `status` is deliberately never one of `fields` — every resource has it,
@@ -31,6 +31,20 @@ import UploadField from './UploadField.jsx';
 // input reading and writing a real string[], for a Postgres text[] column
 // such as weddings.tags), or 'media' (renders MediaPicker + UploadField
 // from Task 6 and stores a media id).
+//
+// Every field with `required: false` (other than `tags`, which needs no
+// choice — see parseTags below) MUST also carry `emptyValue`: the value
+// buildPayload sends to Postgres when the admin leaves that field blank.
+// This is deliberately spelled out per field rather than inferred from
+// `type`, because type alone does not determine it — two fields sharing
+// `type: 'number'` can need opposite answers (a resource's `sortOrder`
+// writes to `sort_order`, which is `int not null default 0`, so blank must
+// clear to `0`, never `null`; `films.durationSeconds` is a genuinely
+// nullable int, so blank must clear to `null` — see
+// supabase/migrations/20260730203451_initial_schema.sql). A config that
+// guesses from `type` guesses wrong the moment a second field breaks the
+// pattern the first one happened to set. See buildPayload below for what
+// happens when a config omits this.
 //
 // This component derives its editable `values` from `initial` — see
 // `initialKey`/the render-time reset below for how it stays correct even if
@@ -112,17 +126,54 @@ function validate(config, values) {
   return fieldErrors;
 }
 
+// Fails loudly rather than guessing: an optional field with no declared
+// `emptyValue` is a config bug — the kind that would otherwise surface only
+// when an admin happens to submit that exact field blank, against a live
+// database, as `PS-034` did. Checked against every field on every call
+// (not only the field actually left blank this time), so a broken config is
+// caught the first time ANY submission of that form runs, in tests and in
+// development, rather than waiting for the one admin who leaves the wrong
+// field empty.
+function assertFieldConfig(config) {
+  config.fields.forEach((field) => {
+    if (field.required || field.type === 'tags') return;
+    if (!Object.prototype.hasOwnProperty.call(field, 'emptyValue')) {
+      throw new Error(
+        `ResourceForm: "${config.key}"'s "${field.name}" field is optional but declares no `
+        + "emptyValue — see buildPayload's module comment in ResourceForm.jsx.",
+      );
+    }
+  });
+}
+
+// What a blank optional field becomes on the wire — for create AND update
+// alike, since both submit through this same function and this file has no
+// way to tell which mode produced `values`. That symmetry matters: a
+// resource config's `emptyValue` must be a value Postgres accepts whether
+// this is the first write a row ever gets or the twentieth, never "omit the
+// key," which would mean something different depending on which — omitting
+// a key on update leaves the column untouched (see valuesToRow in
+// src/lib/queries/adminContent.js), silently keeping whatever the row
+// already had instead of clearing it the way an admin who blanked the field
+// clearly intended.
 function buildPayload(config, values) {
+  assertFieldConfig(config);
   const payload = {};
   config.fields.forEach((field) => {
     const raw = values[field.name];
-    if (field.type === 'number') {
-      payload[field.name] = raw === '' ? null : Number(raw);
-    } else if (field.type === 'tags') {
+
+    if (field.type === 'tags') {
       payload[field.name] = parseTags(raw);
-    } else {
-      payload[field.name] = raw;
+      return;
     }
+
+    const isBlank = raw === undefined || raw === null || String(raw).trim() === '';
+    if (isBlank && !field.required) {
+      payload[field.name] = field.emptyValue;
+      return;
+    }
+
+    payload[field.name] = field.type === 'number' ? Number(raw) : raw;
   });
   return payload;
 }

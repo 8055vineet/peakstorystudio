@@ -68,17 +68,28 @@ export const galleryResource = {
       options: CATEGORY_OPTIONS,
       help: 'These five are the only categories the public gallery\'s filter chips recognise.',
     },
-    { name: 'couple', label: 'Couple', type: 'text', required: false },
-    { name: 'location', label: 'Location', type: 'text', required: false },
+    // `couple` and `location` are nullable `text` columns.
+    {
+      name: 'couple', label: 'Couple', type: 'text', required: false, emptyValue: null,
+    },
+    {
+      name: 'location', label: 'Location', type: 'text', required: false, emptyValue: null,
+    },
     {
       name: 'gridSpan',
       label: 'Grid Size',
       type: 'select',
       required: false,
+      // `grid_span` is a nullable `text` column.
+      emptyValue: null,
       options: GRID_SPAN_OPTIONS,
       help: 'How much room this photo takes in the 4-column gallery layout. Ignored in the 1- and 2-column views. Leave unset for Standard.',
     },
-    { name: 'sortOrder', label: 'Order', type: 'number', required: false },
+    // `sort_order` is `int not null default 0` — the column's own default,
+    // never `null`, which Postgres rejects with `23502`.
+    {
+      name: 'sortOrder', label: 'Order', type: 'number', required: false, emptyValue: 0,
+    },
   ],
 };
 

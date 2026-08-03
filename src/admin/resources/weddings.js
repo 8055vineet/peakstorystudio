@@ -45,13 +45,23 @@ export const weddingsResource = {
     // stamped 2025. `type: 'date'` hands this straight through as an ISO
     // YYYY-MM-DD string end to end; see ResourceForm.jsx's own module
     // comment on `Field` for why no Date object ever touches this value.
-    { name: 'eventDate', label: 'Date', type: 'date', required: false },
-    { name: 'summary', label: 'Description', type: 'textarea', required: false },
+    // `event_date` is a nullable `date` column, so a blank field clears to
+    // `null` — never `''`, which Postgres rejects with `22P02`.
+    {
+      name: 'eventDate', label: 'Date', type: 'date', required: false, emptyValue: null,
+    },
+    // `summary` is a nullable `text` column.
+    {
+      name: 'summary', label: 'Description', type: 'textarea', required: false, emptyValue: null,
+    },
     {
       name: 'coverMediaId',
       label: 'Cover Photo',
       type: 'media',
       required: false,
+      // `cover_media_id` is a nullable `uuid` column, so a blank field
+      // clears to `null` — never `''`, which Postgres rejects with `22P02`.
+      emptyValue: null,
       help: "Shown as the story's cover image on the public site.",
     },
     // weddings.tags is text[] and is read directly by
@@ -64,7 +74,11 @@ export const weddingsResource = {
       required: false,
       help: 'Shown as filter chips on the public site.',
     },
-    { name: 'sortOrder', label: 'Order', type: 'number', required: false },
+    // `sort_order` is `int not null default 0` — the column's own default,
+    // never `null`, which Postgres rejects with `23502`.
+    {
+      name: 'sortOrder', label: 'Order', type: 'number', required: false, emptyValue: 0,
+    },
   ],
 };
 

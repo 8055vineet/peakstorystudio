@@ -86,7 +86,9 @@ vi.mock('../resources/weddings.js', () => ({
       { name: 'title', label: 'Title', type: 'text', required: true },
       { name: 'couple', label: 'Couple', type: 'text', required: true },
       { name: 'location', label: 'Location', type: 'text', required: true },
-      { name: 'sortOrder', label: 'Order', type: 'number', required: false },
+      {
+        name: 'sortOrder', label: 'Order', type: 'number', required: false, emptyValue: 0,
+      },
     ],
   },
   weddingsQueries: {
@@ -137,7 +139,9 @@ vi.mock('../resources/gallery.js', () => ({
     fields: [
       { name: 'title', label: 'Title', type: 'text', required: true },
       { name: 'category', label: 'Category', type: 'text', required: true },
-      { name: 'sortOrder', label: 'Order', type: 'number', required: false },
+      {
+        name: 'sortOrder', label: 'Order', type: 'number', required: false, emptyValue: 0,
+      },
     ],
   },
   galleryQueries: {
@@ -163,8 +167,12 @@ vi.mock('../resources/films.js', () => ({
     ],
     fields: [
       { name: 'title', label: 'Title', type: 'text', required: true },
-      { name: 'couple', label: 'Couple', type: 'text', required: false },
-      { name: 'sortOrder', label: 'Order', type: 'number', required: false },
+      {
+        name: 'couple', label: 'Couple', type: 'text', required: false, emptyValue: null,
+      },
+      {
+        name: 'sortOrder', label: 'Order', type: 'number', required: false, emptyValue: 0,
+      },
     ],
   },
   filmsQueries: {
@@ -190,7 +198,9 @@ vi.mock('../resources/testimonials.js', () => ({
     fields: [
       { name: 'quote', label: 'Quote', type: 'textarea', required: true },
       { name: 'couple', label: 'Couple', type: 'text', required: true },
-      { name: 'sortOrder', label: 'Order', type: 'number', required: false },
+      {
+        name: 'sortOrder', label: 'Order', type: 'number', required: false, emptyValue: 0,
+      },
     ],
   },
   testimonialsQueries: {

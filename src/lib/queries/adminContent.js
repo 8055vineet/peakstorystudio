@@ -66,8 +66,21 @@ export function makeResourceQueries(table, columns) {
     return (data ?? []).map((row) => rowToItem(row, columns));
   }
 
+  // `status` is deliberately never one of ResourceForm's `fields` (see its
+  // own module comment), so an admin's Create submission never carries a
+  // status key at all. Left alone, every create() would fall through to
+  // each table's own column default — 'draft' for weddings, but
+  // 'published' for gallery_photos, films, and testimonials
+  // (supabase/migrations/20260730203451_initial_schema.sql) — so a
+  // half-finished gallery photo, film, or testimonial would go live the
+  // instant "Create" is clicked, before an admin ever touches ResourceList's
+  // publish toggle. Force every create to start as a draft, unconditionally
+  // (overwriting anything `values` happened to carry under that key), so
+  // publishing stays the deliberate, separate act that toggle already
+  // requires it to be.
   async function create(values) {
     const row = valuesToRow(values, columns);
+    row.status = 'draft';
     const { data, error } = await supabase
       .from(table)
       .insert(row)

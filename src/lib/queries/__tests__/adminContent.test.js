@@ -108,7 +108,7 @@ describe('makeResourceQueries', () => {
   });
 
   describe('create', () => {
-    it('inserts the mapped snake_case row and returns the mapped result', async () => {
+    it('inserts the mapped snake_case row, forced to draft, and returns the mapped result', async () => {
       const chain = makeInsertChain({ row: ROW });
       mockFrom.mockReturnValue(chain);
       const { create } = makeResourceQueries(TABLE, COLUMNS);
@@ -116,10 +116,26 @@ describe('makeResourceQueries', () => {
       const result = await create({ name: 'Gadget', sortOrder: 0 });
 
       expect(mockFrom).toHaveBeenCalledWith('widgets');
-      expect(chain.insert).toHaveBeenCalledWith({ name: 'Gadget', sort_order: 0 });
+      expect(chain.insert).toHaveBeenCalledWith({ name: 'Gadget', sort_order: 0, status: 'draft' });
       expect(result).toEqual({
         id: 'widget-1', name: 'Gadget', sortOrder: 0, status: 'draft',
       });
+    });
+
+    // A resource form never submits `status` at all (ResourceForm.jsx keeps
+    // it out of `fields` deliberately), but this proves the guarantee holds
+    // even if some future caller did: three of the four real content tables
+    // default `status` to 'published', not 'draft', so a half-finished
+    // gallery photo, film, or testimonial must never go live just because
+    // "Create" was clicked.
+    it('always creates as draft, regardless of what status the caller passes', async () => {
+      const chain = makeInsertChain({ row: ROW });
+      mockFrom.mockReturnValue(chain);
+      const { create } = makeResourceQueries(TABLE, COLUMNS);
+
+      await create({ name: 'Gadget', status: 'published' });
+
+      expect(chain.insert).toHaveBeenCalledWith({ name: 'Gadget', status: 'draft' });
     });
 
     it('never writes the id column, even if one is present in the given values', async () => {
@@ -129,7 +145,7 @@ describe('makeResourceQueries', () => {
 
       await create({ id: 'someone-elses-id', name: 'Gadget' });
 
-      expect(chain.insert).toHaveBeenCalledWith({ name: 'Gadget' });
+      expect(chain.insert).toHaveBeenCalledWith({ name: 'Gadget', status: 'draft' });
     });
 
     it('ignores keys that are not in the configured columns', async () => {
@@ -139,7 +155,7 @@ describe('makeResourceQueries', () => {
 
       await create({ name: 'Gadget', notAColumn: 'ignored' });
 
-      expect(chain.insert).toHaveBeenCalledWith({ name: 'Gadget' });
+      expect(chain.insert).toHaveBeenCalledWith({ name: 'Gadget', status: 'draft' });
     });
 
     it('throws with a useful message when Postgres errors', async () => {

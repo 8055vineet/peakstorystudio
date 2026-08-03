@@ -73,6 +73,21 @@ describe('filmsResource config', () => {
     const required = filmsResource.fields.filter((f) => f.required).map((f) => f.name);
     expect(required.sort()).toEqual(['title', 'videoEmbedUrl'].sort());
   });
+
+  // couple, location, duration_seconds, and thumbnail_media_id are all
+  // nullable columns; sort_order is `int not null default 0` (supabase/
+  // migrations/20260730203451_initial_schema.sql) — a blank field must clear
+  // to what its own column expects. duration_seconds and sort_order share
+  // `type: 'number'` but need opposite emptyValues, which is why this is
+  // declared per field rather than inferred from type.
+  it('declares emptyValue null for every nullable optional field, and 0 for sort_order', () => {
+    const byName = (name) => filmsResource.fields.find((f) => f.name === name);
+    expect(byName('couple').emptyValue).toBeNull();
+    expect(byName('location').emptyValue).toBeNull();
+    expect(byName('durationSeconds').emptyValue).toBeNull();
+    expect(byName('thumbnailMediaId').emptyValue).toBeNull();
+    expect(byName('sortOrder').emptyValue).toBe(0);
+  });
 });
 
 describe('filmsQueries', () => {

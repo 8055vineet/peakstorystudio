@@ -81,6 +81,18 @@ describe('galleryResource config', () => {
     const required = galleryResource.fields.filter((f) => f.required).map((f) => f.name);
     expect(required.sort()).toEqual(['category', 'mediaId', 'title'].sort());
   });
+
+  // couple, location, and grid_span are nullable text columns; sort_order is
+  // `int not null default 0` (supabase/migrations/20260730203451_initial_
+  // schema.sql) — a blank field must clear to what its own column expects,
+  // not null for sort_order, which Postgres rejects with 23502.
+  it('declares emptyValue null for every nullable optional field, and 0 for sort_order', () => {
+    const byName = (name) => galleryResource.fields.find((f) => f.name === name);
+    expect(byName('couple').emptyValue).toBeNull();
+    expect(byName('location').emptyValue).toBeNull();
+    expect(byName('gridSpan').emptyValue).toBeNull();
+    expect(byName('sortOrder').emptyValue).toBe(0);
+  });
 });
 
 describe('galleryQueries', () => {
