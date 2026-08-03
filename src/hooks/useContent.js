@@ -5,24 +5,30 @@ import {
   INITIAL_FILMS,
   TESTIMONIALS,
 } from '../data/weddingData';
-import { DATA_SOURCE } from '../lib/dataSource';
 import { getPublishedWeddings } from '../lib/queries/weddings';
 import { getGalleryPhotos } from '../lib/queries/gallery';
 import { getFilms } from '../lib/queries/films';
 import { getTestimonials } from '../lib/queries/testimonials';
 
-// One implementation, four thin wrappers. `source` is injectable so tests can
-// exercise both paths without touching import.meta.env.
-function useContent(staticData, query, source) {
-  const isSupabase = source === 'supabase';
-  // Start from the static content so every section renders real data on the
-  // first paint, before the query resolves. Falling back to an empty array
-  // here meant components briefly received nothing.
+// The database is unconditionally authoritative as of Phase 3 (there is no
+// longer a `VITE_DATA_SOURCE` switch to read from the static module
+// instead — see src/data/weddingData.js).
+//
+// `staticData` is kept, but only as an error fallback, not as configuration:
+// it is what this hook returns synchronously on the first render (before the
+// query has had a chance to resolve) and again from the `catch` below if the
+// query fails outright. That is resilience, not a second data source — a
+// stale site beats a blank one when the database is briefly unreachable.
+// Phase 7's truthful-content pass must still clean src/data/weddingData.js
+// (PS-002's fabricated press credentials and the testimonial attributed to a
+// real married couple), because that module is exactly what a visitor sees
+// during an outage, not dead code that can be ignored.
+//
+// One implementation, four thin wrappers.
+function useContent(staticData, query) {
   const [remote, setRemote] = useState({ data: staticData, loading: true, error: null });
 
   useEffect(() => {
-    if (!isSupabase) return undefined;
-
     let cancelled = false;
     query()
       .then((data) => {
@@ -36,22 +42,15 @@ function useContent(staticData, query, source) {
       });
 
     return () => { cancelled = true; };
-  }, [isSupabase, query, staticData]);
-
-  // Static content is known synchronously - no effect, no loading state.
-  if (!isSupabase) return { data: staticData, loading: false, error: null };
+  }, [query, staticData]);
 
   return remote;
 }
 
-export const useWeddings = (source = DATA_SOURCE) =>
-  useContent(INITIAL_STORIES, getPublishedWeddings, source);
+export const useWeddings = () => useContent(INITIAL_STORIES, getPublishedWeddings);
 
-export const useGalleryPhotos = (source = DATA_SOURCE) =>
-  useContent(INITIAL_PHOTOS, getGalleryPhotos, source);
+export const useGalleryPhotos = () => useContent(INITIAL_PHOTOS, getGalleryPhotos);
 
-export const useFilms = (source = DATA_SOURCE) =>
-  useContent(INITIAL_FILMS, getFilms, source);
+export const useFilms = () => useContent(INITIAL_FILMS, getFilms);
 
-export const useTestimonials = (source = DATA_SOURCE) =>
-  useContent(TESTIMONIALS, getTestimonials, source);
+export const useTestimonials = () => useContent(TESTIMONIALS, getTestimonials);

@@ -1,22 +1,27 @@
 # Data Model
 
-This document describes the data Peak Story Studio holds. As of Phase 1b (`v0.2b`) there are two
-sources, and exactly one is authoritative at runtime, chosen by the `VITE_DATA_SOURCE`
-environment variable (`src/lib/dataSource.js`):
+This document describes the data Peak Story Studio holds. Since Phase 1b (`v0.2b`) a local
+Postgres database exists alongside the original static `src/data/weddingData.js` module, and as
+of Phase 3 Task 10 the database is unconditionally authoritative — there is no more
+`VITE_DATA_SOURCE` environment variable and no `dataSource.js` resolver module (formerly under
+`src/lib`) to choose between them.
+Content is read through `src/lib/queries/` and the hooks in `src/hooks/useContent.js` (see
+[The database](#the-database) below).
 
-- **`static`** — the default, and what any unconfigured environment falls back to regardless of
-  what `.env.local` says. Content lives entirely in `src/data/weddingData.js`, a JavaScript module
-  seeding React state, optionally overridden by `localStorage`, with writes going through
-  `src/components/ContentManagerModal.jsx`. Everything below up to
-  [The database](#the-database) describes this shape, unchanged since Phase 0.
-- **`supabase`** — content is read from a local Postgres database instead, through
-  `src/lib/queries/` and the hooks in `src/hooks/useContent.js` (see
-  [The database](#the-database)). In this mode `weddingData.js` is no longer the source of
-  truth: it is only the seed source (`scripts/seed-db.mjs` copies it into Postgres) and the
-  fallback a hook returns before its first query resolves or if that query throws — never
-  something a component reads directly.
+`weddingData.js` still exists, but only in two narrower roles: it is the seed source
+(`scripts/seed-db.mjs` copies it into Postgres), and it is the *error fallback* each
+`useContent.js` hook returns synchronously on first render (before its query has resolved) and
+again from that query's `catch` if the query fails outright — never something a component reads
+directly, and never a second source a flag can select. That is resilience, not configuration: a
+stale site beats a blank one when the database is briefly unreachable. Because of that,
+`weddingData.js` is still exactly what a visitor sees during an outage, which is why Phase 7's
+truthful-content pass still has to clean it — see `PS-002` in `docs/KNOWN-ISSUES.md`. There is
+also no longer any `localStorage`-backed override of it: the old Content Manager modal that wrote
+`peak_story_stories`/`peak_story_photos` was deleted in the same Task 10 change (see "Resolved" in
+`docs/KNOWN-ISSUES.md`); real content is now written through the separate admin app under
+`src/admin/`, straight into Postgres.
 
-The static shapes below are exactly what `src/data/weddingData.js` exports today, in either mode.
+The static shapes below are exactly what `src/data/weddingData.js` exports today.
 
 ## Content modules
 
@@ -36,9 +41,11 @@ will crash or silently render `undefined` for two of the three stories.
 
 Fields present on every entry: `id`, `title`, `url`, `category`, `couple`, `location`, `span`.
 
-Seed entries have 7 fields. Photos created at runtime through the Content Manager (see below)
-add an eighth field, `isFeatured`, that none of the seed entries have — so the photo shape is not
-even consistent within a single running session, let alone across the codebase.
+Seed entries have 7 fields. Before Phase 3 Task 10, photos added at runtime through the (since
+deleted) Content Manager modal added an eighth field, `isFeatured`, that none of the seed entries
+have. That runtime path no longer exists — real photos are now written through the admin's
+`gallery_photos` CRUD (`src/admin/resources/gallery.js`), whose schema has no `isFeatured`
+column — but the seven-field static shape below is unchanged.
 
 ### `INITIAL_FILMS` — 3 entries (`film-1`, `film-2`, `film-3`)
 
@@ -64,21 +71,24 @@ Moved here from a module-scope `const` in that component file (see `PS-015` belo
 
 ## Field-level problems
 
-These are the shapes the static file still holds, and the problems each causes whenever
-`VITE_DATA_SOURCE=static` (the default) is in effect. The schema in
-[The database](#the-database) below fixes several of them for the `supabase` path — a real
-`date` column and an integer seconds column instead of the two display strings below, a `slug`
-column, a uniform `uuid` id everywhere, and `alt_text` plus `width`/`height` columns on `media`
-— but not all: `gallery_photos.grid_span` still stores the same literal Tailwind utility-class
-string that `span` does here. `weddingData.js` itself is untouched either way, so every problem
-below is still real whenever the static path is in effect. Each is a real value taken from
-`src/data/weddingData.js`, not a hypothetical.
+These are the shapes the static file still holds, and the problems each causes whenever it is
+what a visitor actually sees — the error-fallback case described above, now that the database is
+otherwise unconditionally authoritative. The schema in [The database](#the-database) below fixes
+several of them for real, database-backed content — a real `date` column and an integer seconds
+column instead of the two display strings below, a `slug` column, a uniform `uuid` id everywhere,
+and `alt_text` plus `width`/`height` columns on `media` — but not all: `gallery_photos.grid_span`
+still stores the same literal Tailwind utility-class string that `span` does here. `weddingData.js`
+itself is untouched either way, so every problem below is still real whenever a visitor is
+looking at it. Each is a real value taken from `src/data/weddingData.js`, not a hypothetical.
 
 - **`date: "November 2024"`** (`INITIAL_STORIES`) is a free-text display string, not a sortable
   or filterable date type. `"June 2025"`, `"February 2025"`, and `"November 2024"` cannot be
-  ordered chronologically without re-parsing English month names, and the Content Manager's
-  story-creation path (`ContentManagerModal.jsx`) defaults an empty date field to the literal
-  string `"2025"`, compounding the inconsistency.
+  ordered chronologically without re-parsing English month names. (Before Phase 3 Task 10, the
+  now-deleted Content Manager modal made this worse by defaulting every empty date field to the
+  literal string `"2025"` — `PS-022`, resolved in `docs/KNOWN-ISSUES.md`. The admin's own
+  wedding-story form, built in Task 8, uses a real `type: 'date'` input bound to the database's
+  `event_date` column instead, so this specific compounding no longer happens for new content —
+  the string-typed static shape below is what's left.)
 - **`duration: "4:32 mins"`** (`INITIAL_FILMS`) is a display string, not a number. There is no
   numeric seconds/minutes field, so sorting films by length or validating input requires parsing
   this string first.
@@ -87,10 +97,11 @@ below is still real whenever the static path is in effect. Each is a real value 
   specific grid layout. Changing the visual grid means editing data records, and the data cannot
   be consumed by anything that doesn't share this exact Tailwind configuration.
 - **`id` types are inconsistent across and within collections.** Seed photo ids are strings like
-  `"photo-1"` through `"photo-8"`. Photos created through the Content Manager get ids of the
-  shape `` `photo-user-${Date.now()}` `` (also a string, but never colliding with the seed
-  numbering scheme). Seed stories follow the same pattern (`"story-1"`, `"story-2"`,
-  `"story-3"`), and Content-Manager-created stories get `` `story-user-${Date.now()}` ``.
+  `"photo-1"` through `"photo-8"`; seed stories follow the same pattern (`"story-1"`, `"story-2"`,
+  `"story-3"`). (Before Phase 3 Task 10, the now-deleted Content Manager modal minted its own ids
+  of the shape `` `photo-user-${Date.now()}` `` / `` `story-user-${Date.now()}` `` for anything
+  added through it — also strings, never colliding with the seed numbering scheme, but that path
+  no longer exists; real rows now get a database `uuid` from `src/admin/`'s CRUD instead.)
   Testimonial ids, however, are plain **numbers** (`1`, `2`, `3`) — a different type from every
   other collection's id. This inconsistency already caused a real bug, fixed in commit
   `8ef6d5e`: the client gallery seeded a client's favourites using ids that didn't match the
@@ -109,23 +120,18 @@ below is still real whenever the static path is in effect. Each is a real value 
 
 ## localStorage contract
 
-`src/App.jsx` maintains three `localStorage` keys, each written by its own `useEffect` and read
-by its own lazy `useState` initializer:
+`src/App.jsx` maintains exactly one `localStorage` key today: `peak_story_user`, written by a
+`useEffect` and read by a lazy `useState` initializer — if `user` is truthy the effect calls
+`localStorage.setItem('peak_story_user', JSON.stringify(user))`; if `user` is falsy (logout) it
+calls `localStorage.removeItem('peak_story_user')` instead of writing `null`. The initializer
+reads and `JSON.parse`s the key, falling back to `null` if it is absent or parsing throws.
 
-| Key | Written by (effect) | Read by (initializer) |
-| --- | --- | --- |
-| `peak_story_stories` | The `useEffect` at lines 45–47 of `src/App.jsx`, which runs `localStorage.setItem('peak_story_stories', JSON.stringify(stories))` whenever `stories` changes. | The `useState(() => …)` initializer at lines 27–34, which reads and `JSON.parse`s the key, falling back to `INITIAL_STORIES` if the key is absent or parsing throws. |
-| `peak_story_photos` | The `useEffect` at lines 49–51, which runs `localStorage.setItem('peak_story_photos', JSON.stringify(photos))` whenever `photos` changes. | The `useState(() => …)` initializer at lines 36–43, falling back to `INITIAL_PHOTOS`. |
-| `peak_story_user` | The `useEffect` at lines 62–68: if `user` is truthy it calls `localStorage.setItem('peak_story_user', JSON.stringify(user))`; if `user` is falsy (logout) it calls `localStorage.removeItem('peak_story_user')` instead of writing `null`. | The `useState(() => …)` initializer at lines 53–60, falling back to `null`. |
-
-**Quota risk.** `src/components/ContentManagerModal.jsx` reads user-selected image files with
-`FileReader.readAsDataURL` (`handleFileUpload`, lines 28–38) and stores the resulting base64
-data URL directly as the photo's `url` field (or the story's `coverImage` field). That value then
-flows into `peak_story_photos` / `peak_story_stories` via the effects above. Base64-encoded image
-data is roughly a third larger than the original binary, and browsers cap an origin's total
-`localStorage` at roughly 5 MB. A handful of full-resolution photo uploads is enough to exhaust
-that quota, at which point `localStorage.setItem` throws and — because neither effect above
-wraps its call in a `try`/`catch` — the failure is unhandled.
+Before Phase 3 Task 10 there were two more keys, `peak_story_stories` and `peak_story_photos`,
+written by the now-deleted Content Manager modal's `App.jsx` state and read back the same way.
+Both keys, their effects, and their initializers were removed in that change along with the
+modal — there is no longer any `localStorage`-backed content override, and no quota risk from
+base64-encoded uploads written into it (`PS-004`, resolved in `docs/KNOWN-ISSUES.md`): the admin
+now uploads straight to Supabase Storage through `src/hooks/useMediaUpload.js`.
 
 ## Image sources
 
@@ -162,9 +168,9 @@ modules described in this document (see `PS-015` in `docs/KNOWN-ISSUES.md`).
 
 ## The database
 
-When `VITE_DATA_SOURCE=supabase`, content is read from a local Postgres database (run via
-`supabase start`), not from this file. The schema — eight tables — lives in
-`supabase/migrations/`:
+Content is read from a local Postgres database (run via `supabase start`), not from
+`weddingData.js` — the one exception being the error-fallback role described above. The schema —
+eight tables — lives in `supabase/migrations/`:
 
 - `20260730203451_initial_schema.sql` creates `media` (image records: storage path, width,
   height, `alt_text`, `blurhash`), `weddings` (one row per wedding story, with a `slug`), the

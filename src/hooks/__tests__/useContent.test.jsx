@@ -15,7 +15,7 @@ beforeEach(() => { getGalleryPhotos.mockReset(); });
 describe('useGalleryPhotos', () => {
   it('starts loading with the static fallback, then resolves with real data', async () => {
     getGalleryPhotos.mockResolvedValue([{ id: 'p1', title: 'One' }]);
-    const { result } = renderHook(() => useGalleryPhotos('supabase'));
+    const { result } = renderHook(() => useGalleryPhotos());
 
     expect(result.current.loading).toBe(true);
     expect(result.current.data).toEqual(INITIAL_PHOTOS);
@@ -26,17 +26,16 @@ describe('useGalleryPhotos', () => {
 
   it('exposes the error and falls back to the static content when the query rejects', async () => {
     getGalleryPhotos.mockRejectedValue(new Error('permission denied'));
-    const { result } = renderHook(() => useGalleryPhotos('supabase'));
+    const { result } = renderHook(() => useGalleryPhotos());
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toMatch(/permission denied/);
     expect(result.current.data).toEqual(INITIAL_PHOTOS);
   });
 
-  it('uses the static file without touching the query layer', async () => {
-    const { result } = renderHook(() => useGalleryPhotos('static'));
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(getGalleryPhotos).not.toHaveBeenCalled();
-    expect(result.current.data.length).toBeGreaterThan(0);
+  it('always queries the database — there is no static-only mode to opt out into', async () => {
+    getGalleryPhotos.mockResolvedValue([{ id: 'p1', title: 'One' }]);
+    renderHook(() => useGalleryPhotos());
+    await waitFor(() => expect(getGalleryPhotos).toHaveBeenCalledTimes(1));
   });
 });

@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Menu, X, Calendar, PlusCircle, User, LogOut, Heart, ShieldCheck } from 'lucide-react';
+import { Camera, Menu, X, Calendar, User, LogOut, Heart, ShieldCheck } from 'lucide-react';
 
-export default function Navbar({ 
-  onOpenBooking, 
-  onOpenContentManager,
+export default function Navbar({
+  onOpenBooking,
   user,
   onOpenAuthModal,
   onOpenClientGallery,
@@ -72,13 +71,10 @@ export default function Navbar({
           {user ? (
             <div className="flex items-center space-x-2 bg-offwhite-200 border border-pitch-900/15 p-1 pr-3 rounded-full">
               {user.role === 'admin' ? (
-                <button
-                  onClick={onOpenContentManager}
-                  className="flex items-center space-x-1.5 bg-pitch-900 text-offwhite-50 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider"
-                >
+                <div className="flex items-center space-x-1.5 bg-pitch-900 text-offwhite-50 px-3 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider">
                   <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
                   <span>Admin Mode</span>
-                </button>
+                </div>
               ) : (
                 <button
                   onClick={onOpenClientGallery}
@@ -106,15 +102,6 @@ export default function Navbar({
               <span>Sign In / Portal</span>
             </button>
           )}
-
-          <button
-            onClick={onOpenContentManager}
-            className="flex items-center space-x-2 text-xs uppercase tracking-wider text-pitch-900/80 hover:text-pitch-900 bg-offwhite-200/80 hover:bg-offwhite-300 border border-pitch-900/15 px-3.5 py-2.5 rounded-full transition-all duration-300"
-            title="Add your own photos & stories dynamically"
-          >
-            <PlusCircle className="w-3.5 h-3.5" />
-            <span>Add Photos</span>
-          </button>
 
           <button
             onClick={onOpenBooking}
@@ -172,14 +159,6 @@ export default function Navbar({
               </button>
             )}
 
-            <button
-              onClick={() => { setMobileMenuOpen(false); onOpenContentManager(); }}
-              className="flex items-center justify-center space-x-2 w-full bg-offwhite-200 border border-pitch-900/20 text-pitch-900 py-3 rounded-full text-xs uppercase tracking-wider font-semibold"
-            >
-              <PlusCircle className="w-4 h-4" />
-              <span>Add My Photos</span>
-            </button>
-            
             <button
               onClick={() => { setMobileMenuOpen(false); onOpenBooking(); }}
               className="w-full bg-pitch-900 text-offwhite-50 font-bold py-3 rounded-full text-xs uppercase tracking-widest"

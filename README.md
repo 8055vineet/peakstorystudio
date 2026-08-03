@@ -40,8 +40,10 @@ landed in 20.11. CI runs Node 22.
 
 ## Local database
 
-Optional: the site runs without it. `VITE_DATA_SOURCE` defaults to `static`, and an
-environment with no Supabase credentials stays static regardless.
+As of Phase 3, the database is unconditionally authoritative — there is no more
+`VITE_DATA_SOURCE` switch. An environment with no Supabase credentials configured still doesn't
+crash: `src/hooks/useContent.js` renders the static `src/data/weddingData.js` module as an error
+fallback when its query fails, the same way it does on any other database outage.
 
 Docker must be running. Then:
 
@@ -55,8 +57,8 @@ npm run db:seed
 npm run db:verify
 ```
 
-To point the site at the database, put the URL and anon key in `.env.local` (git-ignored)
-along with `VITE_DATA_SOURCE=supabase`. See [.env.example](.env.example).
+To point the site at the database, put the URL and anon key in `.env.local` (git-ignored).
+See [.env.example](.env.example).
 
 The anon key is meant to be public — it ships in the browser bundle. What constrains it is
 Row Level Security in Postgres, which `npm run db:verify` exists to prove. The service-role
@@ -118,7 +120,6 @@ npm run verify:inquiry
 │   │   └── useScrollReveal.js
 │   ├── lib/
 │   │   ├── supabase.js         # The only module that constructs a Supabase client
-│   │   ├── dataSource.js        # Resolves VITE_DATA_SOURCE to 'static' or 'supabase'
 │   │   └── queries/             # Query functions useContent.js's hooks call
 │   ├── App.jsx          # Single stateful shell; owns content, session, and modal state
 │   ├── main.jsx         # Vite entry point; mounts <App /> into #root
@@ -176,9 +177,11 @@ cp .env.example .env.local
 ```
 
 Never commit `.env.local` — it is gitignored. The variables it defines are Supabase project
-credentials and `VITE_DATA_SOURCE`, the data-source switch described in
-[Local database](#local-database) above. An environment with no Supabase credentials configured
-stays on the static `src/data/weddingData.js` module regardless of what `VITE_DATA_SOURCE` says.
+credentials, Cloudflare Turnstile keys, and the WhatsApp click-to-chat number — see
+[Local database](#local-database) above. There is no data-source switch to set: an environment
+with no Supabase credentials configured still renders the static `src/data/weddingData.js`
+module, but only as the error fallback `src/hooks/useContent.js` falls back to when its query to
+an unconfigured client fails, not as a second mode a variable selects.
 
 ## Deployment
 

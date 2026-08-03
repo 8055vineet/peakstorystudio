@@ -11,9 +11,10 @@ navbar followed by a tall stack of full-width sections, each mounted permanently
 (nothing is route-based or lazily mounted). "Navigation" is anchor-link scrolling within that
 one page.
 
-Since Phase 1b (`v0.2b`) the site can read its content from a Postgres database rather than
-from a JavaScript module. Which source is used is decided by `VITE_DATA_SOURCE`, and the
-default is the static file — see [Data flow](#data-flow) below and `docs/DATA-MODEL.md`.
+Since Phase 1b (`v0.2b`) the site reads its content from a Postgres database. As of Phase 3
+Task 10 that database is unconditionally authoritative — the static `src/data/weddingData.js`
+module remains only as an error fallback, not a configurable second source — see
+[Data flow](#data-flow) below and `docs/DATA-MODEL.md`.
 
 Since Phase 1a (`v0.2a`) there is a real test suite (Vitest + React Testing Library) and real
 linting (ESLint); `npm run lint` genuinely lints, and `npm test` runs the suite.
@@ -38,32 +39,37 @@ UI state that never needs to escape the component (for example `Navbar`'s own `s
 
 ## State ownership
 
-`src/App.jsx` declares 9 `useState` hooks (running `grep -c "useState" src/App.jsx` reports
-10 lines, but one of those is the `import { useState, ... } from 'react'` line itself — there
-are 9 actual state declarations, listed below):
+`src/App.jsx` declares 6 `useState` hooks (running `grep -c "useState" src/App.jsx` reports
+7 lines, but one of those is the `import { useState, ... } from 'react'` line itself — there
+are 6 actual state declarations, listed below). As of Phase 3 Task 10, content itself
+(`stories`, `photos`, `films`, `testimonials`) is no longer state `App.jsx` owns at all — it is
+read directly from `useWeddings()`/`useGalleryPhotos()`/`useFilms()`/`useTestimonials()`
+(`src/hooks/useContent.js`), each of which manages its own loading/error state internally and
+always queries the database (see [Data flow](#data-flow) below). There is no more
+`VITE_DATA_SOURCE`-driven fork, no `localStories`/`localPhotos`, and no
+`peak_story_stories`/`peak_story_photos` `localStorage` keys — the old Content Manager modal
+that wrote them was deleted in the same change.
 
 | State | Holds | Persists to localStorage? | Consumed by |
 | --- | --- | --- | --- |
-| `localStories` | Array of story objects, seeded from `INITIAL_STORIES` in `src/data/weddingData.js`. Since Phase 1b the value components actually receive is `stories`, a derived constant: `DATA_SOURCE === 'supabase' ? weddingData : localStories`, where `weddingData` comes from `useWeddings()` | Only on the `static` path — key `peak_story_stories`. The write effect returns early when the database is authoritative | `FeaturedStories` (read); `ContentManagerModal` appends new entries via `handleAddStory`, which still writes `localStories` |
-| `localPhotos` | Array of photo objects, seeded from `INITIAL_PHOTOS` in `src/data/weddingData.js`. Components receive `photos`, derived the same way from `useGalleryPhotos()` | Only on the `static` path — key `peak_story_photos`. Same early return | `PhotoGallery` and `ClientGalleryModal` (read); default `imagesList` for the lightbox when none is supplied; `ContentManagerModal` appends new entries via `handleAddPhoto` |
 | `user` | `null`, or an object such as `{ role, name, ... }` set by a successful login | Yes — key `peak_story_user` (the key is removed with `localStorage.removeItem` when the user logs out) | `Navbar` (renders the admin/client badge and sign-out control); `ClientGalleryModal` (gates its content on `user` being present); set via `handleLoginSuccess` from `AuthModal`, cleared via `handleLogout` |
 | `lightboxState` | `{ isOpen, activeUrl, activeIndex, imagesList }` for the fullscreen image viewer | No | `LightboxModal`; opened via `handleOpenLightbox` from `FeaturedStories` and `PhotoGallery` |
 | `videoModalUrl` | A video embed URL, or `null` when no video modal is open | No | Renders the inline video-iframe modal defined directly in `App.jsx`; set via the `onOpenFilmModal` (`Hero`), `onOpenVideo` (`FeaturedStories`), and `onOpenVideoModal` (`FilmsGallery`) callbacks |
-| `contentManagerOpen` | Boolean visibility flag for the "add your own content" modal | No | `ContentManagerModal`; opened from `Navbar`, `PhotoGallery`, and `Footer` |
 | `authModalOpen` | Boolean visibility flag for the sign-in modal | No | `AuthModal`; opened from `Navbar` |
 | `clientGalleryOpen` | Boolean visibility flag for the private client proofing modal | No | `ClientGalleryModal`; opened from `Navbar`, and set to `true` automatically inside `handleLoginSuccess` when a client (as opposed to admin) logs in |
 | `splashDone` | Boolean; `false` until the intro splash animation finishes | No | Gates whether `SplashScreen` renders at all (`{!splashDone && <SplashScreen ... />}`); flipped to `true` by `SplashScreen`'s own `onComplete` callback |
 
-**Modal visibility is 6 independent booleans/booleans-in-disguise with no mutual exclusion:**
+**Modal visibility is 5 independent booleans/booleans-in-disguise with no mutual exclusion:**
 `splashDone` (inverted — the splash overlay shows while it's `false`), `lightboxState.isOpen`,
-`videoModalUrl` (truthy/falsy), `contentManagerOpen`, `authModalOpen`, and `clientGalleryOpen`.
-None of these six are derived from, or reset by, any of the others, so nothing stops two or
-more from being open at once — e.g. a user can open the content manager and then the lightbox
-without the first ever closing. Stacking order when that happens is decided purely by ad hoc
-z-index values sprinkled across the component files, not by any shared constant: `LightboxModal`,
-the inline video modal in `App.jsx`, `ContentManagerModal`, and `ClientGalleryModal` all use
-`z-50`; `AuthModal` uses `z-[100]`; `SplashScreen` uses `z-[999]`, higher than everything else.
-If two `z-50` modals were open together, the one mounted later in the JSX tree would simply win.
+`videoModalUrl` (truthy/falsy), `authModalOpen`, and `clientGalleryOpen`. None of these are
+derived from, or reset by, any of the
+others, so nothing stops two or more from being open at once — e.g. a user can open the
+lightbox and then the client gallery without the first ever closing. Stacking order when that
+happens is decided purely by ad hoc z-index values sprinkled across the component files, not by
+any shared constant: `LightboxModal`, the inline video modal in `App.jsx`, and
+`ClientGalleryModal` all use `z-50`; `AuthModal` uses `z-[100]`; `SplashScreen` uses `z-[999]`,
+higher than everything else. If two `z-50` modals were open together, the one mounted later in
+the JSX tree would simply win.
 
 ## Section order
 
@@ -119,38 +125,37 @@ For the full color, type, and animation token catalogue, see `docs/DESIGN-SYSTEM
 
 ## Data flow
 
-Content reaches the page through one of two sources, selected by `VITE_DATA_SOURCE` in
-`src/lib/dataSource.js`. The default is `static`, and an environment without Supabase
-credentials stays on `static` regardless of what the variable says — asking for a database
-without configuring one would otherwise leave a null client and crash on the first query.
+As of Phase 3 Task 10, the database is unconditionally authoritative — there is no more
+`VITE_DATA_SOURCE` switch and no `dataSource.js` resolver module (formerly under `src/lib`);
+both were temporary migration
+scaffolding, removed once the database no longer needed a fallback mode to switch away from.
 
-**The layering, in either mode:** components call hooks, hooks call queries, queries call
-Supabase. No component imports the Supabase client; `src/lib/supabase.js` is the only module
-that constructs one. This keeps components testable against mocked hooks and confines a future
-migration to a single layer.
+**The layering:** components call hooks, hooks call queries, queries call Supabase. No component
+imports the Supabase client; `src/lib/supabase.js` is the only module that constructs one. This
+keeps components testable against mocked hooks and confines a future migration to a single
+layer.
 
 ```
 src/components/*   ->  src/hooks/useContent.js  ->  src/lib/queries/*  ->  src/lib/supabase.js
 ```
 
-**`static` (default).** The hooks return the arrays exported by `src/data/weddingData.js`
-synchronously — no effect, no loading state, no network call. User-added content submitted
-through `ContentManagerModal` is written to the `stories` and `photos` state in `App.jsx` and
-persisted to `localStorage` (`peak_story_stories`, `peak_story_photos`). On the next load
-`src/App.jsx` reads that key back with `saved ? JSON.parse(saved) : INITIAL_STORIES` (and the
-equivalent for `photos`): when the key exists its contents become the entire state and the
-static seed is ignored outright. This is a total override, not a merge — the two are never
-combined, and once a browser has written that key `src/data/weddingData.js` stops being
-consulted for that state on that browser until the key is cleared. It never leaves the browser.
+`useWeddings`/`useGalleryPhotos`/`useFilms`/`useTestimonials` (`src/hooks/useContent.js`) always
+query the query layer, which reads from Postgres. `src/data/weddingData.js` plays two remaining
+roles, both narrower than before Task 10: it is the seed source (`scripts/seed-db.mjs` copies it
+into Postgres), and it is the *error fallback* each hook returns synchronously on first render
+(before its query has resolved) and again from that query's `catch` if it fails outright — never
+something a component reads directly, and never a second data source a flag can select. That is
+resilience, not configuration: a stale site beats a blank one when the database is briefly
+unreachable. Because of that, `weddingData.js` is still what a visitor sees during an outage,
+which is exactly why Phase 7's truthful-content pass still has to clean it — see `PS-002` in
+`docs/KNOWN-ISSUES.md`.
 
-**`supabase`.** The hooks call the query layer, which reads from Postgres. `weddingData.js`
-becomes the seed source (`scripts/seed-db.mjs` copies it in) and the value a hook returns
-before its first query resolves or if that query throws — never something a component reads
-directly. The `localStorage` write effects do not run in this mode; the database is
-authoritative.
-
-`VITE_DATA_SOURCE` is temporary migration scaffolding. Per the platform spec it is removed in
-Phase 3, once the database is authoritative unconditionally.
+There is no longer any `localStorage`-backed content path at all. The old Content Manager modal
+that wrote `peak_story_stories`/`peak_story_photos` on the pre-Task-10 static path was deleted in
+the same change that removed the flag — see "Resolved" in `docs/KNOWN-ISSUES.md` (`PS-004`,
+`PS-005`, `PS-022`, `PS-024`). Real content is now written through the separate admin app under
+`src/admin/` (Phase 3 Tasks 1–9: sign-in, a leads dashboard, image upload via Supabase Storage,
+and CRUD for weddings, gallery photos, films, and testimonials), straight into Postgres.
 
 Row Level Security, not client code, is what makes it safe to ship the Supabase anon key in the
 browser bundle: Postgres refuses anything the policies do not permit. See
@@ -158,11 +163,11 @@ browser bundle: Postgres refuses anything the policies do not permit. See
 
 ## The inquiry write path
 
-Since Phase 2 (`v0.3`), `BookingForm` is a real write path rather than a form that only reads
-`VITE_DATA_SOURCE`. It runs independently of that flag — a submission reaches the database in
-both `static` and `supabase` mode — because the booking form was never one of the content
-collections `VITE_DATA_SOURCE` switches between; it always writes, regardless of where the rest
-of the page reads from.
+Since Phase 2 (`v0.3`), `BookingForm` is a real write path, not a form that only ever reads. Even
+before Task 10 removed `VITE_DATA_SOURCE` entirely, `BookingForm` ran independently of it — a
+submission always reached the database, regardless of which source the rest of the page read
+from — because the booking form was never one of the content collections that flag switched
+between; it always writes.
 
 A submission travels:
 

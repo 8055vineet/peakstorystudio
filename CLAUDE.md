@@ -9,12 +9,13 @@ bookings, not a portfolio or demo. Today it is a Vite + React 18 + Tailwind CSS 
 app with no router — "navigation" is anchor-link scrolling within one page. Since Phase 1b
 (`v0.2b`) it also has a local Supabase backend: a Postgres database in `supabase/migrations/`,
 Row Level Security, and a data-access layer (`src/lib/queries/`, `src/hooks/`) that components
-call through. Which source is authoritative — that database, or the static
-`src/data/weddingData.js` module — is chosen by `VITE_DATA_SOURCE`, and the default is still
-`static`; see [docs/DATA-MODEL.md](docs/DATA-MODEL.md) for the full shape of both. `src/App.jsx`
-remains the only stateful component of consequence. Real inquiries, admin tooling, hosting, SEO,
-a client portal, and a truthful-content pass are being added incrementally, one phase per
-branch — see
+call through. As of Phase 3, that database is unconditionally authoritative — there is no more
+`VITE_DATA_SOURCE` switch. The static `src/data/weddingData.js` module still exists, but only as
+the error fallback `src/hooks/useContent.js` renders when a query fails, not as a second,
+selectable source; see [docs/DATA-MODEL.md](docs/DATA-MODEL.md) for the full shape of both.
+`src/App.jsx` remains the only stateful component of consequence. Real inquiries, admin tooling,
+hosting, SEO, a client portal, and a truthful-content pass are being added incrementally, one
+phase per branch — see
 [docs/ROADMAP.md](docs/ROADMAP.md) for the phase table and
 [docs/superpowers/specs/2026-07-30-end-to-end-platform-design.md](docs/superpowers/specs/2026-07-30-end-to-end-platform-design.md)
 for the full design and rationale behind that ordering.

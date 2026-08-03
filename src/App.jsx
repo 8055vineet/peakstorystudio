@@ -11,7 +11,6 @@ import HorizontalGallery from './components/HorizontalGallery';
 import PhotoGallery from './components/PhotoGallery';
 import FilmStrip from './components/FilmStrip';
 import LightboxModal from './components/LightboxModal';
-import ContentManagerModal from './components/ContentManagerModal';
 import AuthModal from './components/AuthModal';
 import ClientGalleryModal from './components/ClientGalleryModal';
 import AboutSection from './components/AboutSection';
@@ -20,52 +19,12 @@ import BookingForm from './components/BookingForm';
 import Footer from './components/Footer';
 import SectionDivider from './components/SectionDivider';
 
-import { INITIAL_STORIES, INITIAL_PHOTOS } from './data/weddingData';
-import { DATA_SOURCE } from './lib/dataSource';
 import { useWeddings, useGalleryPhotos, useFilms, useTestimonials } from './hooks/useContent';
 import { X } from 'lucide-react';
 
 export default function App() {
-  const { data: weddingData } = useWeddings();
-
-  const [localStories, setLocalStories] = useState(() => {
-    try {
-      const saved = localStorage.getItem('peak_story_stories');
-      return saved ? JSON.parse(saved) : INITIAL_STORIES;
-    } catch {
-      return INITIAL_STORIES;
-    }
-  });
-
-  // The database is authoritative when it is the source; localStorage is only
-  // the Content Manager's store for the static path.
-  const stories = DATA_SOURCE === 'supabase' ? weddingData : localStories;
-  const setStories = setLocalStories;
-
-  useEffect(() => {
-    if (DATA_SOURCE === 'supabase') return;
-    localStorage.setItem('peak_story_stories', JSON.stringify(localStories));
-  }, [localStories]);
-
-  const { data: galleryData } = useGalleryPhotos();
-
-  const [localPhotos, setLocalPhotos] = useState(() => {
-    try {
-      const saved = localStorage.getItem('peak_story_photos');
-      return saved ? JSON.parse(saved) : INITIAL_PHOTOS;
-    } catch {
-      return INITIAL_PHOTOS;
-    }
-  });
-
-  const photos = DATA_SOURCE === 'supabase' ? galleryData : localPhotos;
-  const setPhotos = setLocalPhotos;
-
-  useEffect(() => {
-    if (DATA_SOURCE === 'supabase') return;
-    localStorage.setItem('peak_story_photos', JSON.stringify(localPhotos));
-  }, [localPhotos]);
-
+  const { data: stories } = useWeddings();
+  const { data: photos } = useGalleryPhotos();
   const { data: films } = useFilms();
   const { data: testimonials } = useTestimonials();
 
@@ -94,7 +53,6 @@ export default function App() {
   });
 
   const [videoModalUrl, setVideoModalUrl] = useState(null);
-  const [contentManagerOpen, setContentManagerOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [clientGalleryOpen, setClientGalleryOpen] = useState(false);
   const [splashDone, setSplashDone] = useState(false);
@@ -115,14 +73,6 @@ export default function App() {
       activeIndex: 0,
       imagesList: []
     });
-  };
-
-  const handleAddPhoto = (newPhoto) => {
-    setPhotos((prev) => [newPhoto, ...prev]);
-  };
-
-  const handleAddStory = (newStory) => {
-    setStories((prev) => [newStory, ...prev]);
   };
 
   const handleLoginSuccess = (userData) => {
@@ -156,7 +106,6 @@ export default function App() {
       {/* Floating Navbar */}
       <Navbar
         onOpenBooking={scrollToBooking}
-        onOpenContentManager={() => setContentManagerOpen(true)}
         user={user}
         onOpenAuthModal={() => setAuthModalOpen(true)}
         onOpenClientGallery={() => setClientGalleryOpen(true)}
@@ -194,7 +143,6 @@ export default function App() {
         <PhotoGallery
           photos={photos}
           onOpenLightbox={handleOpenLightbox}
-          onOpenContentManager={() => setContentManagerOpen(true)}
         />
 
         <FilmStrip />
@@ -210,7 +158,7 @@ export default function App() {
         <BookingForm />
       </main>
 
-      <Footer onOpenContentManager={() => setContentManagerOpen(true)} />
+      <Footer />
 
       {/* Modals */}
       {lightboxState.isOpen && (
@@ -241,13 +189,6 @@ export default function App() {
           </div>
         </div>
       )}
-
-      <ContentManagerModal
-        isOpen={contentManagerOpen}
-        onClose={() => setContentManagerOpen(false)}
-        onAddPhoto={handleAddPhoto}
-        onAddStory={handleAddStory}
-      />
 
       <AuthModal
         isOpen={authModalOpen}
