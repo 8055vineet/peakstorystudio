@@ -152,8 +152,13 @@ function WeddingsDashboard() {
         <h1 className="font-cinzel text-2xl font-bold text-pitch-900">
           {view.item ? 'Edit Wedding' : 'Add Wedding'}
         </h1>
+        {/* Keys are prefixed because these two are siblings under one
+            parent: keying both on the bare wedding id made them duplicates,
+            which React warns about. The warning was harmless in effect, but
+            an admin console that cries wolf is one nobody reads the real
+            warning in. */}
         <ResourceForm
-          key={view.item?.id ?? 'new'}
+          key={`wedding-form-${view.item?.id ?? 'new'}`}
           config={weddingsResource}
           initial={view.item}
           onSubmit={handleSubmit}
@@ -168,7 +173,9 @@ function WeddingsDashboard() {
             screen for a different wedding without it unmounting first —
             belt and braces, matching ResourceForm's own
             key={initial?.id ?? 'new'} guidance. */}
-        {view.item?.id && <WeddingPhotos key={view.item.id} weddingId={view.item.id} />}
+        {view.item?.id && (
+          <WeddingPhotos key={`wedding-photos-${view.item.id}`} weddingId={view.item.id} />
+        )}
       </div>
     );
   }
