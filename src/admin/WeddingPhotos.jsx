@@ -4,7 +4,7 @@ import {
   listWeddingPhotos, addWeddingPhoto, removeWeddingPhoto, reorderWeddingPhotos,
 } from '../lib/queries/adminWeddingPhotos';
 import { listMedia } from '../lib/queries/media';
-import { mediaUrl } from './mediaUrl.js';
+import { mediaUrl } from '../lib/mediaUrl.js';
 import MediaPicker from './MediaPicker.jsx';
 import UploadField from './UploadField.jsx';
 

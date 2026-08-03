@@ -232,11 +232,14 @@ different depending on which:
   key** generated server-side by `sign-upload`, of the shape `uploads/<uuid>.<ext>` — never a full
   URL, and never anything the client supplied.
 
-Nothing in the schema or the query layer distinguishes these two shapes; `storage_path` is a
-`text` column that happens to hold a full URL for every seeded row and a bucket key for every
-uploaded one. This is exactly why a genuinely uploaded, published photograph does not yet display
-on the public site — see `PS-033` in [KNOWN-ISSUES.md](KNOWN-ISSUES.md) for the full explanation
-of what turns one into an image and what doesn't (yet) turn the other into one.
+Nothing in the schema distinguishes these two shapes; `storage_path` is a `text` column that
+happens to hold a full URL for every seeded row and a bucket key for every uploaded one. The
+query layer does distinguish them: `src/lib/mediaUrl.js`'s `publicMediaUrl()` — called from
+`src/lib/queries/weddings.js`, `gallery.js`, and `films.js` — passes an already-absolute URL
+through unchanged and joins a bare bucket key against `VITE_MEDIA_BASE_URL`. That still leaves a
+genuinely uploaded, published photograph unable to display on the public site today, because the
+storage bucket itself is private with no public read path yet — see `PS-033` in
+[KNOWN-ISSUES.md](KNOWN-ISSUES.md) for the remaining configuration gap.
 
 **`blurhash` stays null, deliberately.** The column's own migration comment
 (`supabase/migrations/20260730203451_initial_schema.sql`) anticipated it being "populated from

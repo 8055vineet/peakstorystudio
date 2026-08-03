@@ -1,5 +1,5 @@
 import { ImageOff } from 'lucide-react';
-import { mediaUrl } from './mediaUrl.js';
+import { mediaUrl } from '../lib/mediaUrl.js';
 
 // Presentational, same division of labour as LeadsTable: fetching lives one
 // level up (a caller-owned useResource(listMedia) call, per CLAUDE.md's

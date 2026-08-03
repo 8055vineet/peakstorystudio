@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { publicMediaUrl } from '../mediaUrl';
 
 const WEDDING_SELECT = `
   id, slug, title, couple, location, event_date, summary, video_url, tags,
@@ -22,11 +23,21 @@ function formatEventDate(value) {
   return name ? `${name} ${year}` : '';
 }
 
+// publicMediaUrl() (src/lib/mediaUrl.js) resolves a real upload's
+// bucket-relative storage_path against VITE_MEDIA_BASE_URL, passes a seeded
+// row's already-absolute URL through unchanged, and returns '' — never a
+// path pointing nowhere — when neither applies. '' is also what this
+// function already returns for a wedding/photo with no cover at all, and
+// every consumer already has to tolerate that (FeaturedStories,
+// PhotoGallery, StoryDetailModal, FilmsGallery all render straight from
+// this data with no guard), so it stays the one "nothing to show" value
+// here — and in gallery.js and films.js — instead of adding a second,
+// broken-request one.
 function toWedding(row) {
   const fullGallery = (row.wedding_photos ?? [])
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order)
-    .map((wp) => wp.media?.storage_path)
+    .map((wp) => publicMediaUrl(wp.media?.storage_path))
     .filter(Boolean);
 
   return {
@@ -38,7 +49,7 @@ function toWedding(row) {
     date: formatEventDate(row.event_date),
     eventDate: row.event_date,
     summary: row.summary,
-    coverImage: row.cover?.storage_path ?? '',
+    coverImage: publicMediaUrl(row.cover?.storage_path),
     videoUrl: row.video_url,
     tags: row.tags ?? [],
     fullGallery,
