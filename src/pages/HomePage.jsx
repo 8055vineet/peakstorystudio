@@ -19,8 +19,8 @@ export default function HomePage({ films = [], photos = [], onOpenLightbox, onOp
         className="w-full max-h-[85vh] object-cover"
       />
 
-      {/* Quote */}
-      <section className="bg-offwhite-100 px-6 py-16 sm:py-20 text-center">
+      {/* Quote — no solid background of its own, so the petals layer shows through */}
+      <section className="px-6 py-16 sm:py-20 text-center">
         <blockquote className="max-w-3xl mx-auto">
           <p className="font-script text-2xl sm:text-4xl text-pitch-900 leading-relaxed">
             &ldquo;{HOME_QUOTE.text}&rdquo;
@@ -92,7 +92,7 @@ export default function HomePage({ films = [], photos = [], onOpenLightbox, onOp
       </section>
 
       {/* The Brand Story */}
-      <section className="bg-offwhite-100 px-4 sm:px-6 pb-20">
+      <section className="px-4 sm:px-6 pb-20">
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           <img
             src={HOME_IMAGES.brandStory.src}

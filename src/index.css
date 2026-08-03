@@ -124,6 +124,33 @@ body::before {
   transform: scale(1.05);
 }
 
+/* Falling petals background (PetalsBackground component). Deep-maroon tones
+   from the pitch palette; petals render behind the z-10 content wrapper in
+   Layout and are removed entirely for reduced-motion visitors. */
+.petal {
+  position: absolute;
+  top: -6%;
+  background: linear-gradient(135deg, rgba(122, 28, 60, 0.42), rgba(92, 22, 46, 0.2));
+  border-radius: 70% 30% 60% 40% / 60% 40% 60% 40%;
+  opacity: 0;
+  animation: petalFall linear infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes petalFall {
+  0%   { transform: translate3d(0, -4vh, 0) rotateZ(0deg) rotateX(0deg) rotateY(0deg); opacity: 0; }
+  6%   { opacity: var(--petal-opacity, 0.85); }
+  90%  { opacity: var(--petal-opacity, 0.85); }
+  100% { transform: translate3d(var(--drift, -60px), 106vh, 0) rotateZ(300deg) rotateX(320deg) rotateY(160deg); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .petal {
+    animation: none;
+    display: none;
+  }
+}
+
 /* Smooth scroll for entire page */
 html {
   scroll-behavior: smooth;
