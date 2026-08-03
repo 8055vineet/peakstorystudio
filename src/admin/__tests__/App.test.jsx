@@ -411,6 +411,13 @@ describe('admin App shell', () => {
       // for, same principle as useResource's own "one hook instance per
       // resource" constraint (see its module comment): nothing here should
       // pull media rows nobody has gone looking for yet.
+      //
+      // The flush is load-bearing. useResource defers its mount fetch through
+      // a microtask, so a bare assertion straight after render() passes even
+      // for a dashboard that IS wrongly mounted — the callback simply has not
+      // had its turn yet. Verified in review by mounting this dashboard
+      // unconditionally and watching this exact assertion keep passing.
+      await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
       expect(listMedia).not.toHaveBeenCalled();
 
       await user.click(screen.getByRole('button', { name: /media library/i }));
@@ -479,6 +486,11 @@ describe('admin App shell', () => {
       // Weddings is not the default tab — nothing here should fetch weddings
       // nobody has gone looking for yet, same principle as the Media
       // Library tab's own "not fetched until asked for" test above.
+      //
+      // See that test for why the flush matters: without it this assertion
+      // passes even when the dashboard is mounted, and review confirmed an
+      // always-mounted WeddingsDashboard was caught by nothing in the suite.
+      await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
       expect(weddingsList).not.toHaveBeenCalled();
 
       const user = userEvent.setup();
