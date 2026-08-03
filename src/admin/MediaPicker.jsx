@@ -14,8 +14,11 @@ import { mediaUrl } from '../lib/mediaUrl.js';
 // Select buttons render and none can sit dead on the screen. `selectedId`
 // highlights the currently chosen row when a form embeds the picker, so a
 // click gives visible confirmation instead of silently updating state.
+// `onAddToGallery` is the standalone library's own forward path: upload,
+// then send the photograph straight into a pre-filled Add Gallery Photo
+// form — the drawer suggests the next step instead of dead-ending.
 export default function MediaPicker({
-  items, status, error, onRetry, onSelect, selectedId,
+  items, status, error, onRetry, onSelect, selectedId, onAddToGallery,
 }) {
   if (status === 'error') {
     return (
@@ -91,6 +94,15 @@ export default function MediaPicker({
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full border-2 border-gold-500 text-pitch-900 text-[9px] uppercase tracking-widest font-bold">
                   Alt Text Missing
                 </span>
+              )}
+              {onAddToGallery && (
+                <button
+                  type="button"
+                  onClick={() => onAddToGallery(item)}
+                  className="w-full px-2 py-1.5 rounded-lg bg-pitch-900 text-offwhite-50 text-[10px] uppercase tracking-widest font-semibold hover:bg-pitch-800 transition-colors"
+                >
+                  Add to Gallery
+                </button>
               )}
               {onSelect && (
                 <button

@@ -151,6 +151,9 @@ vi.mock('../resources/gallery.js', () => ({
       { name: 'status', label: 'Status' },
     ],
     fields: [
+      {
+        name: 'mediaId', label: 'Photograph', type: 'media', required: false, emptyValue: null,
+      },
       { name: 'title', label: 'Title', type: 'text', required: true },
       { name: 'category', label: 'Category', type: 'text', required: true },
       {
@@ -503,6 +506,32 @@ describe('admin App shell', () => {
       // state update that follows actually land — before the test ends, so
       // it isn't left dangling outside act().
       await waitFor(() => expect(screen.getByText(/no inquiries yet/i)).toBeInTheDocument());
+    });
+
+    it('Add to Gallery jumps straight into a pre-filled Add Gallery Photo form', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      listMedia.mockResolvedValue([{
+        id: 'media-9',
+        storagePath: '/images/gallery/wedding/9.jpg',
+        width: 1600,
+        height: 2400,
+        altText: 'Bride among leaves',
+        blurhash: null,
+        createdAt: '2026-08-04T10:00:00Z',
+      }]);
+      galleryList.mockResolvedValue([]);
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+
+      const nav = screen.getByRole('navigation', { name: /admin sections/i });
+      await user.click(within(nav).getByRole('button', { name: /media library/i }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /add to gallery/i })).toBeInTheDocument());
+      await user.click(screen.getByRole('button', { name: /add to gallery/i }));
+
+      // Lands on the Gallery tab's create form with that photograph selected.
+      expect(screen.getByRole('heading', { name: /add gallery photo/i })).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole('button', { name: /✓ selected/i })).toBeInTheDocument());
     });
 
     it('switching back to Leads does not re-render Dashboard content passed as explicit children', async () => {

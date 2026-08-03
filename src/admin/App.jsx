@@ -6,6 +6,7 @@ import { listMedia } from '../lib/queries/media';
 import { getSettingsRow, updateSiteSettings } from '../lib/queries/adminSettings';
 import SettingsForm from './SettingsForm.jsx';
 import DashboardOverview from './DashboardOverview.jsx';
+import CreatedDraftBanner from './CreatedDraftBanner.jsx';
 import SignInForm from './SignInForm.jsx';
 import LeadsTable from './LeadsTable.jsx';
 import LeadDetail from './LeadDetail.jsx';
@@ -65,7 +66,7 @@ function InquiriesDashboard() {
 // UploadField stay fully presentational either way: this is the composition
 // that hands MediaPicker its items and hands UploadField the reload that
 // makes an upload show up here without any optimistic update.
-function MediaLibraryDashboard() {
+function MediaLibraryDashboard({ onAddToGallery }) {
   const queries = useMemo(() => ({ list: listMedia }), []);
   const {
     items, status, error, reload,
@@ -93,6 +94,7 @@ function MediaLibraryDashboard() {
           status={status}
           error={error}
           onRetry={reload}
+          onAddToGallery={onAddToGallery}
         />
       </div>
     </div>
@@ -214,6 +216,8 @@ function WeddingsDashboard() {
   // the database from one that never did — see useResource.mutate's own
   // module comment.
   const [listActionError, setListActionError] = useState(null);
+  const [justCreated, setJustCreated] = useState(null);
+  const [publishPending, setPublishPending] = useState(false);
 
   async function runListAction(name, ...args) {
     setListActionError(null);
@@ -312,14 +316,22 @@ function WeddingsDashboard() {
 // abstraction across dashboards, and introducing one for exactly these three
 // would be new code Task 9 was asked not to add, not configuration over the
 // pattern Task 7 already built.
-function GalleryDashboard() {
+function GalleryDashboard({ prefillMediaId = null }) {
   const {
     items, status, error, reload, mutate,
   } = useResource(galleryQueries);
-  const [view, setView] = useState({ mode: 'list' });
+  // A prefilled media id (the Media Library's "Add to Gallery") opens this
+  // tab straight onto the create form with that photograph selected. Read
+  // once, in the initializer — the tab remounts on every entry, so this
+  // needs no effect and no consumed-callback.
+  const [view, setView] = useState(() => (
+    prefillMediaId ? { mode: 'form', item: { mediaId: prefillMediaId } } : { mode: 'list' }
+  ));
   const [formPending, setFormPending] = useState(false);
   const [formError, setFormError] = useState(null);
   const [listActionError, setListActionError] = useState(null);
+  const [justCreated, setJustCreated] = useState(null);
+  const [publishPending, setPublishPending] = useState(false);
 
   async function runListAction(name, ...args) {
     setListActionError(null);
@@ -351,7 +363,9 @@ function GalleryDashboard() {
     return (
       <div className="space-y-8">
         <h1 className="font-cinzel text-2xl font-bold text-pitch-900">
-          {view.item ? 'Edit Gallery Photo' : 'Add Gallery Photo'}
+          {/* Keyed on id, not the object: a Media Library prefill arrives as
+              an id-less item, and that is still a create. */}
+          {view.item?.id ? 'Edit Gallery Photo' : 'Add Gallery Photo'}
         </h1>
         <ResourceForm
           key={`gallery-form-${view.item?.id ?? 'new'}`}
@@ -402,6 +416,8 @@ function FilmsDashboard() {
   const [formPending, setFormPending] = useState(false);
   const [formError, setFormError] = useState(null);
   const [listActionError, setListActionError] = useState(null);
+  const [justCreated, setJustCreated] = useState(null);
+  const [publishPending, setPublishPending] = useState(false);
 
   async function runListAction(name, ...args) {
     setListActionError(null);
@@ -485,6 +501,8 @@ function TestimonialsDashboard() {
   const [formPending, setFormPending] = useState(false);
   const [formError, setFormError] = useState(null);
   const [listActionError, setListActionError] = useState(null);
+  const [justCreated, setJustCreated] = useState(null);
+  const [publishPending, setPublishPending] = useState(false);
 
   async function runListAction(name, ...args) {
     setListActionError(null);
@@ -579,6 +597,15 @@ const DASHBOARD_TABS = [
 // tabs, not mounting the shell, is what triggers each one's first load.
 function AdminDashboard() {
   const [tab, setTab] = useState('dashboard');
+  // Set by the Media Library's "Add to Gallery"; consumed by the Gallery
+  // tab's mount; cleared whenever the admin navigates anywhere else so a
+  // later visit to Gallery opens on the list, not a stale form.
+  const [galleryPrefill, setGalleryPrefill] = useState(null);
+
+  function openTab(key) {
+    setTab(key);
+    if (key !== 'gallery') setGalleryPrefill(null);
+  }
 
   return (
     <div>
@@ -587,7 +614,7 @@ function AdminDashboard() {
           <button
             key={key}
             type="button"
-            onClick={() => setTab(key)}
+            onClick={() => openTab(key)}
             aria-pressed={tab === key}
             className={`px-4 py-2 rounded-lg text-xs uppercase tracking-widest font-semibold transition-colors ${
               tab === key
@@ -599,11 +626,15 @@ function AdminDashboard() {
           </button>
         ))}
       </nav>
-      {tab === 'dashboard' && <DashboardOverview onNavigate={setTab} />}
+      {tab === 'dashboard' && <DashboardOverview onNavigate={openTab} />}
       {tab === 'leads' && <InquiriesDashboard />}
-      {tab === 'media' && <MediaLibraryDashboard />}
+      {tab === 'media' && (
+        <MediaLibraryDashboard
+          onAddToGallery={(media) => { setGalleryPrefill(media.id); setTab('gallery'); }}
+        />
+      )}
       {tab === 'weddings' && <WeddingsDashboard />}
-      {tab === 'gallery' && <GalleryDashboard />}
+      {tab === 'gallery' && <GalleryDashboard prefillMediaId={galleryPrefill} />}
       {tab === 'films' && <FilmsDashboard />}
       {tab === 'testimonials' && <TestimonialsDashboard />}
       {tab === 'settings' && <SettingsDashboard />}
