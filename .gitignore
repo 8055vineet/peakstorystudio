@@ -3,3 +3,6 @@ dist/
 .env*
 !.env.example
 .DS_Store
+
+# Brainstorming/SDD scratch (session artifacts, never content)
+.superpowers/

@@ -21,7 +21,7 @@ export const BRAND_STORY = {
 };
 
 export const HOME_IMAGES = {
-  hero: { src: '/images/home/hero.jpg', alt: 'A couple photographed at their wedding' },
-  brandStory: { src: '/images/home/brand-story.jpg', alt: 'Bride and groom at a flower-decked ceremony' },
-  closing: { src: '/images/home/closing.jpg', alt: 'A bridal lehenga in low evening light' },
+  hero: { src: '/images/home/hero.jpg', alt: 'A couple embracing beneath the arches of a Lucknow monument at golden hour' },
+  brandStory: { src: '/images/home/brand-story.jpg', alt: 'A bride in an embellished navy lehenga, framed by dark leaves' },
+  closing: { src: '/images/home/closing.jpg', alt: "A couple's hands holding their two gold wedding rings" },
 };
