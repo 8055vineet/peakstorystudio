@@ -99,8 +99,8 @@ describe('WeddingPhotos', () => {
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
 
-  describe('adding a photograph', () => {
-    it('adds one selected from the media picker and shows it once the reload confirms it', async () => {
+  describe('adding photographs', () => {
+    it('adds one selected in the picker dialog, which stays open for more', async () => {
       const user = userEvent.setup();
       listMedia.mockResolvedValue([LIBRARY_ITEM]);
       listWeddingPhotos.mockResolvedValueOnce([]);
@@ -108,16 +108,40 @@ describe('WeddingPhotos', () => {
 
       await renderWeddingPhotos();
       await waitFor(() => expect(screen.getByText(/no photographs attached/i)).toBeInTheDocument());
-      await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /add photographs/i }));
+      const dialog = await screen.findByRole('dialog', { name: /add photographs to this wedding/i });
 
       listWeddingPhotos.mockResolvedValueOnce([{ ...LIBRARY_ITEM, mediaId: 'media-c', sortOrder: 0, altText: 'Photo C' }]);
-      await user.click(screen.getByRole('button', { name: /select/i }));
+      await user.click(await within(dialog).findByRole('button', { name: /^select$/i }));
 
       expect(addWeddingPhoto).toHaveBeenCalledWith('wedding-1', 'media-c');
+      // Deliberately still open: attaching a wedding's photos is a batch.
+      expect(screen.getByRole('dialog', { name: /add photographs to this wedding/i })).toBeInTheDocument();
+
+      await user.click(within(dialog).getByRole('button', { name: 'Done' }));
+      expect(screen.queryByRole('dialog')).toBeNull();
       await waitFor(() => expect(attachedPhotoImages()).toHaveLength(1));
     });
 
-    it('adds one uploaded fresh via UploadField', async () => {
+    it('shows an already-attached photograph as selected and never adds it twice', async () => {
+      const user = userEvent.setup();
+      listMedia.mockResolvedValue([{
+        ...LIBRARY_ITEM, id: 'media-a', storagePath: 'uploads/a.webp', altText: 'Photo A',
+      }]);
+      listWeddingPhotos.mockResolvedValue([PHOTO_A]);
+
+      await renderWeddingPhotos();
+      await waitFor(() => expect(attachedPhotoImages()).toHaveLength(1));
+
+      await user.click(screen.getByRole('button', { name: /add photographs/i }));
+      const dialog = await screen.findByRole('dialog', { name: /add photographs to this wedding/i });
+
+      await user.click(await within(dialog).findByRole('button', { name: /✓ selected/i }));
+      expect(addWeddingPhoto).not.toHaveBeenCalled();
+    });
+
+    it('adds one uploaded fresh from inside the dialog', async () => {
       const upload = vi.fn().mockResolvedValue({ id: 'media-new', storagePath: 'uploads/new.webp' });
       useMediaUpload.mockReturnValue({
         status: 'idle', progress: 0, error: null, upload, reset: vi.fn(),
@@ -127,9 +151,10 @@ describe('WeddingPhotos', () => {
 
       await renderWeddingPhotos();
       await waitFor(() => expect(screen.getByText(/no photographs attached/i)).toBeInTheDocument());
+      await user.click(screen.getByRole('button', { name: /add photographs/i }));
 
       const file = new File(['bytes'], 'photo.jpg', { type: 'image/jpeg' });
-      await user.upload(screen.getByLabelText(/photograph/i), file);
+      await user.upload(screen.getByLabelText(/^photograph$/i), file);
 
       await waitFor(() => expect(addWeddingPhoto).toHaveBeenCalledWith('wedding-1', 'media-new'));
     });

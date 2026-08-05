@@ -5,8 +5,7 @@ import {
 } from '../lib/queries/adminWeddingPhotos';
 import { listMedia } from '../lib/queries/media';
 import { mediaUrl } from '../lib/mediaUrl.js';
-import MediaPicker from './MediaPicker.jsx';
-import UploadField from './UploadField.jsx';
+import MediaPickerDialog from './MediaPickerDialog.jsx';
 
 const ACTION_BUTTON_CLASS = 'px-2 py-1.5 rounded-lg border border-pitch-900/20 text-pitch-900 text-xs hover:bg-offwhite-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed';
 const REMOVE_BUTTON_CLASS = 'px-3 py-1.5 rounded-lg border border-pitch-900/20 text-pitch-900 text-[10px] uppercase tracking-widest font-semibold hover:bg-offwhite-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed';
@@ -58,6 +57,7 @@ export default function WeddingPhotos({ weddingId }) {
 
   const [actionPending, setActionPending] = useState(false);
   const [actionError, setActionError] = useState(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Sorted defensively, the same reasoning as ResourceList.jsx's own
   // module comment: listWeddingPhotos already orders server-side by
@@ -200,17 +200,33 @@ export default function WeddingPhotos({ weddingId }) {
       </div>
 
       <div>
-        <h3 className="text-xs uppercase tracking-widest text-charcoal-500 font-bold mb-4">Add a Photograph</h3>
-        <div className="space-y-4">
-          <UploadField onUploaded={(media) => { handleAdd(media.id); mediaResource.reload(); }} />
-          <MediaPicker
-            items={mediaResource.items}
-            status={mediaResource.status}
-            error={mediaResource.error}
-            onRetry={mediaResource.reload}
-            onSelect={(media) => handleAdd(media.id)}
-          />
-        </div>
+        <h3 className="text-xs uppercase tracking-widest text-charcoal-500 font-bold mb-4">Add Photographs</h3>
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="px-6 py-3 rounded-lg bg-pitch-900 text-offwhite-50 text-xs uppercase tracking-widest font-semibold hover:bg-pitch-800 transition-colors"
+        >
+          Add photographs
+        </button>
+        {/* Stays open across selections on purpose: attaching a wedding's
+            photos is a batch, and already-attached ones read "✓ Selected"
+            via selectedIds so a second click is a visible no-op, never a
+            duplicate wedding_photos row. */}
+        <MediaPickerDialog
+          open={pickerOpen}
+          title="Add photographs to this wedding"
+          items={mediaResource.items}
+          status={mediaResource.status}
+          error={mediaResource.error}
+          onRetry={mediaResource.reload}
+          selectedIds={sorted.map((photo) => photo.mediaId)}
+          onSelect={(media) => {
+            if (!sorted.some((photo) => photo.mediaId === media.id)) handleAdd(media.id);
+          }}
+          onUploaded={(media) => { handleAdd(media.id); mediaResource.reload(); }}
+          onClose={() => setPickerOpen(false)}
+          closeLabel="Done"
+        />
       </div>
     </div>
   );
