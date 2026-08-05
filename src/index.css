@@ -6,6 +6,23 @@
   color-scheme: light;
 }
 
+/* The page moves vertically only — the owner's explicit ask. No element
+   actually overflows (verified across 7 viewport widths, all routes), so
+   the sideways movement people feel is the browser's own elastic
+   overscroll: macOS trackpads drag the whole page left/right and spring it
+   back even with nothing to scroll to, unless the site opts out. That is
+   what overscroll-behavior-x: none disables. overflow-x: clip is the
+   belt on top: even if some future element DID overflow, the page still
+   could not pan sideways — clip, not hidden, because hidden turns the root
+   into a scroll container that script (or a focused element) can still
+   shift. Set on both html and body: the bounce is handled at whichever of
+   the two the browser treats as the root scroller. */
+html,
+body {
+  overscroll-behavior-x: none;
+  overflow-x: clip;
+}
+
 /* Fine-art tactile paper grain overlay */
 body::before {
   content: "";
