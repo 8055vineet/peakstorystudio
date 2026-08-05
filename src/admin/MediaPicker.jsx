@@ -18,7 +18,8 @@ import { mediaUrl } from '../lib/mediaUrl.js';
 // then send the photograph straight into a pre-filled Add Gallery Photo
 // form — the drawer suggests the next step instead of dead-ending.
 export default function MediaPicker({
-  items, status, error, onRetry, onSelect, selectedId, onAddToGallery,
+  items, status, error, onRetry, onSelect, selectedId, selectedIds, onAddToGallery,
+  gridClass = 'grid grid-cols-2 sm:grid-cols-3 gap-4',
 }) {
   if (status === 'error') {
     return (
@@ -53,11 +54,34 @@ export default function MediaPicker({
   }
 
   return (
-    <ul className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+    <ul className={gridClass}>
       {items.map((item) => {
         const url = mediaUrl(item.storagePath);
         const missingAlt = !item.altText;
-        const isSelected = selectedId != null && item.id === selectedId;
+        const isSelected = (selectedId != null && item.id === selectedId)
+          || Boolean(selectedIds?.includes(item.id));
+        const preview = url ? (
+          <img
+            src={url}
+            alt={item.altText || 'Untitled photograph'}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          // mediaUrl() returned null (no VITE_MEDIA_BASE_URL) — never
+          // render an <img> pointed at a path with no base, which is
+          // what an actually broken image on a fresh clone would look
+          // like. This box names itself AND says why, so the reason is
+          // visible instead of silently absent.
+          <div className="flex flex-col items-center justify-center gap-1 p-2 text-center">
+            <ImageOff className="w-6 h-6 text-charcoal-500" aria-hidden="true" />
+            <span className="text-[9px] font-bold uppercase tracking-widest text-charcoal-700">
+              No Preview
+            </span>
+            <span className="text-[9px] text-charcoal-500">
+              VITE_MEDIA_BASE_URL is not set
+            </span>
+          </div>
+        );
         return (
           <li
             key={item.id}
@@ -65,30 +89,26 @@ export default function MediaPicker({
               isSelected ? 'border-pitch-900 ring-2 ring-pitch-900/30' : 'border-pitch-900/10'
             }`}
           >
-            <div className="aspect-square bg-offwhite-200 flex items-center justify-center">
-              {url ? (
-                <img
-                  src={url}
-                  alt={item.altText || 'Untitled photograph'}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                // mediaUrl() returned null (no VITE_MEDIA_BASE_URL) — never
-                // render an <img> pointed at a path with no base, which is
-                // what an actually broken image on a fresh clone would look
-                // like. This box names itself AND says why, so the reason is
-                // visible instead of silently absent.
-                <div className="flex flex-col items-center justify-center gap-1 p-2 text-center">
-                  <ImageOff className="w-6 h-6 text-charcoal-500" aria-hidden="true" />
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-charcoal-700">
-                    No Preview
-                  </span>
-                  <span className="text-[9px] text-charcoal-500">
-                    VITE_MEDIA_BASE_URL is not set
-                  </span>
-                </div>
-              )}
-            </div>
+            {/* In a full-screen picker the natural gesture is clicking the
+                photograph itself, not the small button under it — so the
+                image area is a second select control whenever selection is
+                possible at all. Without onSelect (the standalone library)
+                it stays a plain, non-interactive preview. */}
+            {onSelect ? (
+              <button
+                type="button"
+                onClick={() => onSelect(item)}
+                aria-pressed={isSelected}
+                aria-label={`Select photograph: ${item.altText || 'Untitled photograph'}`}
+                className="w-full aspect-square bg-offwhite-200 flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-pitch-900/40"
+              >
+                {preview}
+              </button>
+            ) : (
+              <div className="aspect-square bg-offwhite-200 flex items-center justify-center">
+                {preview}
+              </div>
+            )}
             <div className="p-2 space-y-1.5">
               {missingAlt && (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full border-2 border-gold-500 text-pitch-900 text-[9px] uppercase tracking-widest font-bold">

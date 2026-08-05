@@ -44,7 +44,8 @@ describe('MediaPicker', () => {
       items: ITEMS, status: 'ready', error: null, onRetry: vi.fn(), onSelect: vi.fn(),
     });
 
-    expect(screen.getAllByRole('button', { name: /select/i })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /^select$/i })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: /select photograph:/i })).toHaveLength(2);
   });
 
   it('renders each thumbnail from VITE_MEDIA_BASE_URL joined to storage_path when configured', async () => {
@@ -180,5 +181,35 @@ describe('MediaPicker selection affordances', () => {
     const selectedButton = screen.getByRole('button', { name: /✓ selected/i });
     expect(selectedButton).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getAllByRole('button', { name: /^select$/i })).toHaveLength(1);
+  });
+
+  it('highlights every id in selectedIds, for multi-attach callers', async () => {
+    await renderPicker({
+      items: ITEMS2, status: 'ready', error: null, onRetry: vi.fn(), onSelect: vi.fn(), selectedIds: ['m-1', 'm-2'],
+    });
+    expect(screen.getAllByRole('button', { name: /✓ selected/i })).toHaveLength(2);
+  });
+
+  it('makes the photograph itself a select control when onSelect is provided', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const onSelect = vi.fn();
+    await renderPicker({
+      items: ITEMS2, status: 'ready', error: null, onRetry: vi.fn(), onSelect,
+    });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /select photograph: one/i }));
+    expect(onSelect).toHaveBeenCalledWith(ITEMS2[0]);
+  });
+
+  it('renders no image button at all without onSelect', async () => {
+    await renderPicker({ items: ITEMS2, status: 'ready', error: null, onRetry: vi.fn() });
+    expect(screen.queryByRole('button', { name: /select photograph:/i })).toBeNull();
+  });
+
+  it('applies a caller-supplied gridClass to the grid', async () => {
+    await renderPicker({
+      items: ITEMS2, status: 'ready', error: null, onRetry: vi.fn(), onSelect: vi.fn(), gridClass: 'grid grid-cols-6 gap-4',
+    });
+    expect(screen.getByRole('list')).toHaveClass('grid-cols-6');
   });
 });
