@@ -3,8 +3,7 @@ import {
 } from 'react';
 import { useResource } from '../hooks/useResource';
 import { listMedia } from '../lib/queries/media';
-import MediaPicker from './MediaPicker.jsx';
-import UploadField from './UploadField.jsx';
+import MediaSlot from './MediaSlot.jsx';
 
 // The create/edit screen every content type in this admin shares. A
 // resource config drives it entirely — Tasks 8 and 9 write nothing but one
@@ -268,45 +267,30 @@ function Field({
 }
 
 // The one field type with no single control to attach a <label> to — it
-// embeds two of Task 6's components (an upload control and a picker grid)
-// rather than one input. A <fieldset>/<legend> pair is the accessible
-// grouping for exactly this shape, native to HTML rather than anything
-// bespoke: it gives the group an accessible name without inventing an
-// aria-labelledby wiring scheme this is the only field type that would need.
+// renders the compact MediaSlot (thumbnail + Choose/Change/Remove), whose
+// full-screen dialog owns the library grid, so the form's other fields
+// never sit below the whole media library. MediaSlot renders the
+// <fieldset>/<legend> grouping and the inline error itself.
 function MediaField({
   field, value, error, onChange, mediaResource,
 }) {
-  const errorId = useId();
   const {
     items, status, error: loadError, reload,
   } = mediaResource;
-  const selected = items.find((item) => item.id === value);
-
   return (
-    <fieldset
-      className="border border-pitch-900/10 rounded-xl p-4 space-y-4"
-      aria-describedby={error ? errorId : undefined}
-    >
-      <legend className={LABEL_CLASS}>{field.label}{field.required && ' *'}</legend>
-      <p className="text-xs text-charcoal-700">
-        {selected
-          ? `Selected: ${selected.altText || selected.id}`
-          : value
-            ? `Selected media id: ${value}`
-            : 'No photograph selected yet.'}
-      </p>
-      {field.help && <p className="text-xs text-charcoal-500">{field.help}</p>}
-      <UploadField onUploaded={(media) => { onChange(media.id); reload(); }} />
-      <MediaPicker
-        items={items}
-        status={status}
-        error={loadError}
-        onRetry={reload}
-        onSelect={(media) => onChange(media.id)}
-        selectedId={value}
-      />
-      {error && <p id={errorId} role="alert" className="text-xs font-semibold text-pitch-900">{error}</p>}
-    </fieldset>
+    <MediaSlot
+      label={field.label}
+      help={field.help}
+      required={field.required}
+      error={error}
+      value={value || null}
+      media={items}
+      mediaStatus={status}
+      mediaError={loadError}
+      onRetryMedia={reload}
+      onUploaded={() => reload()}
+      onChange={onChange}
+    />
   );
 }
 

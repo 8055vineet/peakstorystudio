@@ -2,7 +2,7 @@ import {
   describe, it, expect, vi, beforeEach,
 } from 'vitest';
 import {
-  render, screen, waitFor, fireEvent,
+  render, screen, waitFor, fireEvent, act,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -82,7 +82,9 @@ const CONFIG_NO_MEDIA = {
 
 const MEDIA_ITEMS = [
   {
-    id: 'media-1', storagePath: 'uploads/one.webp', width: 800, height: 600, altText: 'A couple at dusk.', blurhash: null, createdAt: '2026-08-01T10:00:00Z',
+    // A `/images/...` path passes through mediaUrl() untouched, so the
+    // slot's thumbnail renders deterministically without env stubbing.
+    id: 'media-1', storagePath: '/images/test/one.webp', width: 800, height: 600, altText: 'A couple at dusk.', blurhash: null, createdAt: '2026-08-01T10:00:00Z',
   },
 ];
 
@@ -117,10 +119,12 @@ describe('ResourceForm', () => {
     expect(screen.getByLabelText(/launch date/i)).toHaveAttribute('type', 'date');
     expect(screen.getByLabelText(/weight/i)).toHaveAttribute('type', 'number');
     // The media field has no single input to label — it renders as a
-    // fieldset/legend group embedding MediaPicker and UploadField instead.
+    // fieldset/legend group: the compact MediaSlot, whose dialog owns the
+    // library grid. Nothing of the library renders inline in the form.
     expect(screen.getByRole('group', { name: /cover photo/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/photograph/i)).toHaveAttribute('type', 'file');
-    await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+    expect(screen.getByRole('button', { name: /choose photograph/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /select photograph:/i })).toBeNull();
+    await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
   });
 
   it('wires every label to its control with htmlFor/id', async () => {
@@ -136,7 +140,7 @@ describe('ResourceForm', () => {
     // the test ends, so its state update lands inside act() rather than
     // dangling into whichever test runs next — same discipline
     // App.test.jsx's own module comment documents for this exact hazard.
-    await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+    await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
   });
 
   it('does not fetch the media library for a resource with no media field', async () => {
@@ -179,7 +183,7 @@ describe('ResourceForm', () => {
       // overwritten with another's content, on a live commercial site, with
       // no error anywhere.
       expect(screen.getByLabelText(/^name/i)).toHaveValue('Record B');
-      await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+      await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
     });
 
     it('clears a validation error left over from the previous record', async () => {
@@ -195,7 +199,7 @@ describe('ResourceForm', () => {
       rerender(<ResourceForm {...baseProps({ initial: RECORD_B })} />);
 
       expect(screen.queryByText(/name is required/i)).not.toBeInTheDocument();
-      await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+      await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
     });
   });
 
@@ -248,7 +252,7 @@ describe('ResourceForm', () => {
 
       await user.type(screen.getByLabelText(/^name/i), 'Widget One');
       await user.selectOptions(screen.getByLabelText(/category/i), 'a');
-      await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+      await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
       await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
 
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
@@ -285,7 +289,7 @@ describe('ResourceForm', () => {
 
       await user.type(screen.getByLabelText(/^name/i), 'Widget One');
       await user.selectOptions(screen.getByLabelText(/category/i), 'a');
-      await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+      await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
 
       // The throw happens inside a React event handler, not a render, so no
       // error boundary catches it and `user.click()` itself still resolves
@@ -325,7 +329,7 @@ describe('ResourceForm', () => {
       />);
 
       expect(screen.getByLabelText(/launch date/i)).toHaveValue('2026-01-05');
-      await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+      await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
     });
 
     it('submits the exact ISO string typed, with no timezone shift', async () => {
@@ -377,7 +381,7 @@ describe('ResourceForm', () => {
       // supporting a comma inside a single tag, so this is stated rather
       // than silently mangled if someone types one.
       expect(screen.getByText(/cannot itself contain a comma/i)).toBeInTheDocument();
-      await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+      await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
     });
 
     it('round-trips an initial array of tags into a comma-separated value, unchanged on submit', async () => {
@@ -424,23 +428,26 @@ describe('ResourceForm', () => {
     });
   });
 
-  describe('media field', () => {
-    it('stores the selected item\'s id and includes it on submit', async () => {
+  describe('media field via the picker dialog', () => {
+    it('opens the dialog, selects a photograph, closes, and submits its id', async () => {
       const onSubmit = vi.fn();
       const user = userEvent.setup();
       render(<ResourceForm {...baseProps({ onSubmit })} />);
 
-      await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
-      await user.click(screen.getByRole('button', { name: /select/i }));
-
       await user.type(screen.getByLabelText(/^name/i), 'Widget One');
       await user.selectOptions(screen.getByLabelText(/category/i), 'a');
-      await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
 
+      await user.click(screen.getByRole('button', { name: /choose photograph/i }));
+      expect(screen.getByRole('dialog', { name: 'Choose a photograph' })).toBeInTheDocument();
+      await user.click(await screen.findByRole('button', { name: /select photograph: a couple at dusk/i }));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.getByAltText('A couple at dusk.')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ coverMediaId: 'media-1' }));
     });
 
-    it('sets the field from onUploaded when a new photograph is uploaded', async () => {
+    it('auto-selects a fresh upload made inside the dialog and submits its id', async () => {
       const upload = vi.fn().mockResolvedValue({ id: 'media-new', storagePath: 'uploads/new.webp' });
       useMediaUpload.mockReturnValue({
         status: 'idle', progress: 0, error: null, upload, reset: vi.fn(),
@@ -449,8 +456,10 @@ describe('ResourceForm', () => {
       const user = userEvent.setup();
       render(<ResourceForm {...baseProps({ onSubmit })} />);
 
+      await user.click(screen.getByRole('button', { name: /choose photograph/i }));
       const file = new File(['bytes'], 'photo.jpg', { type: 'image/jpeg' });
-      await user.upload(screen.getByLabelText(/photograph/i), file);
+      await user.upload(screen.getByLabelText(/^photograph$/i), file);
+      expect(screen.queryByRole('dialog')).toBeNull();
 
       await user.type(screen.getByLabelText(/^name/i), 'Widget One');
       await user.selectOptions(screen.getByLabelText(/category/i), 'a');
@@ -476,13 +485,13 @@ describe('ResourceForm', () => {
     render(<ResourceForm {...baseProps({ pending: true })} />);
 
     expect(screen.getByRole('button', { name: /^(save|create|saving)/i })).toBeDisabled();
-    await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+    await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
   });
 
   it('shows a write-failure message from the error prop', async () => {
     render(<ResourceForm {...baseProps({ error: new Error('permission denied') })} />);
 
     expect(screen.getByRole('alert')).toHaveTextContent(/permission denied/i);
-    await waitFor(() => expect(screen.getByRole('button', { name: /select/i })).toBeInTheDocument());
+    await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
   });
 });

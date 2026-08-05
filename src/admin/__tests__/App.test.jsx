@@ -529,9 +529,11 @@ describe('admin App shell', () => {
       await waitFor(() => expect(screen.getByRole('button', { name: /add to gallery/i })).toBeInTheDocument());
       await user.click(screen.getByRole('button', { name: /add to gallery/i }));
 
-      // Lands on the Gallery tab's create form with that photograph selected.
+      // Lands on the Gallery tab's create form with that photograph already
+      // in the slot — thumbnail plus a Change control, no inline grid.
       expect(screen.getByRole('heading', { name: /add gallery photo/i })).toBeInTheDocument();
-      await waitFor(() => expect(screen.getByRole('button', { name: /✓ selected/i })).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByAltText('Bride among leaves')).toBeInTheDocument());
+      expect(screen.getByRole('button', { name: /^change$/i })).toBeInTheDocument();
     });
 
     it('switching back to Leads does not re-render Dashboard content passed as explicit children', async () => {
