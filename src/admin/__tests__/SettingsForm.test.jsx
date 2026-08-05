@@ -1,8 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 
-// SettingsForm embeds MediaPicker, which imports mediaUrl.js (env at module
-// load) — same dynamic-import hygiene as MediaPicker's own tests.
+// SettingsForm's slots open MediaPickerDialog, which embeds UploadField —
+// its pipeline is proven elsewhere, so the hook is mocked wholesale, same
+// as ResourceForm.test.jsx.
+vi.mock('../../hooks/useMediaUpload', () => ({
+  useMediaUpload: () => ({
+    status: 'idle', progress: 0, error: null, upload: vi.fn(), reset: vi.fn(),
+  }),
+}));
+
+// The dialog's grid imports mediaUrl.js (env at module load) — same
+// dynamic-import hygiene as MediaPicker's own tests.
 beforeEach(() => vi.resetModules());
 
 const INITIAL = {
@@ -56,9 +65,30 @@ describe('SettingsForm', () => {
     expect(screen.getByLabelText('WhatsApp number')).toHaveValue('918881621021');
   });
 
-  it('highlights the currently selected photograph in each of the three image slots', async () => {
+  it('shows each image slot as a compact thumbnail control — never an inline grid', async () => {
     await renderForm();
-    expect(screen.getAllByRole('button', { name: /✓ selected/i })).toHaveLength(3);
+    expect(screen.getByAltText('Hero')).toBeInTheDocument();
+    expect(screen.getByAltText('Portrait')).toBeInTheDocument();
+    expect(screen.getByAltText('Closing')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /^change$/i })).toHaveLength(3);
+    expect(screen.queryByRole('button', { name: /^select$/i })).toBeNull();
+  });
+
+  it('changes the hero slot through the picker dialog and submits the new id', async () => {
+    const { props } = await renderForm();
+    fireEvent.click(screen.getAllByRole('button', { name: /^change$/i })[0]);
+    const dialog = screen.getByRole('dialog', { name: 'Choose a photograph' });
+    fireEvent.click(within(dialog).getByRole('button', { name: /select photograph: portrait/i }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
+    expect(props.onSave.mock.calls[0][0]).toMatchObject({ heroMediaId: 'm-brand' });
+  });
+
+  it('removes the hero photograph and submits null, falling back to the shipped image', async () => {
+    const { props } = await renderForm();
+    fireEvent.click(screen.getAllByRole('button', { name: /^remove$/i })[0]);
+    fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
+    expect(props.onSave.mock.calls[0][0]).toMatchObject({ heroMediaId: null });
   });
 
   it.each([

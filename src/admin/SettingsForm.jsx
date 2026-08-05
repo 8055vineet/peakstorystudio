@@ -1,6 +1,5 @@
 import { useId, useState } from 'react';
-import MediaPicker from './MediaPicker.jsx';
-import UploadField from './UploadField.jsx';
+import MediaSlot from './MediaSlot.jsx';
 
 // The Settings tab's form: the site's singular content — quote, Brand
 // Story, the three Home images, contact and social details — as one
@@ -111,20 +110,23 @@ export default function SettingsForm({
         {text('brandStoryP1', 'Brand Story — first paragraph', { textarea: true })}
         {text('brandStoryP2', 'Brand Story — second paragraph', { textarea: true })}
 
+        {/* Every slot is optional by design: all three media columns are
+            nullable, and src/lib/queries/siteSettings.js falls back to the
+            shipped static image on null — which is why each keeps Remove. */}
         {IMAGE_SLOTS.map(({ key, label, help }) => (
-          <fieldset key={key} className="border border-pitch-900/10 rounded-xl p-4 space-y-4">
-            <legend className={LABEL_CLASS}>{label}</legend>
-            <p className="text-xs text-charcoal-500">{help}</p>
-            <UploadField onUploaded={(uploaded) => { set(key, uploaded.id); onUploaded?.(uploaded); }} />
-            <MediaPicker
-              items={media}
-              status={mediaStatus}
-              error={mediaError}
-              onRetry={onRetryMedia}
-              onSelect={(item) => set(key, item.id)}
-              selectedId={values[key]}
-            />
-          </fieldset>
+          <MediaSlot
+            key={key}
+            label={label}
+            help={help}
+            required={false}
+            value={values[key] ?? null}
+            media={media}
+            mediaStatus={mediaStatus}
+            mediaError={mediaError}
+            onRetryMedia={onRetryMedia}
+            onUploaded={onUploaded}
+            onChange={(next) => set(key, next)}
+          />
         ))}
       </section>
 
