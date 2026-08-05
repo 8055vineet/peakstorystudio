@@ -55,6 +55,17 @@ create; and a View-website header link. `npm run verify:admin` now also proves a
 edit round-trips to the public read path. See the
 [Phase 3c design spec](superpowers/specs/2026-08-04-admin-cms-settings-design.md).
 
+**Phase 3d — Admin UX polish** (`v0.4d`) reworked how the admin *feels* after the owner found
+the media-picking flow unusable at real library size (~65 photos): every form that needs a
+photograph now renders a compact `MediaSlot` (thumbnail + Choose/Change/Remove) opening a
+full-screen, searchable `MediaPickerDialog` with upload built in, instead of embedding the
+whole library grid inline — the Settings tab alone dropped from ~195 inline tiles to three
+thumbnails, and wedding photographs attach in batches through the same dialog. The
+Gallery/Weddings/Films lists gained a photo column (one server-side join, no extra fetches),
+every admin navigation scrolls back to the top, and the open tab lives in the URL hash so a
+refresh restores it. See the
+[Phase 3d design spec](superpowers/specs/2026-08-05-admin-ux-polish-design.md).
+
 ## Phase and version table
 
 | Version | Phase | Deliverable | Definition of done | Runs on |
@@ -67,6 +78,7 @@ edit round-trips to the public read path. See the
 | **v0.4** | 3 — Admin: auth, CMS, media | Supabase Auth for admin; real CRUD; image uploads; leads dashboard | A wedding can be added and photos uploaded with no code edit and no `localStorage` | local |
 | **v0.4b** | 3b — Multi-page redesign | React Router pages per navbar option; full restyle to the owner's approved design; real Lucknow contact details | Each nav option is its own URL; no fabricated press/stat claims rendered by any component; suite green | local |
 | **v0.4c** | 3c — Admin CMS completion | `site_settings` table; Settings + Dashboard tabs; add-to-gallery; draft-state clarity | Every visitor-visible word and image is editable from the admin with no code change | local |
+| **v0.4d** | 3d — Admin UX polish | Full-screen searchable media picker dialog; compact photo slots in every form; list thumbnails; scroll-to-top; tab kept in URL hash | Choosing a photograph never requires scrolling past the library inside a form | local |
 | **v0.5** | 4 — First deploy | Hosted Supabase project; Cloudflare Pages deploy; CI/CD; preview deploys | Site reachable on `*.pages.dev`, `noindex` set, deploys on merge | Cloudflare Pages |
 | **v0.6** | 5 — SEO and shareable pages | Routing, per-wedding URLs, prerendering, sitemap, OG images, structured data | Every wedding has its own indexable, shareable URL | Cloudflare Pages |
 | **v0.7** | 6 — Client proofing portal | Per-client galleries, magic-link auth, persisted favourites, high-res downloads | A couple signs in and sees only their own photographs | Cloudflare Pages |

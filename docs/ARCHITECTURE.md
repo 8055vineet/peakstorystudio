@@ -228,10 +228,15 @@ Since Phase 3c (`v0.4c`) it is a complete CMS: eight tabs — **Dashboard** (the
 new-lead count with a callout, published/draft counts per content type, each card a shortcut),
 Leads, Media Library (whose cards offer **Add to Gallery**, jumping straight into a pre-filled
 Add Gallery Photo form), Weddings, Gallery, Films, Testimonials, and **Settings** (the site's
-singular content: quote, Brand Story, the three Home images via the media picker, contact
-details, social links — backed by the one-row `site_settings` table). Every create lands as a
-draft and announces itself with a publish-now banner; the header carries a **View website**
-link. It is mounted the same way the public site is —
+singular content: quote, Brand Story, the three Home images, contact details, social links —
+backed by the one-row `site_settings` table). Every create lands as a draft and announces
+itself with a publish-now banner; the header carries a **View website** link. Since Phase 3d
+(`v0.4d`), choosing a photograph anywhere in the admin goes through `MediaSlot` (a compact
+thumbnail control) opening `MediaPickerDialog` (a full-screen, searchable picker with upload
+built in) rather than an inline grid of the whole library; the Gallery/Weddings/Films lists
+render a leading photo column from a server-side-joined `thumbnailPath`; every navigation
+scrolls back to the top; and the open tab is kept in the URL hash (`admin.html#gallery`), so a
+refresh restores it. It is mounted the same way the public site is —
 
 ```
 admin.html -> src/admin/main.jsx -> ReactDOM.createRoot(...).render(<ErrorBoundary><App/></ErrorBoundary>)
