@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { formatDateOnly } from './formatDate.js';
+import { mediaUrl } from '../lib/mediaUrl.js';
 
 // Small, self-contained duplicate of adminContent.js's toCamel — not
 // imported from there. adminContent.js opens with `import { supabase } from
@@ -142,6 +143,11 @@ export default function ResourceList({
         <table className="w-full text-sm text-left border-collapse">
           <thead>
             <tr className="border-b border-pitch-900/15 text-[10px] uppercase tracking-widest text-charcoal-500">
+              {config.thumbnailColumn && (
+                <th scope="col" className="py-3 pr-4 font-bold w-16">
+                  <span className="sr-only">Photo</span>
+                </th>
+              )}
               {config.listColumns.map((column) => (
                 <th key={column.name} scope="col" className="py-3 pr-4 font-bold">{column.label}</th>
               ))}
@@ -153,8 +159,22 @@ export default function ResourceList({
           <tbody>
             {sorted.map((item, index) => {
               const name = primaryLabel(item, config);
+              const thumbUrl = config.thumbnailColumn ? mediaUrl(item.thumbnailPath) : null;
               return (
                 <tr key={item.id} className="border-b border-pitch-900/10">
+                  {config.thumbnailColumn && (
+                    <td className="py-2 pr-4">
+                      {/* alt="" is deliberate: the title cell names the row;
+                          the photo is identification support, not content.
+                          A null path renders the empty box, never a broken
+                          <img>. */}
+                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-offwhite-200 border border-pitch-900/10">
+                        {thumbUrl && (
+                          <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
+                        )}
+                      </div>
+                    </td>
+                  )}
                   {config.listColumns.map((column) => (
                     <td key={column.name} className="py-3 pr-4 text-charcoal-700">
                       {column.name === 'status'

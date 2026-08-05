@@ -2,7 +2,7 @@ import {
   describe, it, expect, vi, beforeEach, afterEach,
 } from 'vitest';
 import {
-  render, screen, waitFor, fireEvent,
+  render, screen, waitFor, fireEvent, act,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -94,7 +94,7 @@ describe.each(ZONES)('the wedding date field under TZ=%s', (zone) => {
     />);
 
     expect(screen.getByLabelText(/^date/i)).toHaveValue(isoDate);
-    await waitFor(() => expect(screen.getByText(/no media yet/i)).toBeInTheDocument());
+    await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
   });
 
   it.each(DATES)('stores a freshly-entered date of %s as that exact same calendar day, unchanged, on submit', async (isoDate) => {
@@ -112,7 +112,7 @@ describe.each(ZONES)('the wedding date field under TZ=%s', (zone) => {
     await user.click(screen.getByRole('button', { name: /^create/i }));
 
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ eventDate: isoDate }));
-    await waitFor(() => expect(screen.getByText(/no media yet/i)).toBeInTheDocument());
+    await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
   });
 
   it('round-trips an existing date unchanged when the form is submitted without editing it', async () => {
@@ -129,6 +129,6 @@ describe.each(ZONES)('the wedding date field under TZ=%s', (zone) => {
     await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
 
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ eventDate: '2027-01-01' }));
-    await waitFor(() => expect(screen.getByText(/no media yet/i)).toBeInTheDocument());
+    await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
   });
 });

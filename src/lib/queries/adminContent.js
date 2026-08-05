@@ -41,7 +41,7 @@ function valuesToRow(values, columns) {
   return row;
 }
 
-// makeResourceQueries(table, columns) -> { list, create, update, remove, reorder }
+// makeResourceQueries(table, columns, options?) -> { list, create, update, remove, reorder }
 //
 // Every function throws a plain Error on a Postgres error rather than
 // resolving to something empty or partial — same convention as every other
@@ -49,8 +49,23 @@ function valuesToRow(values, columns) {
 // screen that reads "nothing here" from a broken query is indistinguishable
 // from an actually-empty resource, which is the exact confusion this
 // project has already built a fallback layer to avoid on the public site.
-export function makeResourceQueries(table, columns) {
-  const select = columns.join(', ');
+export function makeResourceQueries(table, columns, options = {}) {
+  // `thumbnailColumn` names a snake_case FK column onto public.media (e.g.
+  // 'media_id'). When present, every select this factory builds also embeds
+  // that row's storage_path — the same alias-by-FK-column join
+  // src/lib/queries/siteSettings.js already uses — and every returned item
+  // carries `thumbnailPath` (string | null) for ResourceList's photo
+  // column. Never written back: valuesToRow only writes declared columns.
+  const { thumbnailColumn } = options;
+  const select = thumbnailColumn
+    ? `${columns.join(', ')}, thumbnail:${thumbnailColumn}(storage_path)`
+    : columns.join(', ');
+
+  function toItem(row) {
+    const item = rowToItem(row, columns);
+    if (thumbnailColumn) item.thumbnailPath = row.thumbnail?.storage_path ?? null;
+    return item;
+  }
 
   // Ordered by sort_order ascending — every one of the five content tables
   // this factory serves has that column (see the sort_order indexes in
@@ -63,7 +78,7 @@ export function makeResourceQueries(table, columns) {
       .order('sort_order', { ascending: true });
 
     if (error) throw new Error(`${table}: list failed: ${error.message}`);
-    return (data ?? []).map((row) => rowToItem(row, columns));
+    return (data ?? []).map(toItem);
   }
 
   // `status` is deliberately never one of ResourceForm's `fields` (see its
@@ -88,7 +103,7 @@ export function makeResourceQueries(table, columns) {
       .single();
 
     if (error) throw new Error(`${table}: create failed: ${error.message}`);
-    return rowToItem(data, columns);
+    return toItem(data);
   }
 
   // Handles both a ResourceForm submission (several fields at once) and
@@ -106,7 +121,7 @@ export function makeResourceQueries(table, columns) {
       .single();
 
     if (error) throw new Error(`${table}: update(${id}) failed: ${error.message}`);
-    return rowToItem(data, columns);
+    return toItem(data);
   }
 
   async function remove(id) {

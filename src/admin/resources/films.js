@@ -8,6 +8,9 @@ export const filmsResource = {
     'id', 'title', 'couple', 'location', 'duration_seconds', 'thumbnail_media_id', 'video_embed_url', 'sort_order', 'status',
   ],
   defaultSort: 'sort_order',
+  // ResourceList renders a leading photo column from this, and the factory
+  // call below joins the same column's storage_path server-side.
+  thumbnailColumn: 'thumbnail_media_id',
   listColumns: [
     { name: 'title', label: 'Title' },
     { name: 'couple', label: 'Couple' },
@@ -71,4 +74,8 @@ export const filmsResource = {
   ],
 };
 
-export const filmsQueries = makeResourceQueries(filmsResource.table, filmsResource.columns);
+export const filmsQueries = makeResourceQueries(
+  filmsResource.table,
+  filmsResource.columns,
+  { thumbnailColumn: filmsResource.thumbnailColumn },
+);

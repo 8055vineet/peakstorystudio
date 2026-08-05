@@ -30,6 +30,9 @@ export const weddingsResource = {
     'cover_media_id', 'tags', 'sort_order', 'status',
   ],
   defaultSort: 'sort_order',
+  // ResourceList renders a leading photo column from this, and the factory
+  // call below joins the same column's storage_path server-side.
+  thumbnailColumn: 'cover_media_id',
   listColumns: [
     { name: 'title', label: 'Title' },
     { name: 'couple', label: 'Couple' },
@@ -82,7 +85,11 @@ export const weddingsResource = {
   ],
 };
 
-const baseQueries = makeResourceQueries(weddingsResource.table, weddingsResource.columns);
+const baseQueries = makeResourceQueries(
+  weddingsResource.table,
+  weddingsResource.columns,
+  { thumbnailColumn: weddingsResource.thumbnailColumn },
+);
 
 export const weddingsQueries = {
   ...baseQueries,

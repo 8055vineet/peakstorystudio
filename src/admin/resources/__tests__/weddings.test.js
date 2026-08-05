@@ -30,7 +30,7 @@ describe('weddingsResource config', () => {
   });
 
   it('is built on makeResourceQueries with its own table and columns', () => {
-    expect(makeResourceQueries).toHaveBeenCalledWith('weddings', weddingsResource.columns);
+    expect(makeResourceQueries).toHaveBeenCalledWith('weddings', weddingsResource.columns, { thumbnailColumn: 'cover_media_id' });
   });
 
   it('never puts status in fields — every resource has it, but ResourceList owns the toggle', () => {

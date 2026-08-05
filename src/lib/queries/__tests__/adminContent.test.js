@@ -252,4 +252,51 @@ describe('makeResourceQueries', () => {
       await expect(reorder(['widget-1', 'widget-2', 'widget-3'])).rejects.toThrow(/permission denied/);
     });
   });
+
+  describe('thumbnailColumn option', () => {
+    const THUMB_COLUMNS = ['id', 'name', 'media_id', 'sort_order', 'status'];
+    const THUMB_ROW = {
+      id: 'widget-1', name: 'Gadget', media_id: 'm-1', sort_order: 0, status: 'draft', thumbnail: { storage_path: 'uploads/one.webp' },
+    };
+
+    it('appends the media embed to the select and maps thumbnailPath', async () => {
+      const chain = makeSelectChain({ rows: [THUMB_ROW] });
+      mockFrom.mockReturnValue(chain);
+      const { list } = makeResourceQueries(TABLE, THUMB_COLUMNS, { thumbnailColumn: 'media_id' });
+
+      const result = await list();
+
+      expect(chain.select).toHaveBeenCalledWith('id, name, media_id, sort_order, status, thumbnail:media_id(storage_path)');
+      expect(result[0].thumbnailPath).toBe('uploads/one.webp');
+    });
+
+    it('maps a missing embed to thumbnailPath null', async () => {
+      mockFrom.mockReturnValue(makeSelectChain({ rows: [{ ...THUMB_ROW, thumbnail: null }] }));
+      const { list } = makeResourceQueries(TABLE, THUMB_COLUMNS, { thumbnailColumn: 'media_id' });
+
+      const result = await list();
+
+      expect(result[0].thumbnailPath).toBeNull();
+    });
+
+    it('never writes thumbnailPath back on create', async () => {
+      const chain = makeInsertChain({ row: THUMB_ROW });
+      mockFrom.mockReturnValue(chain);
+      const { create } = makeResourceQueries(TABLE, THUMB_COLUMNS, { thumbnailColumn: 'media_id' });
+
+      await create({ name: 'Gadget', thumbnailPath: 'uploads/evil.webp' });
+
+      expect(chain.insert).toHaveBeenCalledWith({ name: 'Gadget', status: 'draft' });
+    });
+
+    it('without the option, selects stay exactly as before', async () => {
+      const chain = makeSelectChain({ rows: [ROW] });
+      mockFrom.mockReturnValue(chain);
+      const { list } = makeResourceQueries(TABLE, COLUMNS);
+
+      await list();
+
+      expect(chain.select).toHaveBeenCalledWith('id, name, sort_order, status');
+    });
+  });
 });

@@ -42,6 +42,9 @@ export const galleryResource = {
     'id', 'media_id', 'title', 'category', 'couple', 'location', 'grid_span', 'sort_order', 'status',
   ],
   defaultSort: 'sort_order',
+  // ResourceList renders a leading photo column from this, and the factory
+  // call below joins the same column's storage_path server-side.
+  thumbnailColumn: 'media_id',
   listColumns: [
     { name: 'title', label: 'Title' },
     { name: 'category', label: 'Category' },
@@ -90,4 +93,8 @@ export const galleryResource = {
   ],
 };
 
-export const galleryQueries = makeResourceQueries(galleryResource.table, galleryResource.columns);
+export const galleryQueries = makeResourceQueries(
+  galleryResource.table,
+  galleryResource.columns,
+  { thumbnailColumn: galleryResource.thumbnailColumn },
+);

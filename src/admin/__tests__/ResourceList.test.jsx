@@ -263,3 +263,33 @@ describe('ResourceList', () => {
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 });
+
+describe('thumbnail column', () => {
+  const THUMB_CONFIG = {
+    ...CONFIG,
+    thumbnailColumn: 'media_id',
+  };
+  // `/images/...` passes through mediaUrl() untouched — no env stubbing.
+  const THUMB_ITEMS = [
+    { ...ITEMS[0], thumbnailPath: '/images/test/alpha.jpg' },
+    { ...ITEMS[1], thumbnailPath: null },
+  ];
+
+  it('renders a leading photo cell per row when the config declares thumbnailColumn', () => {
+    const { container } = render(
+      <ResourceList {...baseProps({ config: THUMB_CONFIG, items: THUMB_ITEMS })} />,
+    );
+    const images = container.querySelectorAll('tbody img');
+    expect(images).toHaveLength(1);
+    expect(images[0].getAttribute('src')).toBe('/images/test/alpha.jpg');
+    // The null-path row still gets its (empty) cell so columns line up.
+    expect(container.querySelectorAll('tbody tr')[0].querySelectorAll('td')).toHaveLength(
+      container.querySelectorAll('tbody tr')[1].querySelectorAll('td').length,
+    );
+  });
+
+  it('renders no photo column at all without thumbnailColumn (testimonials)', () => {
+    const { container } = render(<ResourceList {...baseProps()} />);
+    expect(container.querySelectorAll('tbody img')).toHaveLength(0);
+  });
+});
