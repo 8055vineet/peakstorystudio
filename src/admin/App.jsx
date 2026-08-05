@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSession } from '../hooks/useSession';
 import { useResource } from '../hooks/useResource';
+import { useScrollToTop } from './useScrollToTop.js';
 import { listInquiries, updateInquiryStatus } from '../lib/queries/adminInquiries';
 import { listMedia } from '../lib/queries/media';
 import { getSettingsRow, updateSiteSettings } from '../lib/queries/adminSettings';
@@ -204,6 +205,7 @@ function WeddingsDashboard() {
     items, status, error, reload, mutate,
   } = useResource(weddingsQueries);
   const [view, setView] = useState({ mode: 'list' });
+  useScrollToTop(view.mode);
   const [formPending, setFormPending] = useState(false);
   const [formError, setFormError] = useState(null);
   // Distinct from formError: a delete/publish-toggle/reorder click from
@@ -344,6 +346,7 @@ function GalleryDashboard({ prefillMediaId = null }) {
   const [view, setView] = useState(() => (
     prefillMediaId ? { mode: 'form', item: { mediaId: prefillMediaId } } : { mode: 'list' }
   ));
+  useScrollToTop(view.mode);
   const [formPending, setFormPending] = useState(false);
   const [formError, setFormError] = useState(null);
   const [listActionError, setListActionError] = useState(null);
@@ -447,6 +450,7 @@ function FilmsDashboard() {
     items, status, error, reload, mutate,
   } = useResource(filmsQueries);
   const [view, setView] = useState({ mode: 'list' });
+  useScrollToTop(view.mode);
   const [formPending, setFormPending] = useState(false);
   const [formError, setFormError] = useState(null);
   const [listActionError, setListActionError] = useState(null);
@@ -549,6 +553,7 @@ function TestimonialsDashboard() {
     items, status, error, reload, mutate,
   } = useResource(testimonialsQueries);
   const [view, setView] = useState({ mode: 'list' });
+  useScrollToTop(view.mode);
   const [formPending, setFormPending] = useState(false);
   const [formError, setFormError] = useState(null);
   const [listActionError, setListActionError] = useState(null);
@@ -658,20 +663,38 @@ const DASHBOARD_TABS = [
   { key: 'settings', label: 'Settings' },
 ];
 
+const TAB_KEYS = new Set(DASHBOARD_TABS.map(({ key }) => key));
+
+// The tab a refresh should restore — whatever hash the last goTab wrote.
+// Read once, at mount; an unrecognised or absent hash lands on Dashboard.
+// Deliberately no hashchange listener (see the Phase 3d spec's non-goals).
+function initialTab() {
+  const fromHash = window.location.hash.replace(/^#/, '');
+  return TAB_KEYS.has(fromHash) ? fromHash : 'dashboard';
+}
+
 // The admin's default landing composition. Task 7's reusable resource
 // pattern now backs five of these six tabs (every one but Leads and Media
 // Library). A tab's dashboard only fetches once it's actually opened (see
 // the "not fetched until asked for" test in App.test.jsx), so switching
 // tabs, not mounting the shell, is what triggers each one's first load.
 function AdminDashboard() {
-  const [tab, setTab] = useState('dashboard');
+  const [tab, setTab] = useState(initialTab);
   // Set by the Media Library's "Add to Gallery"; consumed by the Gallery
   // tab's mount; cleared whenever the admin navigates anywhere else so a
   // later visit to Gallery opens on the list, not a stale form.
   const [galleryPrefill, setGalleryPrefill] = useState(null);
+  useScrollToTop(tab);
+
+  // replaceState, not a hash assignment: tab-hopping must not pile up
+  // browser-history entries the Back button would then walk through.
+  function goTab(key) {
+    window.history.replaceState(null, '', `#${key}`);
+    setTab(key);
+  }
 
   function openTab(key) {
-    setTab(key);
+    goTab(key);
     if (key !== 'gallery') setGalleryPrefill(null);
   }
 
@@ -698,7 +721,7 @@ function AdminDashboard() {
       {tab === 'leads' && <InquiriesDashboard />}
       {tab === 'media' && (
         <MediaLibraryDashboard
-          onAddToGallery={(media) => { setGalleryPrefill(media.id); setTab('gallery'); }}
+          onAddToGallery={(media) => { setGalleryPrefill(media.id); goTab('gallery'); }}
         />
       )}
       {tab === 'weddings' && <WeddingsDashboard />}

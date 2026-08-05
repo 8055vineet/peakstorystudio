@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   render, screen, waitFor, within, act,
 } from '@testing-library/react';
@@ -240,6 +240,9 @@ const baseState = {
 };
 
 beforeEach(() => {
+  // Tab clicks write location.hash (AdminDashboard keeps its tab there) —
+  // reset it so no test inherits another test's tab.
+  window.history.replaceState(null, '', window.location.pathname);
   useSession.mockReset();
   listInquiries.mockReset();
   updateInquiryStatus.mockReset();
@@ -534,6 +537,42 @@ describe('admin App shell', () => {
       expect(screen.getByRole('heading', { name: /add gallery photo/i })).toBeInTheDocument();
       await waitFor(() => expect(screen.getByAltText('Bride among leaves')).toBeInTheDocument());
       expect(screen.getByRole('button', { name: /^change$/i })).toBeInTheDocument();
+    });
+
+    it('opens on the tab named in the URL hash after a refresh', async () => {
+      window.history.replaceState(null, '', '#media');
+      signIn();
+      render(<App />);
+      expect(await screen.findByRole('heading', { name: /media library/i })).toBeInTheDocument();
+      await waitFor(() => expect(listMedia).toHaveBeenCalled());
+    });
+
+    it('falls back to Dashboard on an unrecognised hash', async () => {
+      window.history.replaceState(null, '', '#not-a-tab');
+      signIn();
+      render(<App />);
+      await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument());
+    });
+
+    it('writes the hash on tab change and scrolls back to the top', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      const scrollSpy = vi.spyOn(window, 'scrollTo');
+      signIn();
+      render(<App />);
+      await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument());
+
+      const user = userEvent.setup();
+      scrollSpy.mockClear();
+      const nav = screen.getByRole('navigation', { name: /admin sections/i });
+      await user.click(within(nav).getByRole('button', { name: /media library/i }));
+
+      expect(window.location.hash).toBe('#media');
+      await waitFor(() => expect(scrollSpy).toHaveBeenCalledWith(0, 0));
+      await waitFor(() => expect(listMedia).toHaveBeenCalled());
+    });
+
+    afterEach(() => {
+      window.history.replaceState(null, '', window.location.pathname);
     });
 
     it('switching back to Leads does not re-render Dashboard content passed as explicit children', async () => {
