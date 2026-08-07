@@ -1,20 +1,42 @@
-import React, { useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Menu, X, LogOut, ShieldCheck, Heart } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, LogOut, ShieldCheck, Heart, ChevronDown } from 'lucide-react';
 
 // The site's shared header, per the owner's approved design: the wordmark
 // centered, the six page links in a row beneath it, and the Sign In / Book
 // Date controls kept quiet in the top-right corner. Deliberately NOT fixed
 // and with no scroll-condensing behavior — it is a calm block that scrolls
-// away like the rest of the page.
+// away like the rest of the page. `morePages` (the admin's published
+// collections, threaded App → Layout → here) renders a More dropdown after
+// Contact — no pages, no More item at all.
 export default function Navbar({
   user,
   onOpenAuthModal,
   onOpenClientGallery,
-  onLogout
+  onLogout,
+  morePages = []
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef(null);
+  const onMorePage = location.pathname.startsWith('/more/');
+
+  // Close on Escape and on any click outside the dropdown. Listeners exist
+  // only while the menu is open, and the effect only ever tears down its
+  // own listeners — state changes here come from user events alone.
+  useEffect(() => {
+    if (!moreOpen) return undefined;
+    function onKeyDown(e) { if (e.key === 'Escape') setMoreOpen(false); }
+    function onClick(e) { if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false); }
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('mousedown', onClick);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('mousedown', onClick);
+    };
+  }, [moreOpen]);
 
   const navLinks = [
     { name: 'Home', to: '/', end: true },
@@ -58,6 +80,38 @@ export default function Navbar({
               {link.name}
             </NavLink>
           ))}
+          {morePages.length > 0 && (
+            <div className="relative" ref={moreRef}>
+              <button
+                type="button"
+                onClick={() => setMoreOpen((open) => !open)}
+                aria-expanded={moreOpen}
+                aria-haspopup="true"
+                className={`flex items-center gap-1 text-xs uppercase tracking-[0.2em] font-medium transition-colors py-1 ${
+                  onMorePage
+                    ? 'text-pitch-900 underline underline-offset-8'
+                    : 'text-pitch-900/70 hover:text-pitch-900'
+                }`}
+              >
+                More
+                <ChevronDown className={`w-3 h-3 transition-transform ${moreOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+              </button>
+              {moreOpen && (
+                <div className="absolute left-1/2 -translate-x-1/2 top-full mt-3 min-w-[12rem] bg-offwhite-50 border border-pitch-900/10 shadow-xl py-2 z-40">
+                  {morePages.map((page) => (
+                    <NavLink
+                      key={page.slug}
+                      to={`/more/${page.slug}`}
+                      onClick={() => setMoreOpen(false)}
+                      className="block px-5 py-2.5 text-xs uppercase tracking-[0.15em] text-pitch-900/80 hover:text-pitch-900 hover:bg-offwhite-200 transition-colors"
+                    >
+                      {page.title}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Quiet corner controls */}
@@ -127,6 +181,22 @@ export default function Navbar({
               {link.name}
             </NavLink>
           ))}
+
+          {morePages.length > 0 && (
+            <div className="pt-1">
+              <p className="text-[10px] uppercase tracking-[0.25em] text-charcoal-500 font-bold pb-1">More</p>
+              {morePages.map((page) => (
+                <NavLink
+                  key={page.slug}
+                  to={`/more/${page.slug}`}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block text-sm uppercase tracking-widest text-pitch-900 hover:text-charcoal-700 py-2 border-b border-pitch-900/5 font-medium"
+                >
+                  {page.title}
+                </NavLink>
+              ))}
+            </div>
+          )}
 
           <div className="pt-2 flex flex-col space-y-3">
             {user ? (
