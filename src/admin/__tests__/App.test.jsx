@@ -404,6 +404,7 @@ beforeEach(() => {
     heroMediaId: null, brandStoryMediaId: null, closingMediaId: null,
     studioAddress: 'A', studioEmail: 'e@x.test', studioPhone: '+91 1',
     whatsappNumber: '', instagramUrl: '', youtubeUrl: '',
+    headingFont: 'Cormorant Garamond', bodyFont: 'Plus Jakarta Sans',
   });
   listInquiries.mockResolvedValue([]);
   listMedia.mockResolvedValue([]);

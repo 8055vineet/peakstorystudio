@@ -1,5 +1,6 @@
 import { useId, useState } from 'react';
 import MediaSlot from './MediaSlot.jsx';
+import { HEADING_FONTS, BODY_FONTS } from '../data/fontOptions';
 
 // The Settings tab's form: the site's singular content — quote, Brand
 // Story, the three Home images, contact and social details — as one
@@ -100,6 +101,24 @@ export default function SettingsForm({
     );
   };
 
+  const fontSelect = (field, label, options) => {
+    const id = `${uid}-${field}`;
+    return (
+      <Field id={id} label={label} error={errors[field]}>
+        <select
+          id={id}
+          value={values[field] ?? ''}
+          onChange={(e) => set(field, e.target.value)}
+          className={INPUT_CLASS}
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value} style={{ fontFamily: opt.value }}>{opt.label}</option>
+          ))}
+        </select>
+      </Field>
+    );
+  };
+
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-8 max-w-3xl">
       <section className={SECTION_CLASS}>
@@ -128,6 +147,15 @@ export default function SettingsForm({
             onChange={(next) => set(key, next)}
           />
         ))}
+      </section>
+
+      <section className={SECTION_CLASS}>
+        <h2 className="font-cinzel text-lg font-bold text-pitch-900">Typography</h2>
+        <p className="text-xs text-charcoal-500">
+          The fonts the public site uses for headings and body text.
+        </p>
+        {fontSelect('headingFont', 'Heading font', HEADING_FONTS)}
+        {fontSelect('bodyFont', 'Body font', BODY_FONTS)}
       </section>
 
       <section className={SECTION_CLASS}>

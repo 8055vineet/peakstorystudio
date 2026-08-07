@@ -30,6 +30,8 @@ const INITIAL = {
   whatsappNumber: '918881621021',
   instagramUrl: '',
   youtubeUrl: '',
+  headingFont: 'Cormorant Garamond',
+  bodyFont: 'Plus Jakarta Sans',
 };
 
 const MEDIA = [
@@ -114,6 +116,15 @@ describe('SettingsForm', () => {
       studioEmail: 'peakstorystudio@gmail.com',
       heroMediaId: 'm-hero',
     });
+  });
+
+  it('renders the Typography selects with the current fonts and submits a change', async () => {
+    const { props } = await renderForm();
+    expect(screen.getByLabelText(/heading font/i)).toHaveValue('Cormorant Garamond');
+    expect(screen.getByLabelText(/body font/i)).toHaveValue('Plus Jakarta Sans');
+    fireEvent.change(screen.getByLabelText(/heading font/i), { target: { value: 'Playfair Display' } });
+    fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
+    expect(props.onSave.mock.calls[0][0]).toMatchObject({ headingFont: 'Playfair Display' });
   });
 
   it('shows the saved confirmation and the error message', async () => {
