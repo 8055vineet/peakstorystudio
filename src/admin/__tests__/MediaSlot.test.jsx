@@ -103,6 +103,13 @@ describe('MediaSlot', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
+  it('its picker dialog uploads one photograph at a time — no folder control', async () => {
+    const user = userEvent.setup();
+    render(<MediaSlot {...baseProps()} />);
+    await user.click(screen.getByRole('button', { name: /choose photograph/i }));
+    expect(screen.queryByLabelText(/choose folder/i)).toBeNull();
+  });
+
   it('renders a field error inline as an alert', () => {
     render(<MediaSlot {...baseProps({ error: 'Photograph is required.' })} />);
     expect(screen.getByRole('alert')).toHaveTextContent(/photograph is required/i);

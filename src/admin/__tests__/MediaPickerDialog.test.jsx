@@ -116,6 +116,13 @@ describe('MediaPickerDialog', () => {
     expect(props.onClose).toHaveBeenCalledTimes(3);
   });
 
+  it('offers folder upload by default and hides it when uploadMultiple is false', () => {
+    const { rerender } = render(<MediaPickerDialog {...baseProps()} />);
+    expect(screen.getByLabelText(/choose folder/i)).toBeInTheDocument();
+    rerender(<MediaPickerDialog {...baseProps({ uploadMultiple: false })} />);
+    expect(screen.queryByLabelText(/choose folder/i)).toBeNull();
+  });
+
   it('passes the load-error state through with its retry control', () => {
     const props = baseProps({ items: [], status: 'error', error: new Error('permission denied') });
     render(<MediaPickerDialog {...props} />);

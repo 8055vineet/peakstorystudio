@@ -67,6 +67,7 @@ export default function MediaSlot({
       <MediaPickerDialog
         open={dialogOpen}
         title="Choose a photograph"
+        uploadMultiple={false}
         items={media}
         status={mediaStatus}
         error={mediaError}

@@ -35,7 +35,7 @@ function matches(item, query) {
 
 function DialogInner({
   title, items, status, error, onRetry, onUploaded, onSelect, onClose,
-  selectedId, selectedIds, closeLabel,
+  selectedId, selectedIds, closeLabel, uploadMultiple,
 }) {
   const [query, setQuery] = useState('');
   const headingId = useId();
@@ -100,7 +100,7 @@ function DialogInner({
             {filtered.length} of {items.length} photographs
           </p>
         )}
-        <UploadField onUploaded={onUploaded} />
+        <UploadField onUploaded={onUploaded} multiple={uploadMultiple} />
       </div>
       <div className="flex-1 overflow-y-auto p-6">
         {zeroMatches ? (
@@ -136,8 +136,8 @@ function DialogInner({
 }
 
 export default function MediaPickerDialog({
-  open, closeLabel = 'Cancel', ...props
+  open, closeLabel = 'Cancel', uploadMultiple = true, ...props
 }) {
   if (!open) return null;
-  return <DialogInner closeLabel={closeLabel} {...props} />;
+  return <DialogInner closeLabel={closeLabel} uploadMultiple={uploadMultiple} {...props} />;
 }
