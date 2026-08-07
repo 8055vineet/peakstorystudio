@@ -9,6 +9,10 @@ import {
   listGalleryCategories, addGalleryCategory, renameGalleryCategory,
   reorderGalleryCategories, removeGalleryCategory,
 } from '../lib/queries/adminGalleryCategories';
+import {
+  listBookingServices, addBookingService, renameBookingService,
+  reorderBookingServices, removeBookingService,
+} from '../lib/queries/adminBookingServices';
 import ManagedList from './ManagedList.jsx';
 import SettingsForm from './SettingsForm.jsx';
 import DashboardOverview from './DashboardOverview.jsx';
@@ -118,6 +122,31 @@ function SettingsDashboard() {
     items: media, status: mediaStatus, error: mediaError, reload: reloadMedia,
   } = useResource(mediaQueries);
 
+  // The bookable services (Phase 3e): what the contact form offers, managed
+  // here. Renames and removals only change the form going forward —
+  // stored inquiries keep their original wording.
+  const servicesQueries = useMemo(() => ({
+    list: listBookingServices,
+    add: addBookingService,
+    rename: renameBookingService,
+    reorder: reorderBookingServices,
+    remove: removeBookingService,
+  }), []);
+  const {
+    items: services, status: servicesStatus, error: servicesError,
+    reload: reloadServices, mutate: mutateServices,
+  } = useResource(servicesQueries);
+  const [servicesActionError, setServicesActionError] = useState(null);
+
+  async function runServicesAction(name, ...args) {
+    setServicesActionError(null);
+    try {
+      await mutateServices(name, ...args);
+    } catch (err) {
+      setServicesActionError({ message: err?.message || 'unknown error' });
+    }
+  }
+
   const [row, setRow] = useState(null);
   const [loadError, setLoadError] = useState(null);
   const [pending, setPending] = useState(false);
@@ -190,6 +219,25 @@ function SettingsDashboard() {
         error={saveError}
         saved={saved}
       />
+      <div className="mt-10">
+        <ManagedList
+          title="Booking services"
+          itemNoun="service"
+          items={services}
+          status={servicesStatus}
+          error={servicesError}
+          onRetry={reloadServices}
+          onAdd={(name) => runServicesAction('add', name)}
+          onRename={(item, next) => runServicesAction('rename', item.id, next)}
+          onReorder={(ids) => runServicesAction('reorder', ids)}
+          onDelete={(item) => runServicesAction('remove', item.id)}
+          actionError={servicesActionError}
+        />
+        <p className="mt-2 text-xs text-charcoal-500 max-w-2xl">
+          Changes apply to the contact form going forward — past inquiries keep the services they
+          were sent with.
+        </p>
+      </div>
     </div>
   );
 }

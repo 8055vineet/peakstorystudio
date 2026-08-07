@@ -49,6 +49,11 @@ const addGalleryCategory = vi.fn();
 const renameGalleryCategory = vi.fn();
 const reorderGalleryCategories = vi.fn();
 const removeGalleryCategory = vi.fn();
+const listBookingServices = vi.fn();
+const addBookingService = vi.fn();
+const renameBookingService = vi.fn();
+const reorderBookingServices = vi.fn();
+const removeBookingService = vi.fn();
 
 vi.mock('../../hooks/useSession', () => ({
   useSession: (...args) => useSession(...args),
@@ -291,6 +296,14 @@ vi.mock('../../lib/queries/adminGalleryCategories', () => ({
   removeGalleryCategory: (...args) => removeGalleryCategory(...args),
 }));
 
+vi.mock('../../lib/queries/adminBookingServices', () => ({
+  listBookingServices: (...args) => listBookingServices(...args),
+  addBookingService: (...args) => addBookingService(...args),
+  renameBookingService: (...args) => renameBookingService(...args),
+  reorderBookingServices: (...args) => reorderBookingServices(...args),
+  removeBookingService: (...args) => removeBookingService(...args),
+}));
+
 const { default: App } = await import('../App.jsx');
 
 const baseState = {
@@ -333,6 +346,17 @@ beforeEach(() => {
   testimonialsUpdate.mockReset();
   testimonialsRemove.mockReset();
   testimonialsReorder.mockReset();
+  listBookingServices.mockReset();
+  addBookingService.mockReset();
+  renameBookingService.mockReset();
+  reorderBookingServices.mockReset();
+  removeBookingService.mockReset();
+  listBookingServices.mockResolvedValue([
+    { id: 'svc-1', name: 'Cinematic Film', sortOrder: 0 },
+    { id: 'svc-2', name: 'Fine Art Photography', sortOrder: 1 },
+    { id: 'svc-3', name: 'Drone Aerials', sortOrder: 2 },
+    { id: 'svc-4', name: 'Pre-Wedding Shoot', sortOrder: 3 },
+  ]);
   listGalleryCategories.mockReset();
   addGalleryCategory.mockReset();
   renameGalleryCategory.mockReset();
@@ -1596,6 +1620,54 @@ describe('admin App shell', () => {
       await user.click(screen.getAllByRole('button', { name: /^delete$/i })[1]);
       await waitFor(() => expect(screen.getByText(/24 photograph\(s\) still use it/i)).toBeInTheDocument());
       confirmSpy.mockRestore();
+    });
+  });
+
+  describe('Booking services manager (Settings tab)', () => {
+    function signIn() {
+      useSession.mockReturnValue({
+        ...baseState,
+        status: 'authenticated',
+        session: { user: { id: 'user-2', email: 'admin@example.test' } },
+        profile: { userId: 'user-2', role: 'admin', displayName: 'Studio Director' },
+      });
+    }
+
+    it('renders the services panel under the settings form and adds a new service', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      addBookingService.mockResolvedValue({ name: 'Album Design', sortOrder: 4 });
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+
+      const nav = screen.getByRole('navigation', { name: /admin sections/i });
+      await user.click(within(nav).getByRole('button', { name: 'Settings' }));
+      await waitFor(() => expect(screen.getByText('Booking services')).toBeInTheDocument());
+      expect(screen.getByText('Drone Aerials')).toBeInTheDocument();
+      expect(screen.getByText(/past inquiries keep the services/i)).toBeInTheDocument();
+
+      await user.type(screen.getByLabelText(/new service/i), 'Album Design');
+      await user.click(screen.getByRole('button', { name: /^add$/i }));
+      await waitFor(() => expect(addBookingService).toHaveBeenCalledWith('Album Design'));
+    });
+
+    it('renames a service by id', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      renameBookingService.mockResolvedValue({ id: 'svc-1', name: 'Cinema Film' });
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+
+      const nav = screen.getByRole('navigation', { name: /admin sections/i });
+      await user.click(within(nav).getByRole('button', { name: 'Settings' }));
+      await waitFor(() => expect(screen.getByText('Booking services')).toBeInTheDocument());
+
+      await user.click(screen.getAllByRole('button', { name: /^rename$/i })[0]);
+      const input = screen.getByDisplayValue('Cinematic Film');
+      await user.clear(input);
+      await user.type(input, 'Cinema Film');
+      await user.click(screen.getByRole('button', { name: /^save$/i }));
+      await waitFor(() => expect(renameBookingService).toHaveBeenCalledWith('svc-1', 'Cinema Film'));
     });
   });
 });
