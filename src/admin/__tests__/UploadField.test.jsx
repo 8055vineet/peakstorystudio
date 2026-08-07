@@ -1,7 +1,7 @@
 import {
   describe, it, expect, vi, beforeEach,
 } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const useMediaUpload = vi.fn();
@@ -42,7 +42,7 @@ describe('UploadField', () => {
     render(<UploadField onUploaded={vi.fn()} />);
 
     expect(screen.getByLabelText(/alt text/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/photograph/i)).toHaveAttribute('type', 'file');
+    expect(screen.getByLabelText(/choose images/i)).toHaveAttribute('type', 'file');
   });
 
   it('calls upload with the chosen file and the currently typed alt text', async () => {
@@ -52,7 +52,7 @@ describe('UploadField', () => {
     render(<UploadField onUploaded={vi.fn()} />);
 
     await user.type(screen.getByLabelText(/alt text/i), 'A couple at dusk.');
-    await user.upload(screen.getByLabelText(/photograph/i), FILE);
+    await user.upload(screen.getByLabelText(/choose images/i), FILE);
 
     expect(upload).toHaveBeenCalledWith(FILE, { altText: 'A couple at dusk.' });
   });
@@ -64,9 +64,9 @@ describe('UploadField', () => {
     const user = userEvent.setup();
     render(<UploadField onUploaded={onUploaded} />);
 
-    await user.upload(screen.getByLabelText(/photograph/i), FILE);
+    await user.upload(screen.getByLabelText(/choose images/i), FILE);
 
-    expect(onUploaded).toHaveBeenCalledWith(MEDIA_ROW);
+    expect(onUploaded).toHaveBeenCalledWith(MEDIA_ROW, expect.any(File));
   });
 
   it('does not call onUploaded when upload resolves null (a failed attempt)', async () => {
@@ -76,7 +76,7 @@ describe('UploadField', () => {
     const user = userEvent.setup();
     render(<UploadField onUploaded={onUploaded} />);
 
-    await user.upload(screen.getByLabelText(/photograph/i), FILE);
+    await user.upload(screen.getByLabelText(/choose images/i), FILE);
 
     expect(onUploaded).not.toHaveBeenCalled();
   });
@@ -88,7 +88,7 @@ describe('UploadField', () => {
     render(<UploadField onUploaded={vi.fn()} />);
 
     expect(screen.getByLabelText(/alt text/i)).toBeDisabled();
-    expect(screen.getByLabelText(/photograph/i)).toBeDisabled();
+    expect(screen.getByLabelText(/choose images/i)).toBeDisabled();
     const progress = screen.getByRole('progressbar');
     expect(progress).toHaveAttribute('value', '65');
   });
@@ -102,7 +102,7 @@ describe('UploadField', () => {
     // The admin picks a file — this is what puts the File reference into
     // UploadField's own state, per CLAUDE.md's "a component's own local
     // state should never need to escape that component".
-    await user.upload(screen.getByLabelText(/photograph/i), FILE);
+    await user.upload(screen.getByLabelText(/choose images/i), FILE);
 
     // A real upload would now drive the hook's own status through to
     // 'error'; simulated here the same way SignInForm's test simulates a
@@ -170,6 +170,85 @@ describe('UploadField', () => {
     });
     render(<UploadField onUploaded={vi.fn()} />);
 
-    expect(screen.getByText(/uploaded/i)).toBeInTheDocument();
+    expect(screen.getByText(/^uploaded\.$/i)).toBeInTheDocument();
+  });
+});
+
+describe('UploadField — bulk queue', () => {
+  const img = (name) => new File(['bytes'], name, { type: 'image/jpeg' });
+  const row = (id) => ({ id, storagePath: `uploads/${id}.webp`, altText: '' });
+
+  it('renders a folder control by default and none when multiple is false', () => {
+    const { rerender } = render(<UploadField onUploaded={vi.fn()} />);
+    expect(screen.getByLabelText(/choose folder/i)).toBeInTheDocument();
+    rerender(<UploadField onUploaded={vi.fn()} multiple={false} />);
+    expect(screen.queryByLabelText(/choose folder/i)).toBeNull();
+    expect(screen.getByLabelText(/choose images/i)).not.toHaveAttribute('multiple');
+  });
+
+  it('uploads several selected images sequentially, firing onUploaded(media, file) per success', async () => {
+    const upload = vi.fn()
+      .mockResolvedValueOnce(row('m-1'))
+      .mockResolvedValueOnce(row('m-2'));
+    useMediaUpload.mockReturnValue({ ...IDLE, upload });
+    const onUploaded = vi.fn();
+    const user = userEvent.setup();
+    render(<UploadField onUploaded={onUploaded} />);
+
+    const a = img('a.jpg'); const b = img('b.jpg');
+    await user.upload(screen.getByLabelText(/choose images/i), [a, b]);
+
+    expect(upload).toHaveBeenCalledTimes(2);
+    expect(onUploaded).toHaveBeenNthCalledWith(1, row('m-1'), a);
+    expect(onUploaded).toHaveBeenNthCalledWith(2, row('m-2'), b);
+    await waitFor(() => expect(screen.getByText(/2 uploaded, 0 failed/i)).toBeInTheDocument());
+  });
+
+  it('a mid-queue failure does not stop the run and is summarized with retry', async () => {
+    const upload = vi.fn()
+      .mockResolvedValueOnce(row('m-1'))
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(row('m-3'));
+    useMediaUpload.mockReturnValue({
+      ...IDLE, upload, error: { code: 'UPLOAD_FAILED', stage: 'uploading' },
+    });
+    const user = userEvent.setup();
+    render(<UploadField onUploaded={vi.fn()} />);
+
+    await user.upload(screen.getByLabelText(/choose images/i), [img('a.jpg'), img('b.jpg'), img('c.jpg')]);
+
+    await waitFor(() => expect(screen.getByText(/2 uploaded, 1 failed/i)).toBeInTheDocument());
+    expect(screen.getByText(/b\.jpg/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry failed/i })).toBeInTheDocument();
+  });
+
+  it('skips non-image files in a folder selection and counts them', async () => {
+    const upload = vi.fn().mockResolvedValue(row('m-1'));
+    useMediaUpload.mockReturnValue({ ...IDLE, upload });
+    render(<UploadField onUploaded={vi.fn()} />);
+
+    // fireEvent.change with a hand-built file list, not user.upload: a folder
+    // selection legitimately carries non-image files, and user-event strips
+    // them by the input's accept before the component's own filter — which
+    // is the exact filter this test exercises.
+    const notes = new File(['x'], 'notes.txt', { type: 'text/plain' });
+    const input = screen.getByLabelText(/choose folder/i);
+    fireEvent.change(input, { target: { files: [img('a.jpg'), img('b.jpg'), notes] } });
+
+    await waitFor(() => expect(upload).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByText(/skipped 1 non-image file/i)).toBeInTheDocument());
+  });
+
+  it('a single-image selection keeps the classic behavior (no bulk summary)', async () => {
+    const upload = vi.fn().mockResolvedValue(row('m-1'));
+    useMediaUpload.mockReturnValue({ ...IDLE, upload });
+    const onUploaded = vi.fn();
+    const user = userEvent.setup();
+    render(<UploadField onUploaded={onUploaded} />);
+
+    await user.upload(screen.getByLabelText(/choose images/i), img('only.jpg'));
+
+    expect(onUploaded).toHaveBeenCalledWith(row('m-1'), expect.any(File));
+    expect(screen.queryByText(/uploaded, .* failed/i)).toBeNull();
   });
 });

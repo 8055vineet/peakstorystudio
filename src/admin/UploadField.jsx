@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useMediaUpload } from '../hooks/useMediaUpload';
 
@@ -71,35 +71,99 @@ function errorMessage(error) {
 // all four stages and leaves the earlier storage object orphaned, which is
 // accepted for this phase but must never happen without the admin asking
 // for it.
-export default function UploadField({ onUploaded }) {
+export default function UploadField({ onUploaded, multiple = true }) {
   const [file, setFile] = useState(null);
   const [altText, setAltText] = useState('');
+  // null = no bulk run has started; otherwise the current/last run's state.
+  const [run, setRun] = useState(null);
   const {
     status, progress, error, upload,
   } = useMediaUpload();
 
-  const fileId = useId();
   const altId = useId();
+  const imagesId = useId();
+  const folderId = useId();
   const errorId = useId();
 
-  const busy = BUSY_STATUSES.includes(status);
+  // The hook sets `error` via setState inside its own failure path; this ref
+  // mirrors it so the queue can read the just-failed file's reason after a
+  // flush, without depending on a stale render-time closure.
+  const errorRef = useRef(error);
+  useEffect(() => { errorRef.current = error; }, [error]);
+  const stopRef = useRef(false);
 
-  const runUpload = async (candidate) => {
+  const busy = BUSY_STATUSES.includes(status) || Boolean(run?.running);
+  const bulkActive = Boolean(run) && run.total > 1;
+  const skippedNote = run?.skipped
+    ? `Skipped ${run.skipped} non-image file(s).` : null;
+
+  // The classic single-file path, unchanged in effect: applies alt text and
+  // drives the per-stage progress + Retry Upload UI below.
+  const runSingle = async (candidate) => {
+    setRun(null);
+    setFile(candidate);
     const result = await upload(candidate, { altText });
-    if (result) onUploaded?.(result);
+    if (result) onUploaded?.(result, candidate);
   };
 
-  const handleFileChange = (e) => {
-    const selected = e.target.files?.[0] ?? null;
-    if (!selected) return;
-    setFile(selected);
-    runUpload(selected);
+  const flush = () => new Promise((resolve) => { setTimeout(resolve, 0); });
+
+  const runQueue = async (images, skipped) => {
+    stopRef.current = false;
+    const failures = [];
+    setRun({
+      total: images.length, index: 0, ok: 0, failures, running: true, stopped: false, skipped,
+    });
+    for (let i = 0; i < images.length; i += 1) {
+      if (stopRef.current) break;
+      setRun((r) => ({ ...r, index: i }));
+      const result = await upload(images[i]);
+      if (result) {
+        onUploaded?.(result, images[i]);
+        setRun((r) => ({ ...r, ok: r.ok + 1 }));
+      } else {
+        await flush();
+        failures.push({ file: images[i], name: images[i].name, message: errorMessage(errorRef.current) });
+        setRun((r) => ({ ...r, failures: [...failures] }));
+      }
+    }
+    setRun((r) => ({ ...r, running: false, stopped: stopRef.current }));
   };
 
-  const handleRetry = () => {
-    if (!file || busy) return;
-    runUpload(file);
+  const handleChosen = (fileList) => {
+    const all = Array.from(fileList);
+    const images = all.filter((f) => f.type.startsWith('image/'));
+    const skipped = all.length - images.length;
+    if (images.length === 0) {
+      setRun({
+        total: 0, index: 0, ok: 0, failures: [], running: false, stopped: false, skipped,
+      });
+      return;
+    }
+    if (images.length === 1) {
+      setRun(skipped ? {
+        total: 1, index: 0, ok: 0, failures: [], running: false, stopped: false, skipped,
+      } : null);
+      runSingle(images[0]);
+      return;
+    }
+    runQueue(images, skipped);
   };
+
+  const onInputChange = (e) => {
+    if (e.target.files?.length) handleChosen(e.target.files);
+    // Clear so choosing the same files again re-fires change.
+    e.target.value = '';
+  };
+
+  const handleRetrySingle = () => { if (file && !busy) runSingle(file); };
+  const handleRetryFailed = () => {
+    const files = (run?.failures ?? []).map((f) => f.file);
+    if (files.length) runQueue(files, 0);
+  };
+  const handleStop = () => { stopRef.current = true; };
+
+  const controlClass = `px-4 py-2.5 rounded-lg border border-pitch-900/20 text-pitch-900 text-xs uppercase tracking-widest font-semibold cursor-pointer hover:bg-offwhite-200 transition-colors ${busy ? 'opacity-60 pointer-events-none' : ''}`;
 
   return (
     <div className="space-y-4">
@@ -115,39 +179,90 @@ export default function UploadField({ onUploaded }) {
           type="text"
           value={altText}
           onChange={(e) => setAltText(e.target.value)}
-          disabled={busy}
+          disabled={busy || bulkActive}
           placeholder="Describe the photograph for screen readers"
           className="w-full px-4 py-3 rounded-lg bg-offwhite-100 border border-pitch-900/15 text-pitch-900 text-sm focus:outline-none focus:border-pitch-900 disabled:opacity-60"
         />
         {/* Not enforced as required — see the module comment on
-            src/lib/queries/media.js's createMedia: a validation rule here
-            would only earn a typed "x", not a real description. Media with
-            an empty alt_text is flagged in MediaPicker's list instead, so it
-            can be fixed after the fact. */}
+            src/lib/queries/media.js's createMedia. For a bulk selection there
+            is no single subject to describe, so alt text is a single-upload
+            affordance; bulk-uploaded media is flagged in the list to fix
+            after the fact, the same way a blank single upload is. */}
         <p className="mt-1 text-xs text-charcoal-500">
-          Optional — a photograph with no alt text is flagged in the media list until one is added.
+          Alt text applies to single uploads — bulk-uploaded photographs are flagged in the media list until one is added.
         </p>
       </div>
 
-      <div>
-        <label
-          htmlFor={fileId}
-          className="block text-xs uppercase tracking-widest text-pitch-900 mb-2 font-semibold"
-        >
-          Photograph
-        </label>
+      <div className="flex flex-wrap gap-3">
+        <label htmlFor={imagesId} className={controlClass}>Choose images</label>
         <input
-          id={fileId}
+          id={imagesId}
           type="file"
           accept="image/*"
-          onChange={handleFileChange}
+          multiple={multiple}
+          onChange={onInputChange}
           disabled={busy}
           aria-describedby={status === 'error' ? errorId : undefined}
-          className="w-full text-sm text-pitch-900 disabled:opacity-60"
+          className="sr-only"
         />
+        {multiple && (
+          <>
+            <label htmlFor={folderId} className={controlClass}>Choose folder</label>
+            <input
+              id={folderId}
+              type="file"
+              accept="image/*"
+              multiple
+              webkitdirectory=""
+              onChange={onInputChange}
+              disabled={busy}
+              className="sr-only"
+            />
+          </>
+        )}
       </div>
 
-      {busy && (
+      {skippedNote && <p className="text-xs text-charcoal-500">{skippedNote}</p>}
+
+      {bulkActive && run.running && (
+        <div aria-live="polite" className="space-y-1">
+          <p className="text-xs font-semibold text-pitch-900">
+            Uploading {Math.min(run.index + 1, run.total)} of {run.total}…
+          </p>
+          <progress value={progress} max={100} aria-label="Upload progress" className="w-full h-2" />
+          <button
+            type="button"
+            onClick={handleStop}
+            className="mt-1 px-4 py-1.5 rounded-lg border border-pitch-900/20 text-pitch-900 text-[10px] uppercase tracking-widest font-semibold hover:bg-offwhite-200 transition-colors"
+          >
+            Stop
+          </button>
+        </div>
+      )}
+
+      {bulkActive && !run.running && (
+        <div role="status" className="p-4 rounded-lg border border-pitch-900/20 bg-offwhite-50 space-y-2">
+          <p className="text-xs font-bold text-pitch-900">
+            {run.ok} uploaded, {run.failures.length} failed:{run.stopped ? ' (stopped)' : ''}
+          </p>
+          {run.failures.length > 0 && (
+            <ul className="text-xs text-charcoal-700 space-y-0.5">
+              {run.failures.map((f) => <li key={f.name}>{f.name} — {f.message}</li>)}
+            </ul>
+          )}
+          {run.failures.length > 0 && (
+            <button
+              type="button"
+              onClick={handleRetryFailed}
+              className="px-4 py-2 rounded-lg bg-pitch-900 text-offwhite-50 text-xs uppercase tracking-widest font-semibold hover:bg-pitch-800 transition-colors"
+            >
+              Retry failed
+            </button>
+          )}
+        </div>
+      )}
+
+      {!bulkActive && busy && (
         <div aria-live="polite" className="space-y-1">
           <p className="text-xs font-semibold text-pitch-900">{PROGRESS_LABELS[status]}</p>
           <progress
@@ -159,14 +274,14 @@ export default function UploadField({ onUploaded }) {
         </div>
       )}
 
-      {status === 'done' && !busy && (
+      {!bulkActive && status === 'done' && !busy && (
         <p className="flex items-center gap-2 text-xs font-semibold text-pitch-900">
           <CheckCircle2 className="w-4 h-4" aria-hidden="true" />
           Uploaded.
         </p>
       )}
 
-      {status === 'error' && error && (
+      {!bulkActive && status === 'error' && error && (
         <div
           id={errorId}
           role="alert"
@@ -179,7 +294,7 @@ export default function UploadField({ onUploaded }) {
           <p className="text-xs text-charcoal-700">{errorMessage(error)}</p>
           <button
             type="button"
-            onClick={handleRetry}
+            onClick={handleRetrySingle}
             disabled={!file}
             className="px-4 py-2 rounded-lg bg-pitch-900 text-offwhite-50 text-xs uppercase tracking-widest font-semibold hover:bg-pitch-800 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >

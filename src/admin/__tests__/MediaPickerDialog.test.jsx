@@ -59,7 +59,7 @@ describe('MediaPickerDialog', () => {
     const dialog = screen.getByRole('dialog', { name: 'Choose a photograph' });
     expect(dialog).toHaveAttribute('aria-modal', 'true');
     expect(screen.getByRole('searchbox')).toHaveFocus();
-    expect(screen.getByLabelText(/^photograph$/i)).toHaveAttribute('type', 'file');
+    expect(screen.getByLabelText(/choose images/i)).toHaveAttribute('type', 'file');
     expect(screen.getAllByRole('button', { name: /select photograph:/i })).toHaveLength(2);
     expect(screen.getByText('2 of 2 photographs')).toBeInTheDocument();
   });

@@ -154,7 +154,7 @@ describe('WeddingPhotos', () => {
       await user.click(screen.getByRole('button', { name: /add photographs/i }));
 
       const file = new File(['bytes'], 'photo.jpg', { type: 'image/jpeg' });
-      await user.upload(screen.getByLabelText(/^photograph$/i), file);
+      await user.upload(screen.getByLabelText(/choose images/i), file);
 
       await waitFor(() => expect(addWeddingPhoto).toHaveBeenCalledWith('wedding-1', 'media-new'));
     });

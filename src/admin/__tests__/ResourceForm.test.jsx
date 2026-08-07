@@ -458,7 +458,7 @@ describe('ResourceForm', () => {
 
       await user.click(screen.getByRole('button', { name: /choose photograph/i }));
       const file = new File(['bytes'], 'photo.jpg', { type: 'image/jpeg' });
-      await user.upload(screen.getByLabelText(/^photograph$/i), file);
+      await user.upload(screen.getByLabelText(/choose images/i), file);
       expect(screen.queryByRole('dialog')).toBeNull();
 
       await user.type(screen.getByLabelText(/^name/i), 'Widget One');

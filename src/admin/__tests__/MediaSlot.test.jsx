@@ -97,7 +97,7 @@ describe('MediaSlot', () => {
     render(<MediaSlot {...props} />);
     await user.click(screen.getByRole('button', { name: /choose photograph/i }));
     const file = new File(['bytes'], 'photo.jpg', { type: 'image/jpeg' });
-    await user.upload(screen.getByLabelText(/^photograph$/i), file);
+    await user.upload(screen.getByLabelText(/choose images/i), file);
     expect(props.onUploaded).toHaveBeenCalledWith(expect.objectContaining({ id: 'media-new' }));
     expect(props.onChange).toHaveBeenCalledWith('media-new');
     expect(screen.queryByRole('dialog')).toBeNull();
