@@ -5,6 +5,11 @@ import { useScrollToTop } from './useScrollToTop.js';
 import { listInquiries, updateInquiryStatus } from '../lib/queries/adminInquiries';
 import { listMedia } from '../lib/queries/media';
 import { getSettingsRow, updateSiteSettings } from '../lib/queries/adminSettings';
+import {
+  listGalleryCategories, addGalleryCategory, renameGalleryCategory,
+  reorderGalleryCategories, removeGalleryCategory,
+} from '../lib/queries/adminGalleryCategories';
+import ManagedList from './ManagedList.jsx';
 import SettingsForm from './SettingsForm.jsx';
 import DashboardOverview from './DashboardOverview.jsx';
 import CreatedDraftBanner from './CreatedDraftBanner.jsx';
@@ -341,6 +346,46 @@ function GalleryDashboard({ prefillMediaId = null }) {
   const {
     items, status, error, reload, mutate,
   } = useResource(galleryQueries);
+  // The managed category vocabulary (Phase 3e): one more useResource
+  // instance, feeding both the "Manage categories" panel and the photo
+  // form's Category select. Rename goes through the atomic RPC; remove
+  // refuses (with a count) while photos still use the name.
+  const categoriesQueries = useMemo(() => ({
+    list: listGalleryCategories,
+    add: addGalleryCategory,
+    rename: renameGalleryCategory,
+    reorder: reorderGalleryCategories,
+    remove: removeGalleryCategory,
+  }), []);
+  const {
+    items: categories, status: categoriesStatus, error: categoriesError,
+    reload: reloadCategories, mutate: mutateCategories,
+  } = useResource(categoriesQueries);
+  const [categoriesActionError, setCategoriesActionError] = useState(null);
+
+  async function runCategoriesAction(name, ...args) {
+    setCategoriesActionError(null);
+    try {
+      await mutateCategories(name, ...args);
+    } catch (err) {
+      setCategoriesActionError({ message: err?.message || 'unknown error' });
+    }
+  }
+
+  // The photo form's Category select tracks the managed list; until it has
+  // loaded, the static config (with the shipped options) keeps the form
+  // usable rather than optionless.
+  const formConfig = useMemo(() => {
+    if (!categories.length) return galleryResource;
+    return {
+      ...galleryResource,
+      fields: galleryResource.fields.map((field) => (
+        field.name === 'category'
+          ? { ...field, options: categories.map((c) => ({ value: c.name, label: c.name })) }
+          : field
+      )),
+    };
+  }, [categories]);
   // A prefilled media id (the Media Library's "Add to Gallery") opens this
   // tab straight onto the create form with that photograph selected. Read
   // once, in the initializer — the tab remounts on every entry, so this
@@ -392,7 +437,7 @@ function GalleryDashboard({ prefillMediaId = null }) {
         </h1>
         <ResourceForm
           key={`gallery-form-${view.item?.id ?? 'new'}`}
-          config={galleryResource}
+          config={formConfig}
           initial={view.item}
           onSubmit={handleSubmit}
           onCancel={() => setView({ mode: 'list' })}
@@ -406,6 +451,19 @@ function GalleryDashboard({ prefillMediaId = null }) {
   return (
     <div>
       <h1 className="font-cinzel text-2xl font-bold text-pitch-900 mb-6">Gallery</h1>
+      <ManagedList
+        title="Manage categories"
+        itemNoun="category"
+        items={categories}
+        status={categoriesStatus}
+        error={categoriesError}
+        onRetry={reloadCategories}
+        onAdd={(name) => runCategoriesAction('add', name)}
+        onRename={(item, next) => runCategoriesAction('rename', item.name, next)}
+        onReorder={(ids) => runCategoriesAction('reorder', ids)}
+        onDelete={(item) => runCategoriesAction('remove', item.id, item.name)}
+        actionError={categoriesActionError}
+      />
       {justCreated && (
         <CreatedDraftBanner
           label={justCreated.title ?? justCreated.couple ?? ''}

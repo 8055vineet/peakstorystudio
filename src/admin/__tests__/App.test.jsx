@@ -44,6 +44,11 @@ const addCollectionPhoto = vi.fn();
 const addCollectionVideo = vi.fn();
 const removeCollectionItem = vi.fn();
 const reorderCollectionItems = vi.fn();
+const listGalleryCategories = vi.fn();
+const addGalleryCategory = vi.fn();
+const renameGalleryCategory = vi.fn();
+const reorderGalleryCategories = vi.fn();
+const removeGalleryCategory = vi.fn();
 
 vi.mock('../../hooks/useSession', () => ({
   useSession: (...args) => useSession(...args),
@@ -165,7 +170,9 @@ vi.mock('../resources/gallery.js', () => ({
         name: 'mediaId', label: 'Photograph', type: 'media', required: false, emptyValue: null,
       },
       { name: 'title', label: 'Title', type: 'text', required: true },
-      { name: 'category', label: 'Category', type: 'text', required: true },
+      {
+        name: 'category', label: 'Category', type: 'select', required: true, options: [],
+      },
       {
         name: 'sortOrder', label: 'Order', type: 'number', required: false, emptyValue: 0,
       },
@@ -276,6 +283,14 @@ vi.mock('../../lib/queries/adminCollectionItems', () => ({
   reorderCollectionItems: (...args) => reorderCollectionItems(...args),
 }));
 
+vi.mock('../../lib/queries/adminGalleryCategories', () => ({
+  listGalleryCategories: (...args) => listGalleryCategories(...args),
+  addGalleryCategory: (...args) => addGalleryCategory(...args),
+  renameGalleryCategory: (...args) => renameGalleryCategory(...args),
+  reorderGalleryCategories: (...args) => reorderGalleryCategories(...args),
+  removeGalleryCategory: (...args) => removeGalleryCategory(...args),
+}));
+
 const { default: App } = await import('../App.jsx');
 
 const baseState = {
@@ -318,6 +333,17 @@ beforeEach(() => {
   testimonialsUpdate.mockReset();
   testimonialsRemove.mockReset();
   testimonialsReorder.mockReset();
+  listGalleryCategories.mockReset();
+  addGalleryCategory.mockReset();
+  renameGalleryCategory.mockReset();
+  reorderGalleryCategories.mockReset();
+  removeGalleryCategory.mockReset();
+  listGalleryCategories.mockResolvedValue([
+    { id: 'cat-1', name: 'Pre-Wedding', sortOrder: 0 },
+    { id: 'cat-2', name: 'Wedding', sortOrder: 1 },
+    { id: 'cat-3', name: 'Engagement', sortOrder: 2 },
+    { id: 'cat-4', name: 'Haldi & Mehendi', sortOrder: 3 },
+  ]);
   collectionsList.mockReset();
   collectionsCreate.mockReset();
   collectionsUpdate.mockReset();
@@ -890,10 +916,10 @@ describe('admin App shell', () => {
     }
 
     const PHOTO_A = {
-      id: 'gallery-1', title: 'Palace Steps', category: 'Royal', sortOrder: 0, status: 'draft',
+      id: 'gallery-1', title: 'Palace Steps', category: 'Wedding', sortOrder: 0, status: 'draft',
     };
     const PHOTO_B = {
-      id: 'gallery-2', title: 'Garden Toast', category: 'Candid', sortOrder: 1, status: 'published',
+      id: 'gallery-2', title: 'Garden Toast', category: 'Engagement', sortOrder: 1, status: 'published',
     };
 
     it('switches to the gallery tab and lists gallery photos via galleryQueries.list, not before', async () => {
@@ -937,13 +963,15 @@ describe('admin App shell', () => {
       expect(screen.getByRole('heading', { name: /add gallery photo/i })).toBeInTheDocument();
 
       await user.type(screen.getByLabelText(/^title/i), 'Palace Steps');
-      await user.type(screen.getByLabelText(/^category/i), 'Royal');
+      // Options arrive from the managed categories list once it resolves.
+      await waitFor(() => expect(screen.getByRole('option', { name: 'Wedding' })).toBeInTheDocument());
+      await user.selectOptions(screen.getByLabelText(/^category/i), 'Wedding');
 
       galleryList.mockResolvedValueOnce([PHOTO_A]);
       await user.click(screen.getByRole('button', { name: /create/i }));
 
       await waitFor(() => expect(galleryCreate).toHaveBeenCalledWith(expect.objectContaining({
-        title: 'Palace Steps', category: 'Royal',
+        title: 'Palace Steps', category: 'Wedding',
       })));
       await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /^gallery$/i })).toBeInTheDocument());
 
@@ -960,7 +988,7 @@ describe('admin App shell', () => {
     it('edits a gallery photo through ResourceForm, prefilling its values, and calls galleryQueries.update with its id', async () => {
       const { default: userEvent } = await import('@testing-library/user-event');
       galleryList.mockResolvedValue([PHOTO_A]);
-      galleryUpdate.mockResolvedValue({ ...PHOTO_A, category: 'Candid' });
+      galleryUpdate.mockResolvedValue({ ...PHOTO_A, category: 'Engagement' });
       signIn();
       render(<App />);
       const user = userEvent.setup();
@@ -969,15 +997,14 @@ describe('admin App shell', () => {
 
       await user.click(screen.getByRole('button', { name: /edit/i }));
       expect(screen.getByRole('heading', { name: /edit gallery photo/i })).toBeInTheDocument();
-      expect(screen.getByLabelText(/^category/i)).toHaveValue('Royal');
+      await waitFor(() => expect(screen.getByLabelText(/^category/i)).toHaveValue('Wedding'));
 
-      await user.clear(screen.getByLabelText(/^category/i));
-      await user.type(screen.getByLabelText(/^category/i), 'Candid');
+      await user.selectOptions(screen.getByLabelText(/^category/i), 'Engagement');
 
-      galleryList.mockResolvedValueOnce([{ ...PHOTO_A, category: 'Candid' }]);
+      galleryList.mockResolvedValueOnce([{ ...PHOTO_A, category: 'Engagement' }]);
       await user.click(screen.getByRole('button', { name: /save changes/i }));
 
-      await waitFor(() => expect(galleryUpdate).toHaveBeenCalledWith('gallery-1', expect.objectContaining({ category: 'Candid' })));
+      await waitFor(() => expect(galleryUpdate).toHaveBeenCalledWith('gallery-1', expect.objectContaining({ category: 'Engagement' })));
     });
 
     it('a failed edit keeps the form open and shows the failure — no optimistic return to the list', async () => {
@@ -1009,7 +1036,9 @@ describe('admin App shell', () => {
       await waitFor(() => expect(screen.getByText('Palace Steps')).toBeInTheDocument());
 
       galleryList.mockResolvedValueOnce([]);
-      await user.click(screen.getByRole('button', { name: /delete/i }));
+      // Scoped to the photo table — the Manage categories panel above the
+      // list carries its own Delete buttons now.
+      await user.click(within(screen.getByRole('table')).getByRole('button', { name: /delete/i }));
 
       expect(confirmSpy).toHaveBeenCalled();
       expect(galleryRemove).toHaveBeenCalledWith('gallery-1');
@@ -1490,6 +1519,83 @@ describe('admin App shell', () => {
       await user.click(screen.getByRole('button', { name: /cancel/i }));
       await user.click(screen.getByRole('button', { name: /add new/i }));
       expect(screen.queryByRole('button', { name: /add photographs/i })).toBeNull();
+    });
+  });
+
+  describe('Gallery categories manager', () => {
+    function signIn() {
+      useSession.mockReturnValue({
+        ...baseState,
+        status: 'authenticated',
+        session: { user: { id: 'user-2', email: 'admin@example.test' } },
+        profile: { userId: 'user-2', role: 'admin', displayName: 'Studio Director' },
+      });
+    }
+
+    async function openGallery(user) {
+      const nav = screen.getByRole('navigation', { name: /admin sections/i });
+      await user.click(within(nav).getByRole('button', { name: 'Gallery' }));
+      await waitFor(() => expect(screen.getByText('Manage categories')).toBeInTheDocument());
+    }
+
+    it('shows the manager with the managed list and adds a new category', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      galleryList.mockResolvedValue([]);
+      addGalleryCategory.mockResolvedValue({ name: 'Travel Diaries', sortOrder: 4 });
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await openGallery(user);
+
+      expect(screen.getByText('Haldi & Mehendi')).toBeInTheDocument();
+      await user.type(screen.getByLabelText(/new category/i), 'Travel Diaries');
+      await user.click(screen.getByRole('button', { name: /^add$/i }));
+      await waitFor(() => expect(addGalleryCategory).toHaveBeenCalledWith('Travel Diaries'));
+    });
+
+    it("the photo form's Category select offers the managed list's names", async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      galleryList.mockResolvedValue([]);
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await openGallery(user);
+
+      await user.click(screen.getByRole('button', { name: /add new/i }));
+      expect(screen.getByRole('option', { name: 'Haldi & Mehendi' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Engagement' })).toBeInTheDocument();
+    });
+
+    it('renames through the atomic RPC path', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      galleryList.mockResolvedValue([]);
+      renameGalleryCategory.mockResolvedValue({ name: 'Pre Wedding Shoots' });
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await openGallery(user);
+
+      await user.click(screen.getAllByRole('button', { name: /^rename$/i })[0]);
+      const input = screen.getByDisplayValue('Pre-Wedding');
+      await user.clear(input);
+      await user.type(input, 'Pre Wedding Shoots');
+      await user.click(screen.getByRole('button', { name: /^save$/i }));
+      await waitFor(() => expect(renameGalleryCategory).toHaveBeenCalledWith('Pre-Wedding', 'Pre Wedding Shoots'));
+    });
+
+    it('surfaces the delete refusal with its photograph count', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      galleryList.mockResolvedValue([]);
+      removeGalleryCategory.mockRejectedValue(new Error('Cannot delete "Wedding" — 24 photograph(s) still use it.'));
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await openGallery(user);
+
+      await user.click(screen.getAllByRole('button', { name: /^delete$/i })[1]);
+      await waitFor(() => expect(screen.getByText(/24 photograph\(s\) still use it/i)).toBeInTheDocument());
+      confirmSpy.mockRestore();
     });
   });
 });
