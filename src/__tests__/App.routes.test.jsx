@@ -36,6 +36,7 @@ vi.mock('../hooks/useContent', () => ({
         address: 'Settings Street 1', email: 'settings@example.test', phone: '+91 11111 11111',
         whatsappNumber: '911111111111', instagramUrl: '', youtubeUrl: '',
       },
+      fonts: { heading: 'Playfair Display', body: 'Inter' },
     },
     loading: false,
     error: null,
@@ -56,6 +57,12 @@ describe('routing', () => {
   ])('%s renders its page', (path, testId) => {
     renderAt(path);
     expect(screen.getByTestId(testId)).toBeInTheDocument();
+  });
+
+  it('applies the admin-chosen fonts as CSS variables on the document', () => {
+    renderAt('/');
+    expect(document.documentElement.style.getPropertyValue('--font-heading')).toContain('Playfair Display');
+    expect(document.documentElement.style.getPropertyValue('--font-body')).toContain('Inter');
   });
 
   it('an unknown URL renders the not-found page with a way home', () => {

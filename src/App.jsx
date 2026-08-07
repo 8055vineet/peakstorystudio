@@ -48,6 +48,16 @@ export default function App() {
     }
   }, [user]);
 
+  // Apply the admin-chosen fonts site-wide (Phase 3g). Tailwind's
+  // font-garamond/font-sans roles read these variables, falling back to the
+  // shipped families when unset. Guarded so an outage/fallback with no fonts
+  // key leaves the Tailwind default in place.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (settings.fonts?.heading) root.style.setProperty('--font-heading', `"${settings.fonts.heading}"`);
+    if (settings.fonts?.body) root.style.setProperty('--font-body', `"${settings.fonts.body}"`);
+  }, [settings.fonts?.heading, settings.fonts?.body]);
+
   const [lightboxState, setLightboxState] = useState({
     isOpen: false,
     activeUrl: '',
