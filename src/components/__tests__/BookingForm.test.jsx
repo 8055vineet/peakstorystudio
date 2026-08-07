@@ -261,4 +261,10 @@ describe('BookingForm', () => {
 
     expect(screen.getByText(/about 5 minutes/i)).toBeInTheDocument();
   });
+
+  it('renders service buttons from the services prop', () => {
+    render(<BookingForm services={['Cinematic Film', 'Skywriting']} />);
+    expect(screen.getByRole('button', { name: /skywriting/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /drone aerials/i })).toBeNull();
+  });
 });

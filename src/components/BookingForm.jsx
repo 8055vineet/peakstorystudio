@@ -78,7 +78,7 @@ function FieldError({ id, message }) {
   );
 }
 
-export default function BookingForm({ contact = SITE_SETTINGS_FALLBACK.contact }) {
+export default function BookingForm({ contact = SITE_SETTINGS_FALLBACK.contact, services = SERVICES }) {
   const [formData, setFormData] = useState(EMPTY_FORM);
   const [clientErrors, setClientErrors] = useState({});
   const {
@@ -387,7 +387,7 @@ export default function BookingForm({ contact = SITE_SETTINGS_FALLBACK.contact }
                         Services Requested
                       </label>
                       <div className="grid grid-cols-2 gap-3">
-                        {SERVICES.map((service) => {
+                        {services.map((service) => {
                           const isSelected = formData.services.includes(service);
                           return (
                             <button

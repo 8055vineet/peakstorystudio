@@ -15,7 +15,10 @@ import LightboxModal from './components/LightboxModal';
 import AuthModal from './components/AuthModal';
 import ClientGalleryModal from './components/ClientGalleryModal';
 
-import { useWeddings, useGalleryPhotos, useFilms, useTestimonials, useSiteSettings } from './hooks/useContent';
+import {
+  useWeddings, useGalleryPhotos, useFilms, useTestimonials, useSiteSettings,
+  useGalleryCategories, useBookingServices,
+} from './hooks/useContent';
 
 export default function App() {
   const { data: stories } = useWeddings();
@@ -23,6 +26,8 @@ export default function App() {
   const { data: films } = useFilms();
   const { data: testimonials } = useTestimonials();
   const { data: settings } = useSiteSettings();
+  const { data: galleryCategories } = useGalleryCategories();
+  const { data: bookingServices } = useBookingServices();
 
   const [user, setUser] = useState(() => {
     try {
@@ -109,7 +114,7 @@ export default function App() {
               />
             }
           />
-          <Route path="gallery" element={<GalleryPage photos={photos} onOpenLightbox={handleOpenLightbox} />} />
+          <Route path="gallery" element={<GalleryPage photos={photos} onOpenLightbox={handleOpenLightbox} categoryOrder={galleryCategories} />} />
           <Route path="films" element={<FilmsPage films={films} onOpenVideoModal={(url) => setVideoModalUrl(url)} />} />
           <Route
             path="stories"
@@ -122,7 +127,7 @@ export default function App() {
             }
           />
           <Route path="about" element={<AboutPage testimonials={testimonials} brandStory={settings.brandStory} portraitImage={settings.images.brandStory} />} />
-          <Route path="contact" element={<ContactPage contact={settings.contact} />} />
+          <Route path="contact" element={<ContactPage contact={settings.contact} services={bookingServices} />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

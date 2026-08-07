@@ -1,5 +1,6 @@
 import React from 'react';
 import ScrollReveal from './ScrollReveal';
+import { GALLERY_CATEGORY_FALLBACK } from '../data/galleryCategories';
 
 // The gallery as ceremony sections: a quiet uppercase label per ceremony,
 // then the photographs as a dense grid of square tiles — sharp corners, no
@@ -8,15 +9,15 @@ import ScrollReveal from './ScrollReveal';
 // Density matters here: 64 natural-height photographs two-up produced a
 // 24,000px page where visitors never discovered the later sections. A
 // category renders only when it has photographs, so an unpublished set
-// leaves no gap. Categories the order list doesn't know (added later
-// through the admin) append after the known ones rather than disappearing.
-const SECTION_ORDER = ['Pre-Wedding', 'Wedding', 'Engagement', 'Haldi & Mehendi'];
-
-export default function PhotoGallery({ photos, onOpenLightbox }) {
+// leaves no gap. Section order comes from the admin-managed category list
+// (`categoryOrder`, defaulting to the shipped fallback when the database is
+// unreachable); categories the order list doesn't know append after the
+// known ones rather than disappearing.
+export default function PhotoGallery({ photos, onOpenLightbox, categoryOrder = GALLERY_CATEGORY_FALLBACK }) {
   const categories = [...new Set(photos.map((p) => p.category))].sort((a, b) => {
-    const ia = SECTION_ORDER.indexOf(a);
-    const ib = SECTION_ORDER.indexOf(b);
-    return (ia === -1 ? SECTION_ORDER.length : ia) - (ib === -1 ? SECTION_ORDER.length : ib);
+    const ia = categoryOrder.indexOf(a);
+    const ib = categoryOrder.indexOf(b);
+    return (ia === -1 ? categoryOrder.length : ia) - (ib === -1 ? categoryOrder.length : ib);
   });
 
   return (

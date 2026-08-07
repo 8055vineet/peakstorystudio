@@ -23,6 +23,17 @@ describe('PhotoGallery', () => {
     expect(onOpenLightbox).toHaveBeenCalledWith('/images/gallery/wedding/2.jpg', 2, SAMPLE);
   });
 
+  it('orders sections by the categoryOrder prop, unknown names appended', () => {
+    const photos = [
+      { id: '1', url: '/images/a.jpg', category: 'Wedding', title: 'w' },
+      { id: '2', url: '/images/b.jpg', category: 'Travel Diaries', title: 't' },
+      { id: '3', url: '/images/c.jpg', category: 'Pre-Wedding', title: 'p' },
+    ];
+    render(<PhotoGallery photos={photos} onOpenLightbox={vi.fn()} categoryOrder={['Wedding', 'Pre-Wedding']} />);
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(headings).toEqual(['Wedding', 'Pre-Wedding', 'Travel Diaries']);
+  });
+
   it('renders a quiet empty state rather than crashing when the list is empty', () => {
     render(<PhotoGallery photos={[]} onOpenLightbox={vi.fn()} />);
     expect(screen.getByText('Photographs are on their way.')).toBeInTheDocument();

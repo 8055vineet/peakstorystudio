@@ -9,6 +9,9 @@ vi.mock('../hooks/useContent', () => ({
   useGalleryPhotos: () => ({ data: [], loading: false, error: null }),
   useFilms: () => ({ data: [], loading: false, error: null }),
   useTestimonials: () => ({ data: [], loading: false, error: null }),
+  useGalleryCategories: () => ({ data: ['Pre-Wedding', 'Wedding', 'Engagement', 'Haldi & Mehendi'], loading: false, error: null }),
+  useBookingServices: () => ({ data: ['Cinematic Film', 'Fine Art Photography', 'Drone Aerials', 'Pre-Wedding Shoot'], loading: false, error: null }),
+  useCollections: () => ({ data: [], loading: false, error: null }),
   useSiteSettings: () => ({
     data: {
       quote: { text: 'A settings-driven quote for testing.', credit: 'by tester' },
