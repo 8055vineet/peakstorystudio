@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from '../hooks/useSession';
 import { useResource } from '../hooks/useResource';
 import { useScrollToTop } from './useScrollToTop.js';
@@ -14,6 +14,7 @@ import {
   reorderBookingServices, removeBookingService,
 } from '../lib/queries/adminBookingServices';
 import ManagedList from './ManagedList.jsx';
+import BulkGalleryAdd from './BulkGalleryAdd.jsx';
 import SettingsForm from './SettingsForm.jsx';
 import DashboardOverview from './DashboardOverview.jsx';
 import CreatedDraftBanner from './CreatedDraftBanner.jsx';
@@ -420,6 +421,66 @@ function GalleryDashboard({ prefillMediaId = null }) {
     }
   }
 
+  // Bulk add to Gallery: each uploaded photograph becomes a draft gallery
+  // row. The run's created ids (for Publish all) and the upload-succeeded-
+  // but-row-failed split are tracked in a ref so per-file callbacks don't
+  // each need the latest state; the summary is the rendered mirror.
+  const bulkRunRef = useRef({
+    createdIds: [], nextSort: 0, notAdded: 0, category: '',
+  });
+  const [bulkSummary, setBulkSummary] = useState(null);
+  const [bulkPublishing, setBulkPublishing] = useState(false);
+
+  async function handleBulkUpload(media, file, category) {
+    if (bulkRunRef.current.category !== category) {
+      const maxSort = items.reduce((m, it) => Math.max(m, it.sortOrder ?? 0), -1);
+      bulkRunRef.current = {
+        createdIds: [], nextSort: maxSort + 1, notAdded: 0, category,
+      };
+    }
+    const title = file.name.replace(/\.[^./\\]+$/, '');
+    try {
+      const rowSort = bulkRunRef.current.nextSort;
+      const created = await galleryQueries.create({
+        mediaId: media.id, title, category, sortOrder: rowSort,
+      });
+      bulkRunRef.current.createdIds.push(created.id);
+      bulkRunRef.current.nextSort = rowSort + 1;
+    } catch {
+      bulkRunRef.current.notAdded += 1;
+    }
+    setBulkSummary({
+      category,
+      created: bulkRunRef.current.createdIds.length,
+      notAdded: bulkRunRef.current.notAdded,
+    });
+    reload();
+  }
+
+  async function handleBulkPublishAll() {
+    setBulkPublishing(true);
+    try {
+      const ids = [...bulkRunRef.current.createdIds];
+      for (let i = 0; i < ids.length; i += 1) {
+        await galleryQueries.update(ids[i], { status: 'published' });
+      }
+      bulkRunRef.current = {
+        createdIds: [], nextSort: 0, notAdded: 0, category: '',
+      };
+      setBulkSummary(null);
+      reload();
+    } finally {
+      setBulkPublishing(false);
+    }
+  }
+
+  function dismissBulk() {
+    bulkRunRef.current = {
+      createdIds: [], nextSort: 0, notAdded: 0, category: '',
+    };
+    setBulkSummary(null);
+  }
+
   // The photo form's Category select tracks the managed list; until it has
   // loaded, the static config (with the shipped options) keeps the form
   // usable rather than optionless.
@@ -499,6 +560,14 @@ function GalleryDashboard({ prefillMediaId = null }) {
   return (
     <div>
       <h1 className="font-cinzel text-2xl font-bold text-pitch-900 mb-6">Gallery</h1>
+      <BulkGalleryAdd
+        categories={categories}
+        onUpload={handleBulkUpload}
+        pending={bulkPublishing}
+        summary={bulkSummary}
+        onPublishAll={handleBulkPublishAll}
+        onDismiss={dismissBulk}
+      />
       <ManagedList
         title="Manage categories"
         itemNoun="category"

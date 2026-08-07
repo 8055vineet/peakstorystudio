@@ -91,7 +91,13 @@ vi.mock('../../lib/queries/adminSettings', () => ({
 }));
 vi.mock('../../hooks/useMediaUpload', () => ({
   useMediaUpload: () => ({
-    status: 'idle', progress: 0, error: null, upload: vi.fn(), reset: vi.fn(),
+    status: 'idle',
+    progress: 0,
+    error: null,
+    // Resolves a distinct media row per call so the bulk-add flow (each
+    // upload → one gallery row) has real ids to work with.
+    upload: vi.fn(async () => ({ id: `media-${Math.random().toString(36).slice(2, 8)}`, storagePath: 'uploads/x.webp' })),
+    reset: vi.fn(),
   }),
 }));
 
@@ -1571,7 +1577,9 @@ describe('admin App shell', () => {
       const user = userEvent.setup();
       await openGallery(user);
 
-      expect(screen.getByText('Haldi & Mehendi')).toBeInTheDocument();
+      // The managed-list row renders as a <span>; scope to it since the new
+      // Bulk-add-to-Gallery select also lists the category as an <option>.
+      expect(screen.getByText('Haldi & Mehendi', { selector: 'span' })).toBeInTheDocument();
       await user.type(screen.getByLabelText(/new category/i), 'Travel Diaries');
       await user.click(screen.getByRole('button', { name: /^add$/i }));
       await waitFor(() => expect(addGalleryCategory).toHaveBeenCalledWith('Travel Diaries'));
@@ -1620,6 +1628,40 @@ describe('admin App shell', () => {
       await user.click(screen.getAllByRole('button', { name: /^delete$/i })[1]);
       await waitFor(() => expect(screen.getByText(/24 photograph\(s\) still use it/i)).toBeInTheDocument());
       confirmSpy.mockRestore();
+    });
+
+    it('bulk-adds uploaded photos as draft rows titled from the file name, then publishes all', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      galleryList.mockResolvedValue([]);
+      let created = 0;
+      galleryCreate.mockImplementation(async (payload) => {
+        created += 1;
+        return { id: `g-${created}`, ...payload, status: 'draft' };
+      });
+      galleryUpdate.mockResolvedValue({ status: 'published' });
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await openGallery(user);
+
+      expect(screen.getByText('Bulk add to Gallery')).toBeInTheDocument();
+      // Exact match: ManagedList also renders a "New category" input.
+      await user.selectOptions(screen.getByLabelText('Category'), 'Wedding');
+      await user.upload(screen.getByLabelText(/choose images/i), [
+        new File(['a'], 'haldi-1.jpg', { type: 'image/jpeg' }),
+        new File(['b'], 'haldi-2.jpg', { type: 'image/jpeg' }),
+      ]);
+
+      await waitFor(() => expect(galleryCreate).toHaveBeenCalledTimes(2));
+      expect(galleryCreate).toHaveBeenNthCalledWith(1, expect.objectContaining({
+        title: 'haldi-1', category: 'Wedding', mediaId: expect.any(String), sortOrder: 0,
+      }));
+      expect(galleryCreate).toHaveBeenNthCalledWith(2, expect.objectContaining({ title: 'haldi-2', sortOrder: 1 }));
+
+      await waitFor(() => expect(screen.getByText(/2 draft photos created in Wedding/i)).toBeInTheDocument());
+      await user.click(screen.getByRole('button', { name: /publish all 2/i }));
+      await waitFor(() => expect(galleryUpdate).toHaveBeenCalledWith('g-1', { status: 'published' }));
+      expect(galleryUpdate).toHaveBeenCalledWith('g-2', { status: 'published' });
     });
   });
 
