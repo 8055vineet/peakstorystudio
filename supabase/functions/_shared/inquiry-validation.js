@@ -24,6 +24,15 @@ export const SERVICES = [
   'Pre-Wedding Shoot',
 ];
 
+// The bookable services are admin-managed (the booking_services table) as
+// of Phase 3e, so this validator can no longer enforce a fixed allowlist —
+// SERVICES above remains only as the outage fallback the form renders.
+// What it enforces instead is shape: a bounded number of short, clean
+// strings. Anything a spammer could put here they could already put in
+// `message`.
+export const MAX_SERVICES = 12;
+export const SERVICE_MAX_LENGTH = 80;
+
 export const FIELD_LIMITS = {
   name: 100,
   email: 254,
@@ -137,14 +146,21 @@ export function validateInquiry(input, { today } = {}) {
   let services = [];
   if (source.services === undefined || source.services === null) {
     services = [];
-  } else if (!Array.isArray(source.services)) {
+  } else if (!Array.isArray(source.services) || source.services.length > MAX_SERVICES) {
     fields.services = 'Please choose from the services offered.';
   } else {
-    const chosen = source.services.map(text);
-    if (chosen.some((service) => !SERVICES.includes(service))) {
+    const cleaned = source.services.map(text);
+    if (cleaned.some((service) => !service || service.length > SERVICE_MAX_LENGTH)) {
       fields.services = 'Please choose from the services offered.';
     } else {
-      services = SERVICES.filter((service) => chosen.includes(service));
+      // Submitted order kept, duplicates dropped — with the allowlist gone
+      // there is no canonical order to normalise to any more.
+      const seen = new Set();
+      services = cleaned.filter((service) => {
+        if (seen.has(service)) return false;
+        seen.add(service);
+        return true;
+      });
     }
   }
 

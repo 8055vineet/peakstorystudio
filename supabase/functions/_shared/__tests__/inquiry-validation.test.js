@@ -82,9 +82,26 @@ describe('validateInquiry', () => {
     expect(result.fields[field]).toBeTruthy();
   });
 
-  it('rejects a service that is not offered', () => {
+  it('accepts services beyond the built-in list — the list is admin-managed now', () => {
     const result = validateInquiry(valid({ services: ['Skywriting'] }), { today: TODAY });
+    expect(result.fields.services).toBeUndefined();
+    expect(result.value.services).toEqual(['Skywriting']);
+  });
+
+  it('keeps submitted order and drops duplicates', () => {
+    const result = validateInquiry(valid({ services: ['Drone Aerials', 'Cinematic Film', 'Drone Aerials'] }), { today: TODAY });
+    expect(result.value.services).toEqual(['Drone Aerials', 'Cinematic Film']);
+  });
+
+  it('rejects more than 12 services', () => {
+    const many = Array.from({ length: 13 }, (_, i) => `Service ${i}`);
+    const result = validateInquiry(valid({ services: many }), { today: TODAY });
     expect(result.fields.services).toBeTruthy();
+  });
+
+  it('rejects a service over 80 characters or empty after cleaning', () => {
+    expect(validateInquiry(valid({ services: ['x'.repeat(81)] }), { today: TODAY }).fields.services).toBeTruthy();
+    expect(validateInquiry(valid({ services: ['   '] }), { today: TODAY }).fields.services).toBeTruthy();
   });
 
   it('rejects services that is not an array', () => {
