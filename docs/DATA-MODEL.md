@@ -163,7 +163,7 @@ decorative arrays that once added more Unsplash hotlinks of their own were remov
 
 Content is read from a local Postgres database (run via `supabase start`), not from
 `weddingData.js` — the one exception being the error-fallback role described above. The schema —
-nine tables — lives in `supabase/migrations/`:
+thirteen tables — lives in `supabase/migrations/`:
 
 - `20260730203451_initial_schema.sql` creates `media` (image records: storage path, width,
   height, `alt_text`, `blurhash`), `weddings` (one row per wedding story, with a `slug`), the
@@ -195,6 +195,32 @@ nine tables — lives in `supabase/migrations/`:
   row references). Read path: `src/lib/queries/siteSettings.js` → `useSiteSettings`
   (`src/hooks/useContent.js`), falling back to `src/data/siteSettingsFallback.js`; admin write
   path: `src/lib/queries/adminSettings.js` behind the Settings tab.
+- `20260807100000_admin_extensibility.sql` (Phase 3e) creates the four admin-extensible tables:
+  - **`collections`** — the admin-created "More" pages (`slug text unique`, `title`,
+    nullable `description`, `sort_order`, `status` draft/published). Policies mirror
+    `weddings`: anon reads published (`collections_read_published`), admins everything.
+  - **`collection_items`** — a page's content. Each row is a photograph (`media_id`) or a
+    video (`video_embed_url`, with `media_id` as its optional poster), never neither
+    (`check (media_id is not null or video_embed_url is not null)`); nullable `caption`;
+    `on delete cascade` from its collection. Anon reads items whose parent is published.
+  - **`gallery_categories`** — the managed vocabulary behind `gallery_photos.category`,
+    which deliberately **stays plain text** on the photos. `name text unique` + `sort_order`
+    (the public Gallery's section order). World-readable; admin-writable. Renames go through
+    **`rename_gallery_category(p_old, p_new)`** — a `security definer` RPC (admin-checked,
+    `grant execute` to `authenticated` only) that updates the category row AND every photo
+    naming it in one transaction, so a rename can never strand photos on a dead name. Deletes
+    are refused by the admin layer while photos still use the name (with a count).
+  - **`booking_services`** — the contact form's bookable services (`name text unique`,
+    `sort_order`). World-readable; admin-writable. Renames/removals change only what the form
+    offers going forward — stored inquiries keep their submitted wording, and the shared
+    inquiry validator now enforces shape (≤ 12 entries, each ≤ 80 clean characters) instead of
+    an allowlist. Both seeded with the previously hard-coded values.
+  Read paths: `src/lib/queries/collections.js`, `getGalleryCategories` in
+  `src/lib/queries/gallery.js`, `src/lib/queries/bookingServices.js`, behind `useCollections` /
+  `useGalleryCategories` / `useBookingServices` (fallbacks: hide the More menu, the four shipped
+  categories, the shared `SERVICES` constant). Admin write paths:
+  `src/lib/queries/adminCollectionItems.js`, `adminGalleryCategories.js`,
+  `adminBookingServices.js`.
 
 `inquiries.notification_status` is a text column, defaulting to `pending`, constrained to four
 values: `pending` (the row was written but no notification attempt has happened yet), `sent` (the

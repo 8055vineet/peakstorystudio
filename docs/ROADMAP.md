@@ -66,6 +66,20 @@ every admin navigation scrolls back to the top, and the open tab lives in the UR
 refresh restores it. See the
 [Phase 3d design spec](superpowers/specs/2026-08-05-admin-ux-polish-design.md).
 
+**Phase 3e — Admin extensibility** (`v0.4e`) made the three lists the studio will keep growing
+admin-managed, with no code change needed for any of them: a **Pages** tab creates new public
+pages ("Travels", and whatever comes later) that appear under a **More** navbar dropdown at
+`/more/<slug>` — each a Gallery-style grid of photographs and playable videos, draft-first
+like everything else; the Gallery tab gained a **Manage categories** panel (add, atomic
+rename via a database RPC, reorder — which now drives the public section order — and
+delete-while-unused); and Settings gained a **Booking services** panel feeding the contact
+form, with the server-side validator relaxed from a fixed allowlist to shape rules since the
+list is no longer fixed (historical inquiries keep their submitted wording). `npm run
+verify:admin` now proves all three round-trips — a page from draft to published to the public
+read path with cascade-delete verified, a category rename reaching the public list with the
+anon key refused by the RPC, and a service add reaching the form's source. See the
+[Phase 3e design spec](superpowers/specs/2026-08-07-admin-extensibility-design.md).
+
 ## Phase and version table
 
 | Version | Phase | Deliverable | Definition of done | Runs on |
@@ -79,6 +93,7 @@ refresh restores it. See the
 | **v0.4b** | 3b — Multi-page redesign | React Router pages per navbar option; full restyle to the owner's approved design; real Lucknow contact details | Each nav option is its own URL; no fabricated press/stat claims rendered by any component; suite green | local |
 | **v0.4c** | 3c — Admin CMS completion | `site_settings` table; Settings + Dashboard tabs; add-to-gallery; draft-state clarity | Every visitor-visible word and image is editable from the admin with no code change | local |
 | **v0.4d** | 3d — Admin UX polish | Full-screen searchable media picker dialog; compact photo slots in every form; list thumbnails; scroll-to-top; tab kept in URL hash | Choosing a photograph never requires scrolling past the library inside a form | local |
+| **v0.4e** | 3e — Admin extensibility | Admin-created More pages (photos + videos); managed gallery categories; managed booking services | A new section, category, or service needs no code change | local |
 | **v0.5** | 4 — First deploy | Hosted Supabase project; Cloudflare Pages deploy; CI/CD; preview deploys | Site reachable on `*.pages.dev`, `noindex` set, deploys on merge | Cloudflare Pages |
 | **v0.6** | 5 — SEO and shareable pages | Routing, per-wedding URLs, prerendering, sitemap, OG images, structured data | Every wedding has its own indexable, shareable URL | Cloudflare Pages |
 | **v0.7** | 6 — Client proofing portal | Per-client galleries, magic-link auth, persisted favourites, high-res downloads | A couple signs in and sees only their own photographs | Cloudflare Pages |

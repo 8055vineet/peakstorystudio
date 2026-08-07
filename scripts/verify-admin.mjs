@@ -50,6 +50,9 @@ if (!url || !anonKey || !serviceKey) {
 
 // Imported for real, not reimplemented — see the module comment above.
 const { getWeddingBySlug } = await import('../src/lib/queries/weddings.js');
+const { getCollections } = await import('../src/lib/queries/collections.js');
+const { getGalleryCategories } = await import('../src/lib/queries/gallery.js');
+const { getBookingServices } = await import('../src/lib/queries/bookingServices.js');
 
 // VITE_MEDIA_BASE_URL is what turns a real upload's bucket-relative
 // storage_path (e.g. `uploads/<uuid>.png`) into a URL src/lib/mediaUrl.js's
@@ -93,6 +96,12 @@ const failures = [];
 // Set while the settings leg has the probe quote in the database, so the
 // crash handler can restore the studio's real quote no matter what throws.
 let unrestoredQuoteText = null;
+
+// Phase 3e probe markers — clean() removes whatever a crashed run left.
+const PROBE_PAGE_SLUG_PREFIX = 'verify-page-';
+const PROBE_CATEGORY_NAME = 'VERIFY Category';
+const PROBE_CATEGORY_RENAMED = 'VERIFY Renamed';
+const PROBE_SERVICE_NAME = 'VERIFY Service';
 
 function check(name, condition, detail = '') {
   if (condition) {
@@ -159,6 +168,12 @@ async function clean() {
   }
 
   await admin.from('inquiries').delete().eq('email', PROBE_INQUIRY_EMAIL);
+
+  // Phase 3e probes. Deleting a collection cascades its items; the media a
+  // photo item pointed at is this script's own probe upload, cleaned above.
+  await admin.from('collections').delete().like('slug', `${PROBE_PAGE_SLUG_PREFIX}%`);
+  await admin.from('gallery_categories').delete().in('name', [PROBE_CATEGORY_NAME, PROBE_CATEGORY_RENAMED]);
+  await admin.from('booking_services').delete().eq('name', PROBE_SERVICE_NAME);
 
   const userId = await findUserIdByEmail(PROBE_EMAIL);
   if (userId) {
@@ -402,6 +417,90 @@ async function main() {
       .from('site_settings').update({ quote_text: settingsBefore.quote_text }).eq('id', 1);
     check('the original quote is restored', !restoreErr, restoreErr?.message);
     if (!restoreErr) unrestoredQuoteText = null;
+  }
+
+  console.log('\npages (collections) round-trip (draft -> publish -> public read -> cascade delete)');
+  const pageSlug = `${PROBE_PAGE_SLUG_PREFIX}${Date.now()}`;
+  const { data: anyMedia } = await session.from('media').select('id').limit(1).single();
+  const { data: createdPage, error: pageCreateErr } = await session
+    .from('collections')
+    .insert({ slug: pageSlug, title: 'VERIFY page', status: 'draft' })
+    .select('id')
+    .single();
+  check('signed-in admin creates a draft page', !pageCreateErr && Boolean(createdPage?.id), pageCreateErr?.message);
+
+  if (createdPage?.id) {
+    const { error: itemsErr } = await session.from('collection_items').insert([
+      { collection_id: createdPage.id, media_id: anyMedia?.id, sort_order: 0 },
+      {
+        collection_id: createdPage.id, video_embed_url: 'https://www.youtube.com/embed/VERIFY', caption: 'probe', sort_order: 1,
+      },
+    ]);
+    check('a photo item and a video item attach to it', !itemsErr, itemsErr?.message);
+
+    const beforePublish = await getCollections();
+    check('a draft page is invisible to the public read path', !beforePublish.some((c) => c.slug === pageSlug));
+
+    await session.from('collections').update({ status: 'published' }).eq('id', createdPage.id);
+    const afterPublish = await getCollections();
+    const publicPage = afterPublish.find((c) => c.slug === pageSlug);
+    check('the published page reaches the public read path', Boolean(publicPage));
+    check(
+      'both items came through in order',
+      publicPage?.items?.length === 2
+        && Boolean(publicPage.items[0].url)
+        && publicPage.items[1].videoEmbedUrl === 'https://www.youtube.com/embed/VERIFY',
+      JSON.stringify(publicPage?.items ?? null),
+    );
+
+    const { error: pageDeleteErr } = await session.from('collections').delete().eq('id', createdPage.id);
+    const { count: orphanCount } = await admin
+      .from('collection_items').select('id', { count: 'exact', head: true }).eq('collection_id', createdPage.id);
+    check('deleting the page cascades to its items', !pageDeleteErr && orphanCount === 0, pageDeleteErr?.message ?? `orphans: ${orphanCount}`);
+  }
+
+  console.log('\ngallery categories round-trip (add -> atomic rename -> public read)');
+  const { data: createdCategory, error: categoryErr } = await session
+    .from('gallery_categories')
+    .insert({ name: PROBE_CATEGORY_NAME, sort_order: 999 })
+    .select('id')
+    .single();
+  check('signed-in admin adds a category', !categoryErr && Boolean(createdCategory?.id), categoryErr?.message);
+
+  if (createdCategory?.id) {
+    const { error: anonRpcErr } = await anon.rpc('rename_gallery_category', { p_old: PROBE_CATEGORY_NAME, p_new: 'hacked' });
+    check('the anon key CANNOT call the rename RPC', Boolean(anonRpcErr), 'anon rename was allowed');
+
+    const { error: renameErr } = await session.rpc('rename_gallery_category', {
+      p_old: PROBE_CATEGORY_NAME, p_new: PROBE_CATEGORY_RENAMED,
+    });
+    check('the admin rename RPC succeeds', !renameErr, renameErr?.message);
+
+    const publicCategories = await getGalleryCategories();
+    check(
+      'the public read path sees the renamed category, not the old name',
+      publicCategories.includes(PROBE_CATEGORY_RENAMED) && !publicCategories.includes(PROBE_CATEGORY_NAME),
+      JSON.stringify(publicCategories),
+    );
+
+    const { error: categoryDeleteErr } = await session.from('gallery_categories').delete().eq('id', createdCategory.id);
+    check('the probe category deletes (no photos use it)', !categoryDeleteErr, categoryDeleteErr?.message);
+  }
+
+  console.log('\nbooking services round-trip (add -> public read)');
+  const { data: createdService, error: serviceErr } = await session
+    .from('booking_services')
+    .insert({ name: PROBE_SERVICE_NAME, sort_order: 999 })
+    .select('id')
+    .single();
+  check('signed-in admin adds a service', !serviceErr && Boolean(createdService?.id), serviceErr?.message);
+
+  if (createdService?.id) {
+    const publicServices = await getBookingServices();
+    check('the public read path sees the new service', publicServices.includes(PROBE_SERVICE_NAME), JSON.stringify(publicServices));
+
+    const { error: serviceDeleteErr } = await session.from('booking_services').delete().eq('id', createdService.id);
+    check('the probe service deletes', !serviceDeleteErr, serviceDeleteErr?.message);
   }
 
   await clean();

@@ -7,8 +7,10 @@ reference other docs link back to; if you are new to this codebase, start here.
 
 Peak Story Studio is a Vite + React 18 single-page application styled with Tailwind CSS,
 routed with **react-router-dom v6** since Phase 3b (`v0.4b`): each navbar option is its own
-page at its own URL — `/`, `/gallery`, `/films`, `/stories`, `/about`, `/contact` — sharing
-one header/footer frame (`src/components/Layout.jsx`), with an unknown URL rendering
+page at its own URL — `/`, `/gallery`, `/films`, `/stories`, `/about`, `/contact`, plus
+`/more/:slug` since Phase 3e for the admin-created collection pages (`CollectionPage`, listed
+in the navbar's **More** dropdown; the menu hides entirely while no page is published) —
+sharing one header/footer frame (`src/components/Layout.jsx`), with an unknown URL rendering
 `NotFoundPage`. Before 3b the entire site was one scrolling page navigated by anchor links;
 documents and commits that describe it that way predate `v0.4b`. The visual design is the
 owner's approved Phase 3b redesign: a centered Cormorant Garamond wordmark, quiet cream
@@ -29,8 +31,9 @@ linting (ESLint); `npm run lint` genuinely lints, and `npm test` runs the suite.
 
 Since Phase 3 (`v0.4`) a second, separate application exists for the studio's own use: a
 sign-in-gated admin at `admin.html`, covering booking inquiries and content management (weddings,
-their photographs, the standalone gallery, films, and testimonials). It shares no bundle, no
-routing, and no component with the public site described above — see
+their photographs, the standalone gallery, films, testimonials, and — since Phase 3e — the
+"More" pages, the gallery's category vocabulary, and the contact form's bookable services). It
+shares no bundle, no routing, and no component with the public site described above — see
 [The admin app](#the-admin-app) below for its own render flow, auth model, and upload pipeline.
 The admin has no React Router of its own — it is a separate Vite entry reached by filename
 (`/admin.html`), unaffected by the public site's routes.
@@ -229,7 +232,14 @@ new-lead count with a callout, published/draft counts per content type, each car
 Leads, Media Library (whose cards offer **Add to Gallery**, jumping straight into a pre-filled
 Add Gallery Photo form), Weddings, Gallery, Films, Testimonials, and **Settings** (the site's
 singular content: quote, Brand Story, the three Home images, contact details, social links —
-backed by the one-row `site_settings` table). Every create lands as a draft and announces
+backed by the one-row `site_settings` table). Since Phase 3e (`v0.4e`) it is also
+extensible: a **Pages** tab creates the public More pages (title + description through the
+resource form; photographs attach in batches and videos by embed URL through
+`CollectionItems`), the Gallery tab carries a **Manage categories** panel (add/rename/reorder/
+delete the photo vocabulary — rename is atomic via the `rename_gallery_category` RPC, the
+photo form's Category select tracks the list), and Settings carries a **Booking services**
+panel (the contact form's offerings; historical inquiries keep their wording). All three list
+managers are one shared `ManagedList` component. Every create lands as a draft and announces
 itself with a publish-now banner; the header carries a **View website** link. Since Phase 3d
 (`v0.4d`), choosing a photograph anywhere in the admin goes through `MediaSlot` (a compact
 thumbnail control) opening `MediaPickerDialog` (a full-screen, searchable picker with upload
