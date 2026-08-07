@@ -246,7 +246,13 @@ thumbnail control) opening `MediaPickerDialog` (a full-screen, searchable picker
 built in) rather than an inline grid of the whole library; the Gallery/Weddings/Films lists
 render a leading photo column from a server-side-joined `thumbnailPath`; every navigation
 scrolls back to the top; and the open tab is kept in the URL hash (`admin.html#gallery`), so a
-refresh restores it. It is mounted the same way the public site is —
+refresh restores it. Since Phase 3f (`v0.4f`), `UploadField` accepts **many images or a whole
+folder** and runs the existing one-file-at-a-time pipeline as a resilient queue (per-file
+progress, Stop, and a failure summary with Retry-failed that never aborts the run); single-photo
+slots (`MediaSlot`) stay single-file, while the Media Library and the attach dialogs go bulk. The
+Gallery tab's **Bulk add to Gallery** panel turns a folder + a chosen category into draft
+gallery photos (titled from each file name) with a **Publish all** step. It is mounted the same
+way the public site is —
 
 ```
 admin.html -> src/admin/main.jsx -> ReactDOM.createRoot(...).render(<ErrorBoundary><App/></ErrorBoundary>)

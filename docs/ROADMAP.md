@@ -80,6 +80,15 @@ read path with cascade-delete verified, a category rename reaching the public li
 anon key refused by the RPC, and a service add reaching the form's source. See the
 [Phase 3e design spec](superpowers/specs/2026-08-07-admin-extensibility-design.md).
 
+**Phase 3f — Bulk uploads** (`v0.4f`) made every admin upload accept many images or a whole
+folder at once, running the existing pipeline as a resilient one-at-a-time queue (per-file
+progress, a Stop control, and a failure list with Retry-failed that never aborts the run); the
+single-photo slots stay single-file. The Gallery tab gained a **Bulk add to Gallery** panel:
+pick a category, drop in a folder, and every image uploads and becomes a draft gallery photo
+titled from its file name, with a **Publish all** button when the run finishes. No schema
+change. See the
+[Phase 3f design spec](superpowers/specs/2026-08-07-bulk-uploads-design.md).
+
 ## Phase and version table
 
 | Version | Phase | Deliverable | Definition of done | Runs on |
@@ -94,6 +103,7 @@ anon key refused by the RPC, and a service add reaching the form's source. See t
 | **v0.4c** | 3c — Admin CMS completion | `site_settings` table; Settings + Dashboard tabs; add-to-gallery; draft-state clarity | Every visitor-visible word and image is editable from the admin with no code change | local |
 | **v0.4d** | 3d — Admin UX polish | Full-screen searchable media picker dialog; compact photo slots in every form; list thumbnails; scroll-to-top; tab kept in URL hash | Choosing a photograph never requires scrolling past the library inside a form | local |
 | **v0.4e** | 3e — Admin extensibility | Admin-created More pages (photos + videos); managed gallery categories; managed booking services | A new section, category, or service needs no code change | local |
+| **v0.4f** | 3f — Bulk uploads | Multi-image and folder upload queue; bulk add to Gallery | A folder of photos uploads and reaches the gallery in one flow | local |
 | **v0.5** | 4 — First deploy | Hosted Supabase project; Cloudflare Pages deploy; CI/CD; preview deploys | Site reachable on `*.pages.dev`, `noindex` set, deploys on merge | Cloudflare Pages |
 | **v0.6** | 5 — SEO and shareable pages | Routing, per-wedding URLs, prerendering, sitemap, OG images, structured data | Every wedding has its own indexable, shareable URL | Cloudflare Pages |
 | **v0.7** | 6 — Client proofing portal | Per-client galleries, magic-link auth, persisted favourites, high-res downloads | A couple signs in and sees only their own photographs | Cloudflare Pages |
