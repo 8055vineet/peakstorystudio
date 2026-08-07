@@ -2,7 +2,6 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import ScrollToTop from './ScrollToTop';
 import PetalsBackground from './PetalsBackground';
-import CustomCursor from './CustomCursor';
 import Navbar from './Navbar';
 import Footer from './Footer';
 
@@ -14,7 +13,6 @@ export default function Layout({ user, onOpenAuthModal, onOpenClientGallery, onL
   return (
     <div className="relative min-h-screen bg-offwhite-100 text-pitch-900 font-sans selection:bg-pitch-900 selection:text-offwhite-50">
       <PetalsBackground />
-      <CustomCursor />
       <div className="relative z-10">
         <ScrollToTop />
         <Navbar

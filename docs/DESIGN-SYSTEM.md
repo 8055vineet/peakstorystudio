@@ -112,8 +112,9 @@ territory. (The other injector, `HorizontalGallery`, was deleted in Phase 3b.)
 ## Motion and accessibility
 
 Motion added after Phase 3b respects `prefers-reduced-motion` from day one: the falling
-petals (`PetalsBackground`) disappear entirely for reduced-motion visitors, and the rebuilt
-`CustomCursor` never mounts for them (or for any coarse pointer). The *older* animations —
+petals (`PetalsBackground`) disappear entirely for reduced-motion visitors. (The custom cursor
+that once also honoured this was removed in Phase 3g — the site uses the native pointer.) The
+*older* animations —
 `animate-fade-in` transitions, the scroll-reveal transforms driven by `useScrollReveal`,
 hover zooms, and `Testimonials`' injected `fillProgress` — still play unconditionally
 regardless of the OS-level preference. Closing that gap for the older set remains `PS-012`,
