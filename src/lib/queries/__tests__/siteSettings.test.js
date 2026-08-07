@@ -38,6 +38,8 @@ const FULL_ROW = {
   whatsapp_number: '910000000000',
   instagram_url: 'https://instagram.com/x',
   youtube_url: '',
+  heading_font: 'Playfair Display',
+  body_font: 'Inter',
   hero: { storage_path: 'uploads/hero.webp', alt_text: 'Uploaded hero' },
   brand_story: { storage_path: '/images/home/brand-story.jpg', alt_text: '' },
   closing: null,
@@ -72,6 +74,7 @@ describe('getSiteSettings', () => {
       instagramUrl: 'https://instagram.com/x',
       youtubeUrl: '',
     });
+    expect(settings.fonts).toEqual({ heading: 'Playfair Display', body: 'Inter' });
   });
 
   it('falls back to all three static paths when every media id is null', async () => {
@@ -108,6 +111,7 @@ describe('SITE_SETTINGS_FALLBACK', () => {
         instagramUrl: contact.STUDIO_INSTAGRAM_URL,
         youtubeUrl: contact.STUDIO_YOUTUBE_URL,
       },
+      fonts: { heading: 'Cormorant Garamond', body: 'Plus Jakarta Sans' },
     });
   });
 });

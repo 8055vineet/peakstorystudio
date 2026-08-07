@@ -17,6 +17,7 @@ const ROW = {
   hero_media_id: 'm-1', brand_story_media_id: null, closing_media_id: 'm-3',
   studio_address: 'A', studio_email: 'e@x.test', studio_phone: '+91 1',
   whatsapp_number: '911', instagram_url: '', youtube_url: '',
+  heading_font: 'Marcellus', body_font: 'Lato',
 };
 
 function readChain(row, error = null) {
@@ -48,6 +49,8 @@ describe('getSettingsRow', () => {
     expect(item.heroMediaId).toBe('m-1');
     expect(item.brandStoryMediaId).toBeNull();
     expect(item.whatsappNumber).toBe('911');
+    expect(item.headingFont).toBe('Marcellus');
+    expect(item.bodyFont).toBe('Lato');
   });
 
   it('throws a prefixed error on failure', async () => {
