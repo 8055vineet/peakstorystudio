@@ -192,7 +192,10 @@ thirteen tables — lives in `supabase/migrations/`:
   `public.is_admin()`); **no insert or delete policies exist at all.**
   `scripts/load-real-content.mjs` points the three media references at media rows for the
   shipped `/images/home/*.jpg` files (and its deletion pass never removes media the settings
-  row references). Read path: `src/lib/queries/siteSettings.js` → `useSiteSettings`
+  row references). Since Phase 3g it also carries `heading_font` and `body_font` (the
+  admin-chosen public-site fonts, defaulted to `Cormorant Garamond` / `Plus Jakarta Sans`),
+  applied on the public site via CSS variables `App` sets from the settings row. Read path:
+  `src/lib/queries/siteSettings.js` → `useSiteSettings`
   (`src/hooks/useContent.js`), falling back to `src/data/siteSettingsFallback.js`; admin write
   path: `src/lib/queries/adminSettings.js` behind the Settings tab.
 - `20260807100000_admin_extensibility.sql` (Phase 3e) creates the four admin-extensible tables:

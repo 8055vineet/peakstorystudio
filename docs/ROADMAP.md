@@ -89,6 +89,14 @@ titled from its file name, with a **Publish all** button when the run finishes. 
 change. See the
 [Phase 3f design spec](superpowers/specs/2026-08-07-bulk-uploads-design.md).
 
+**Phase 3g — Home & chrome polish** (`v0.4g`) added an admin **Typography** control (pick the
+public site's heading and body fonts from curated sets, stored in `site_settings`, applied
+site-wide via CSS variables), removed the custom cursor (the native pointer returns), and
+reworked the Home video into a full-content-width, 16:9 embed that **autoplays muted** on load
+using YouTube's own player — with a new `youtube.js` helper that turns any YouTube link form
+(embed, watch, `youtu.be`, shorts) into a frameable embed URL. See the
+[Phase 3g design spec](superpowers/specs/2026-08-07-home-chrome-polish-design.md).
+
 ## Phase and version table
 
 | Version | Phase | Deliverable | Definition of done | Runs on |
@@ -104,6 +112,7 @@ change. See the
 | **v0.4d** | 3d — Admin UX polish | Full-screen searchable media picker dialog; compact photo slots in every form; list thumbnails; scroll-to-top; tab kept in URL hash | Choosing a photograph never requires scrolling past the library inside a form | local |
 | **v0.4e** | 3e — Admin extensibility | Admin-created More pages (photos + videos); managed gallery categories; managed booking services | A new section, category, or service needs no code change | local |
 | **v0.4f** | 3f — Bulk uploads | Multi-image and folder upload queue; bulk add to Gallery | A folder of photos uploads and reaches the gallery in one flow | local |
+| **v0.4g** | 3g — Home & chrome polish | Admin font control; native cursor; autoplaying full-width Home video | Fonts change from the admin; Home video autoplays and fits every screen | local |
 | **v0.5** | 4 — First deploy | Hosted Supabase project; Cloudflare Pages deploy; CI/CD; preview deploys | Site reachable on `*.pages.dev`, `noindex` set, deploys on merge | Cloudflare Pages |
 | **v0.6** | 5 — SEO and shareable pages | Routing, per-wedding URLs, prerendering, sitemap, OG images, structured data | Every wedding has its own indexable, shareable URL | Cloudflare Pages |
 | **v0.7** | 6 — Client proofing portal | Per-client galleries, magic-link auth, persisted favourites, high-res downloads | A couple signs in and sees only their own photographs | Cloudflare Pages |

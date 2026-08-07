@@ -16,6 +16,12 @@ documents and commits that describe it that way predate `v0.4b`. The visual desi
 owner's approved Phase 3b redesign: a centered Cormorant Garamond wordmark, quiet cream
 surfaces, and the deep-maroon `pitch` accents.
 
+Since Phase 3g (`v0.4g`) the two public type roles (`font-garamond` headings and `font-sans`
+body) are CSS-variable-driven and set by `App` from the `site_settings` row, so the owner picks
+the fonts from the admin's Settings → Typography section; the custom cursor was removed (the
+native pointer is used everywhere); and the Home video block autoplays its YouTube embed
+(muted — the only autoplay browsers permit) at full content width.
+
 Since Phase 1b (`v0.2b`) the site reads its content from a Postgres database. Since Phase 3c
 the site's singular content (Home quote, Brand Story, Home image slots, contact details,
 social links) is database-driven too: `useSiteSettings` (the fifth `useContent` wrapper) reads
