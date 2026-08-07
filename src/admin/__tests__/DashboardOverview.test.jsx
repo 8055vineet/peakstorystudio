@@ -15,6 +15,7 @@ const COUNTS = {
   gallery: { published: 64, draft: 3 },
   films: { published: 3, draft: 1 },
   testimonials: { published: 3, draft: 0 },
+  pages: { published: 1, draft: 2 },
 };
 
 beforeEach(() => getOverviewCounts.mockReset());
@@ -61,5 +62,15 @@ describe('DashboardOverview', () => {
     await user.click(screen.getByRole('button', { name: /retry/i }));
     await waitFor(() => expect(screen.getByText('Weddings')).toBeInTheDocument());
     expect(getOverviewCounts).toHaveBeenCalledTimes(2);
+  });
+
+  it('renders a Pages card that navigates to the pages tab', async () => {
+    getOverviewCounts.mockResolvedValue(COUNTS);
+    const onNavigate = vi.fn();
+    render(<DashboardOverview onNavigate={onNavigate} />);
+    await waitFor(() => expect(screen.getByText('Pages')).toBeInTheDocument());
+    const user = userEvent.setup();
+    await user.click(screen.getByText('Pages'));
+    expect(onNavigate).toHaveBeenCalledWith('pages');
   });
 });

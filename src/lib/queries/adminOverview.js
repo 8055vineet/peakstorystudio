@@ -1,7 +1,7 @@
 import { supabase } from '../supabase';
 
 // The dashboard's at-a-glance numbers. head:true count queries move no row
-// data — five cheap counts, fired together.
+// data — six cheap count groups, fired together.
 
 async function countWhere(table, column, value) {
   const { count, error } = await supabase
@@ -21,14 +21,15 @@ async function statusPair(table) {
 }
 
 export async function getOverviewCounts() {
-  const [newLeads, weddings, gallery, films, testimonials] = await Promise.all([
+  const [newLeads, weddings, gallery, films, testimonials, pages] = await Promise.all([
     countWhere('inquiries', 'status', 'new'),
     statusPair('weddings'),
     statusPair('gallery_photos'),
     statusPair('films'),
     statusPair('testimonials'),
+    statusPair('collections'),
   ]);
   return {
-    newLeads, weddings, gallery, films, testimonials,
+    newLeads, weddings, gallery, films, testimonials, pages,
   };
 }

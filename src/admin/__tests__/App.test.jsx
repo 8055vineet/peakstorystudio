@@ -34,6 +34,16 @@ const testimonialsCreate = vi.fn();
 const testimonialsUpdate = vi.fn();
 const testimonialsRemove = vi.fn();
 const testimonialsReorder = vi.fn();
+const collectionsList = vi.fn();
+const collectionsCreate = vi.fn();
+const collectionsUpdate = vi.fn();
+const collectionsRemove = vi.fn();
+const collectionsReorder = vi.fn();
+const listCollectionItems = vi.fn();
+const addCollectionPhoto = vi.fn();
+const addCollectionVideo = vi.fn();
+const removeCollectionItem = vi.fn();
+const reorderCollectionItems = vi.fn();
 
 vi.mock('../../hooks/useSession', () => ({
   useSession: (...args) => useSession(...args),
@@ -229,6 +239,43 @@ vi.mock('../resources/testimonials.js', () => ({
   },
 }));
 
+// The Pages tab (Phase 3e) is mocked at the same two boundaries as the
+// Weddings tab: a small fixture-shaped resource config, and the item
+// queries its CollectionItems child drives.
+vi.mock('../resources/collections.js', () => ({
+  collectionsResource: {
+    key: 'pages',
+    label: 'Pages',
+    table: 'collections',
+    columns: ['id', 'slug', 'title', 'sort_order', 'status'],
+    defaultSort: 'sort_order',
+    deleteNote: "The page's items go with it; photographs stay in the media library.",
+    listColumns: [
+      { name: 'title', label: 'Title' },
+      { name: 'slug', label: 'URL' },
+      { name: 'status', label: 'Status' },
+    ],
+    fields: [
+      { name: 'title', label: 'Title', type: 'text', required: true },
+    ],
+  },
+  collectionsQueries: {
+    list: (...args) => collectionsList(...args),
+    create: (...args) => collectionsCreate(...args),
+    update: (...args) => collectionsUpdate(...args),
+    remove: (...args) => collectionsRemove(...args),
+    reorder: (...args) => collectionsReorder(...args),
+  },
+}));
+
+vi.mock('../../lib/queries/adminCollectionItems', () => ({
+  listCollectionItems: (...args) => listCollectionItems(...args),
+  addCollectionPhoto: (...args) => addCollectionPhoto(...args),
+  addCollectionVideo: (...args) => addCollectionVideo(...args),
+  removeCollectionItem: (...args) => removeCollectionItem(...args),
+  reorderCollectionItems: (...args) => reorderCollectionItems(...args),
+}));
+
 const { default: App } = await import('../App.jsx');
 
 const baseState = {
@@ -271,6 +318,18 @@ beforeEach(() => {
   testimonialsUpdate.mockReset();
   testimonialsRemove.mockReset();
   testimonialsReorder.mockReset();
+  collectionsList.mockReset();
+  collectionsCreate.mockReset();
+  collectionsUpdate.mockReset();
+  collectionsRemove.mockReset();
+  collectionsReorder.mockReset();
+  listCollectionItems.mockReset();
+  addCollectionPhoto.mockReset();
+  addCollectionVideo.mockReset();
+  removeCollectionItem.mockReset();
+  reorderCollectionItems.mockReset();
+  collectionsList.mockResolvedValue([]);
+  listCollectionItems.mockResolvedValue([]);
   getOverviewCounts.mockReset();
   getSettingsRow.mockReset();
   updateSiteSettings.mockReset();
@@ -280,6 +339,7 @@ beforeEach(() => {
     gallery: { published: 0, draft: 0 },
     films: { published: 0, draft: 0 },
     testimonials: { published: 0, draft: 0 },
+    pages: { published: 0, draft: 0 },
   });
   getSettingsRow.mockResolvedValue({
     id: 1,
@@ -1349,6 +1409,87 @@ describe('admin App shell', () => {
 
       await waitFor(() => expect(screen.getByText(/no testimonials yet/i)).toBeInTheDocument());
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Pages tab', () => {
+    function signIn() {
+      useSession.mockReturnValue({
+        ...baseState,
+        status: 'authenticated',
+        session: { user: { id: 'user-2', email: 'admin@example.test' } },
+        profile: { userId: 'user-2', role: 'admin', displayName: 'Studio Director' },
+      });
+    }
+
+    it('switches to the pages tab and lists collections, not before', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      collectionsList.mockResolvedValue([{
+        id: 'c-1', slug: 'travels', title: 'Travels', sortOrder: 0, status: 'draft',
+      }]);
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+
+      await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
+      expect(collectionsList).not.toHaveBeenCalled();
+
+      const nav = screen.getByRole('navigation', { name: /admin sections/i });
+      await user.click(within(nav).getByRole('button', { name: 'Pages' }));
+
+      expect(screen.getByRole('heading', { level: 1, name: 'Pages' })).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByText('Travels')).toBeInTheDocument());
+      expect(collectionsList).toHaveBeenCalled();
+    });
+
+    it('creates a page through the form — the slug is derived, never typed', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      collectionsList.mockResolvedValue([]);
+      collectionsCreate.mockResolvedValue({
+        id: 'c-9', slug: 'travels', title: 'Travels', sortOrder: 0, status: 'draft',
+      });
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+
+      const nav = screen.getByRole('navigation', { name: /admin sections/i });
+      await user.click(within(nav).getByRole('button', { name: 'Pages' }));
+      await waitFor(() => expect(screen.getByText(/no pages yet/i)).toBeInTheDocument());
+      await user.click(screen.getByRole('button', { name: /add new/i }));
+
+      expect(screen.queryByLabelText(/slug|url/i)).toBeNull();
+      await user.type(screen.getByLabelText(/^title/i), 'Travels');
+      collectionsList.mockResolvedValue([{
+        id: 'c-9', slug: 'travels', title: 'Travels', sortOrder: 0, status: 'draft',
+      }]);
+      await user.click(screen.getByRole('button', { name: /^create$/i }));
+
+      await waitFor(() => expect(collectionsCreate).toHaveBeenCalledWith(expect.objectContaining({ title: 'Travels' })));
+      // Draft-first create announces itself with the publish-now banner.
+      await waitFor(() => expect(screen.getByText(/saved as draft/i)).toBeInTheDocument());
+    });
+
+    it('editing an existing page also offers the items manager; creating does not', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      collectionsList.mockResolvedValue([{
+        id: 'c-1', slug: 'travels', title: 'Travels', sortOrder: 0, status: 'draft',
+      }]);
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+
+      const nav = screen.getByRole('navigation', { name: /admin sections/i });
+      await user.click(within(nav).getByRole('button', { name: 'Pages' }));
+      await waitFor(() => expect(screen.getByText('Travels')).toBeInTheDocument());
+      await user.click(screen.getByRole('button', { name: /edit/i }));
+
+      expect(screen.getByRole('heading', { name: /edit page/i })).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole('button', { name: /add photographs/i })).toBeInTheDocument());
+      expect(listCollectionItems).toHaveBeenCalledWith('c-1');
+
+      await user.click(screen.getByRole('button', { name: /cancel/i }));
+      await user.click(screen.getByRole('button', { name: /add new/i }));
+      expect(screen.queryByRole('button', { name: /add photographs/i })).toBeNull();
     });
   });
 });

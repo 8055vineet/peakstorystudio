@@ -85,8 +85,11 @@ export default function ResourceList({
     const name = primaryLabel(item, config);
     // A mis-click here can destroy a published wedding — this confirmation
     // is not decoration. Declining must do nothing at all: no callback, no
-    // side effect, not even an optimistic anything.
-    if (!window.confirm(`Delete "${name}"? This cannot be undone.`)) return;
+    // side effect, not even an optimistic anything. `config.deleteNote`
+    // lets a resource state its own consequences (e.g. a page delete
+    // cascading to its items) without a second confirm implementation.
+    const note = config.deleteNote ? ` ${config.deleteNote}` : '';
+    if (!window.confirm(`Delete "${name}"? This cannot be undone.${note}`)) return;
     onDelete?.(item.id);
   }
 

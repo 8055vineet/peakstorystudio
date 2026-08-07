@@ -19,6 +19,10 @@ export const collectionsResource = {
   // collectionsQueries derives below, and so the list can show it.
   columns: ['id', 'slug', 'title', 'description', 'sort_order', 'status'],
   defaultSort: 'sort_order',
+  // Appended to ResourceList's delete confirmation: deleting a page
+  // cascades to its items (see the migration's on delete cascade), but the
+  // photographs themselves live in the media library and survive.
+  deleteNote: "The page's items go with it; photographs stay in the media library.",
   listColumns: [
     { name: 'title', label: 'Title' },
     { name: 'slug', label: 'URL' },

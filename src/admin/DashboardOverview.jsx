@@ -84,6 +84,7 @@ export default function DashboardOverview({ onNavigate }) {
         <StatusCard label="Gallery Photos" pair={counts.gallery} onClick={() => onNavigate('gallery')} />
         <StatusCard label="Films" pair={counts.films} onClick={() => onNavigate('films')} />
         <StatusCard label="Testimonials" pair={counts.testimonials} onClick={() => onNavigate('testimonials')} />
+        <StatusCard label="Pages" pair={counts.pages} onClick={() => onNavigate('pages')} />
         <button type="button" onClick={() => onNavigate('settings')} className={CARD_CLASS}>
           <p className="text-[10px] uppercase tracking-widest text-charcoal-500 font-bold mb-2">Site Settings</p>
           <p className="text-sm font-semibold text-pitch-900 mt-1">Quote · Brand Story · Home images · Contact</p>

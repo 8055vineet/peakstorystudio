@@ -37,6 +37,7 @@ describe('getOverviewCounts', () => {
       'gallery_photos:published': 64, 'gallery_photos:draft': 2,
       'films:published': 3, 'films:draft': 1,
       'testimonials:published': 3, 'testimonials:draft': 0,
+      'collections:published': 1, 'collections:draft': 1,
     }));
     const { getOverviewCounts } = await import('../adminOverview');
     const counts = await getOverviewCounts();
@@ -46,6 +47,7 @@ describe('getOverviewCounts', () => {
       gallery: { published: 64, draft: 2 },
       films: { published: 3, draft: 1 },
       testimonials: { published: 3, draft: 0 },
+      pages: { published: 1, draft: 1 },
     });
   });
 

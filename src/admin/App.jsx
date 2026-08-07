@@ -16,7 +16,9 @@ import MediaPicker from './MediaPicker.jsx';
 import ResourceList from './ResourceList.jsx';
 import ResourceForm from './ResourceForm.jsx';
 import WeddingPhotos from './WeddingPhotos.jsx';
+import CollectionItems from './CollectionItems.jsx';
 import { weddingsResource, weddingsQueries } from './resources/weddings.js';
+import { collectionsResource, collectionsQueries } from './resources/collections.js';
 import { galleryResource, galleryQueries } from './resources/gallery.js';
 import { filmsResource, filmsQueries } from './resources/films.js';
 import { testimonialsResource, testimonialsQueries } from './resources/testimonials.js';
@@ -648,6 +650,116 @@ function TestimonialsDashboard() {
   );
 }
 
+// The Pages tab (Phase 3e): the admin-created "More" pages —
+// WeddingsDashboard's exact shape (list/form/create/edit/publish/reorder/
+// delete + a per-record child manager once the record has an id), with
+// CollectionItems standing where WeddingPhotos stands.
+function PagesDashboard() {
+  const {
+    items, status, error, reload, mutate,
+  } = useResource(collectionsQueries);
+  const [view, setView] = useState({ mode: 'list' });
+  useScrollToTop(view.mode);
+  const [formPending, setFormPending] = useState(false);
+  const [formError, setFormError] = useState(null);
+  const [listActionError, setListActionError] = useState(null);
+  const [justCreated, setJustCreated] = useState(null);
+  const [publishPending, setPublishPending] = useState(false);
+
+  async function runListAction(name, ...args) {
+    setListActionError(null);
+    try {
+      await mutate(name, ...args);
+    } catch (err) {
+      setListActionError({ message: err?.message || 'unknown error', written: Boolean(err?.written) });
+    }
+  }
+
+  async function handleSubmit(payload) {
+    setFormPending(true);
+    setFormError(null);
+    try {
+      if (view.item?.id) {
+        await mutate('update', view.item.id, payload);
+      } else {
+        const created = await mutate('create', payload);
+        setJustCreated(created);
+      }
+      setView({ mode: 'list' });
+    } catch (err) {
+      setFormError(err);
+    } finally {
+      setFormPending(false);
+    }
+  }
+
+  if (view.mode === 'form') {
+    return (
+      <div className="space-y-8">
+        <h1 className="font-cinzel text-2xl font-bold text-pitch-900">
+          {view.item ? 'Edit Page' : 'Add Page'}
+        </h1>
+        <ResourceForm
+          key={`page-form-${view.item?.id ?? 'new'}`}
+          config={collectionsResource}
+          initial={view.item}
+          onSubmit={handleSubmit}
+          onCancel={() => setView({ mode: 'list' })}
+          pending={formPending}
+          error={formError}
+        />
+        {/* Items can only attach to a page row that already exists — a
+            brand-new, unsaved page has no id for collection_items to
+            reference. Same belt-and-braces remount as WeddingPhotos. */}
+        {view.item?.id && (
+          <CollectionItems key={`page-items-${view.item.id}`} collectionId={view.item.id} />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h1 className="font-cinzel text-2xl font-bold text-pitch-900 mb-6">Pages</h1>
+      {justCreated && (
+        <CreatedDraftBanner
+          label={justCreated.title ?? ''}
+          publishing={publishPending}
+          onPublish={async () => {
+            setPublishPending(true);
+            try {
+              await runListAction('update', justCreated.id, { status: 'published' });
+              setJustCreated(null);
+            } finally {
+              setPublishPending(false);
+            }
+          }}
+          onDismiss={() => setJustCreated(null)}
+        />
+      )}
+      {listActionError && (
+        <p role="alert" className="mb-4 text-xs font-semibold text-pitch-900">
+          {listActionError.written
+            ? `That change saved, but this screen could not refresh to confirm it (${listActionError.message}). Reload to check.`
+            : `Could not save that change: ${listActionError.message}. Please try again.`}
+        </p>
+      )}
+      <ResourceList
+        config={collectionsResource}
+        items={items}
+        status={status}
+        error={error}
+        onRetry={reload}
+        onCreate={() => { setFormError(null); setView({ mode: 'form', item: null }); }}
+        onEdit={(item) => { setFormError(null); setView({ mode: 'form', item }); }}
+        onDelete={(id) => runListAction('remove', id)}
+        onToggleStatus={(id, nextStatus) => runListAction('update', id, { status: nextStatus })}
+        onReorder={(ids) => runListAction('reorder', ids)}
+      />
+    </div>
+  );
+}
+
 // Short nav labels rather than each dashboard's own full heading — 'Leads'
 // stays unambiguous from InquiriesDashboard's "Booking Inquiries" <h1> even
 // though a screen reader announces both, and the same holds for Gallery,
@@ -660,6 +772,7 @@ const DASHBOARD_TABS = [
   { key: 'gallery', label: 'Gallery' },
   { key: 'films', label: 'Films' },
   { key: 'testimonials', label: 'Testimonials' },
+  { key: 'pages', label: 'Pages' },
   { key: 'settings', label: 'Settings' },
 ];
 
@@ -728,6 +841,7 @@ function AdminDashboard() {
       {tab === 'gallery' && <GalleryDashboard prefillMediaId={galleryPrefill} />}
       {tab === 'films' && <FilmsDashboard />}
       {tab === 'testimonials' && <TestimonialsDashboard />}
+      {tab === 'pages' && <PagesDashboard />}
       {tab === 'settings' && <SettingsDashboard />}
     </div>
   );
