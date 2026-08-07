@@ -9,6 +9,7 @@ import FilmsPage from './pages/FilmsPage';
 import StoriesPage from './pages/StoriesPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
+import CollectionPage from './pages/CollectionPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 import LightboxModal from './components/LightboxModal';
@@ -17,7 +18,7 @@ import ClientGalleryModal from './components/ClientGalleryModal';
 
 import {
   useWeddings, useGalleryPhotos, useFilms, useTestimonials, useSiteSettings,
-  useGalleryCategories, useBookingServices,
+  useGalleryCategories, useBookingServices, useCollections,
 } from './hooks/useContent';
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
   const { data: settings } = useSiteSettings();
   const { data: galleryCategories } = useGalleryCategories();
   const { data: bookingServices } = useBookingServices();
+  const { data: collections, loading: collectionsLoading } = useCollections();
 
   const [user, setUser] = useState(() => {
     try {
@@ -97,6 +99,7 @@ export default function App() {
               onOpenClientGallery={() => setClientGalleryOpen(true)}
               onLogout={handleLogout}
               contact={settings.contact}
+              morePages={collections.map(({ title, slug }) => ({ title, slug }))}
             />
           }
         >
@@ -128,6 +131,17 @@ export default function App() {
           />
           <Route path="about" element={<AboutPage testimonials={testimonials} brandStory={settings.brandStory} portraitImage={settings.images.brandStory} />} />
           <Route path="contact" element={<ContactPage contact={settings.contact} services={bookingServices} />} />
+          <Route
+            path="more/:slug"
+            element={
+              <CollectionPage
+                collections={collections}
+                loading={collectionsLoading}
+                onOpenLightbox={handleOpenLightbox}
+                onOpenVideo={(url) => setVideoModalUrl(url)}
+              />
+            }
+          />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

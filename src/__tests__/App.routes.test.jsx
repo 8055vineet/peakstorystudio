@@ -3,6 +3,17 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../App';
 
+const MOCK_COLLECTIONS = [{
+  id: 'c-1',
+  slug: 'travels',
+  title: 'Travels',
+  description: 'On the road with couples.',
+  items: [
+    { id: 'i-1', url: '/images/x/1.jpg', videoEmbedUrl: null, caption: null },
+    { id: 'i-2', url: '', videoEmbedUrl: 'https://www.youtube.com/embed/abc', caption: 'Teaser' },
+  ],
+}];
+
 // Pages fetch through these hooks; route tests need no network and no Supabase.
 vi.mock('../hooks/useContent', () => ({
   useWeddings: () => ({ data: [], loading: false, error: null }),
@@ -11,7 +22,7 @@ vi.mock('../hooks/useContent', () => ({
   useTestimonials: () => ({ data: [], loading: false, error: null }),
   useGalleryCategories: () => ({ data: ['Pre-Wedding', 'Wedding', 'Engagement', 'Haldi & Mehendi'], loading: false, error: null }),
   useBookingServices: () => ({ data: ['Cinematic Film', 'Fine Art Photography', 'Drone Aerials', 'Pre-Wedding Shoot'], loading: false, error: null }),
-  useCollections: () => ({ data: [], loading: false, error: null }),
+  useCollections: () => ({ data: MOCK_COLLECTIONS, loading: false, error: null }),
   useSiteSettings: () => ({
     data: {
       quote: { text: 'A settings-driven quote for testing.', credit: 'by tester' },
@@ -74,5 +85,25 @@ describe('routing', () => {
   it('the contact page renders the settings-driven phone', () => {
     renderAt('/contact');
     expect(screen.getAllByText(/\+91 11111 11111/).length).toBeGreaterThan(0);
+  });
+});
+
+describe('/more/:slug', () => {
+  it('renders a published collection page with its photos and videos', () => {
+    renderAt('/more/travels');
+    expect(screen.getByRole('heading', { name: 'Travels' })).toBeInTheDocument();
+    expect(screen.getByText('On the road with couples.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /view photo/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /play video/i })).toBeInTheDocument();
+  });
+
+  it('shows the not-found content for an unknown slug once loaded', () => {
+    renderAt('/more/nope');
+    expect(screen.getByTestId('not-found-page')).toBeInTheDocument();
+  });
+
+  it('shows the More menu in the navbar when pages exist', () => {
+    renderAt('/');
+    expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument();
   });
 });
