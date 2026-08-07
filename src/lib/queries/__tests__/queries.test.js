@@ -248,3 +248,31 @@ describe('getTestimonials', () => {
     ]);
   });
 });
+
+describe('getGalleryCategories', () => {
+  it('returns the admin-managed category names in sort order', async () => {
+    const chain = {
+      select: vi.fn(() => chain),
+      order: vi.fn(() => Promise.resolve({ data: [{ name: 'Wedding' }, { name: 'Travel Diaries' }], error: null })),
+    };
+    mockFrom.mockReturnValue(chain);
+    const { getGalleryCategories } = await importGallery();
+
+    const result = await getGalleryCategories();
+
+    expect(mockFrom).toHaveBeenCalledWith('gallery_categories');
+    expect(chain.select).toHaveBeenCalledWith('name');
+    expect(chain.order).toHaveBeenCalledWith('sort_order');
+    expect(result).toEqual(['Wedding', 'Travel Diaries']);
+  });
+
+  it('throws a prefixed error on failure', async () => {
+    const chain = {
+      select: vi.fn(() => chain),
+      order: vi.fn(() => Promise.resolve({ data: null, error: { message: 'nope' } })),
+    };
+    mockFrom.mockReturnValue(chain);
+    const { getGalleryCategories } = await importGallery();
+    await expect(getGalleryCategories()).rejects.toThrow('getGalleryCategories: nope');
+  });
+});

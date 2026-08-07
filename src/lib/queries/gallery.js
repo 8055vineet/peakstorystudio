@@ -1,6 +1,17 @@
 import { supabase } from '../supabase';
 import { publicMediaUrl } from '../mediaUrl';
 
+// The admin-managed section order for PhotoGallery — names only; the photos
+// themselves keep carrying their category as text (see docs/DATA-MODEL.md).
+export async function getGalleryCategories() {
+  const { data, error } = await supabase
+    .from('gallery_categories')
+    .select('name')
+    .order('sort_order');
+  if (error) throw new Error(`getGalleryCategories: ${error.message}`);
+  return (data ?? []).map((row) => row.name);
+}
+
 export async function getGalleryPhotos() {
   const { data, error } = await supabase
     .from('gallery_photos')

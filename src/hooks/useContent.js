@@ -6,11 +6,15 @@ import {
   TESTIMONIALS,
 } from '../data/weddingData';
 import { SITE_SETTINGS_FALLBACK } from '../data/siteSettingsFallback';
+import { GALLERY_CATEGORY_FALLBACK } from '../data/galleryCategories';
+import { SERVICES } from '@shared/inquiry-validation.js';
 import { getPublishedWeddings } from '../lib/queries/weddings';
-import { getGalleryPhotos } from '../lib/queries/gallery';
+import { getGalleryPhotos, getGalleryCategories } from '../lib/queries/gallery';
 import { getFilms } from '../lib/queries/films';
 import { getTestimonials } from '../lib/queries/testimonials';
 import { getSiteSettings } from '../lib/queries/siteSettings';
+import { getCollections } from '../lib/queries/collections';
+import { getBookingServices } from '../lib/queries/bookingServices';
 
 // The database is unconditionally authoritative as of Phase 3 (there is no
 // longer a `VITE_DATA_SOURCE` switch to read from the static module
@@ -61,3 +65,15 @@ export const useTestimonials = () => useContent(TESTIMONIALS, getTestimonials);
 // contact, socials — one settings row, same stale-beats-blank fallback as
 // the collections above.
 export const useSiteSettings = () => useContent(SITE_SETTINGS_FALLBACK, getSiteSettings);
+
+// Phase 3e: the admin-extensible lists. Fallbacks are module-level
+// constants on purpose — useContent's effect re-runs when `staticData`
+// changes identity, so a fresh [] per call would refetch forever. An empty
+// collections fallback means the More menu simply hides during an outage.
+const NO_COLLECTIONS = [];
+
+export const useCollections = () => useContent(NO_COLLECTIONS, getCollections);
+
+export const useGalleryCategories = () => useContent(GALLERY_CATEGORY_FALLBACK, getGalleryCategories);
+
+export const useBookingServices = () => useContent(SERVICES, getBookingServices);
