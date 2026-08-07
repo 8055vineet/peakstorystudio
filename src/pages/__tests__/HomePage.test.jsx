@@ -14,7 +14,7 @@ const film = {
   location: 'Udaipur',
   duration: '4:32 mins',
   thumbnail: '/images/hero_royal.jpg',
-  videoEmbedUrl: 'https://www.youtube.com/embed/example',
+  videoEmbedUrl: 'https://www.youtube.com/embed/4KEZRGlwJU4',
 };
 
 const photos = [
@@ -48,12 +48,12 @@ describe('HomePage', () => {
     expect(screen.getByText('Video to be added')).toBeInTheDocument();
   });
 
-  it('shows the first film, playable, when one is published', () => {
-    const onOpenVideo = vi.fn();
-    renderPage({ films: [film], onOpenVideo });
+  it('embeds the first film as an autoplaying player when one is published', () => {
+    renderPage({ films: [film] });
     expect(screen.queryByText('Video to be added')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /play film/i }));
-    expect(onOpenVideo).toHaveBeenCalledWith(film.videoEmbedUrl);
+    const frame = screen.getByTitle(film.title);
+    expect(frame.tagName).toBe('IFRAME');
+    expect(frame.getAttribute('src')).toContain('autoplay=1');
   });
 
   it('survives an empty photo list', () => {

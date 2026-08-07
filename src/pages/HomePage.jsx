@@ -1,12 +1,12 @@
 import React from 'react';
-import { Play } from 'lucide-react';
+import HomeVideo from '../components/HomeVideo';
 import { HOME_QUOTE, BRAND_STORY, HOME_IMAGES } from '../data/homeContent';
 
 // The Home page, section for section from the owner's approved screenshot:
 // hero image → script quote → video block → images grid → Brand Story →
 // closing image. The header and footer come from Layout.
 export default function HomePage({
-  films = [], photos = [], onOpenLightbox, onOpenVideo,
+  films = [], photos = [], onOpenLightbox,
   quote = HOME_QUOTE, brandStory = BRAND_STORY, images = HOME_IMAGES,
 }) {
   const featuredFilm = films.length > 0 ? films[0] : null;
@@ -34,33 +34,8 @@ export default function HomePage({
         </blockquote>
       </section>
 
-      {/* Video */}
-      <section className="px-4 sm:px-6 pb-16">
-        <div className="max-w-5xl mx-auto w-full aspect-video overflow-hidden">
-          {featuredFilm ? (
-            <div className="relative w-full h-full group">
-              <img
-                src={featuredFilm.thumbnail}
-                alt={featuredFilm.title}
-                className="w-full h-full object-cover"
-              />
-              <button
-                onClick={() => onOpenVideo(featuredFilm.videoEmbedUrl)}
-                aria-label="Play film"
-                className="absolute inset-0 flex items-center justify-center bg-pitch-950/30 hover:bg-pitch-950/15 transition-colors"
-              >
-                <span className="w-16 h-16 rounded-full bg-pitch-900 text-offwhite-50 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                  <Play className="w-7 h-7 fill-current ml-1" />
-                </span>
-              </button>
-            </div>
-          ) : (
-            <div className="w-full h-full bg-charcoal-400/60 flex items-center justify-center">
-              <p className="font-garamond text-pitch-700 text-xl tracking-wide">Video to be added</p>
-            </div>
-          )}
-        </div>
-      </section>
+      {/* Video — the embedded player, autoplaying muted on load */}
+      <HomeVideo film={featuredFilm} />
 
       {/* Images */}
       <section className="px-4 sm:px-6 pb-20">

@@ -120,7 +120,6 @@ export default function App() {
                 films={films}
                 photos={photos}
                 onOpenLightbox={handleOpenLightbox}
-                onOpenVideo={(url) => setVideoModalUrl(url)}
                 quote={settings.quote}
                 brandStory={settings.brandStory}
                 images={settings.images}
