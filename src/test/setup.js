@@ -34,6 +34,15 @@ if (typeof globalThis.localStorage === 'undefined') {
   });
 }
 
+// Same jsdom gap for sessionStorage — IntroSplash gates its once-per-session
+// play on it. In-memory is enough; individual tests clear it in beforeEach.
+if (typeof globalThis.sessionStorage === 'undefined') {
+  Object.defineProperty(globalThis, 'sessionStorage', {
+    value: new LocalStorageStub(),
+    configurable: true,
+  });
+}
+
 // jsdom defines window.scrollTo but logs a noisy "Not implemented" error on
 // every call; ScrollToTop calls it on each route change. Make it a no-op.
 Object.defineProperty(window, 'scrollTo', { value: () => {}, configurable: true });
