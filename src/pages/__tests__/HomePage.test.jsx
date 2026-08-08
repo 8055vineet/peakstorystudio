@@ -33,7 +33,9 @@ describe('HomePage', () => {
   it('renders the quote and credit verbatim', () => {
     renderPage();
     expect(screen.getByText(new RegExp(HOME_QUOTE.text.slice(0, 40)))).toBeInTheDocument();
-    expect(screen.getByText(HOME_QUOTE.credit)).toBeInTheDocument();
+    // Scoped to the <cite> — the hero band's Dancing Script tagline reads the
+    // same "by abhinav", so an unscoped match would be ambiguous.
+    expect(screen.getByText(HOME_QUOTE.credit, { selector: 'cite' })).toBeInTheDocument();
   });
 
   it('renders both Brand Story paragraphs', () => {
@@ -43,17 +45,17 @@ describe('HomePage', () => {
     }
   });
 
-  it('shows "Video to be added" when no film is published', () => {
+  it('renders the branded hero band even when no film is published', () => {
     renderPage();
-    expect(screen.getByText('Video to be added')).toBeInTheDocument();
+    expect(screen.getByLabelText('Peak Story Studio')).toBeInTheDocument();
+    expect(screen.queryByTitle(/./)).toBeNull(); // no iframe
   });
 
-  it('embeds the first film as an autoplaying player when one is published', () => {
+  it('renders the cinematic hero band with the studio name overlay', () => {
     renderPage({ films: [film] });
-    expect(screen.queryByText('Video to be added')).toBeNull();
-    const frame = screen.getByTitle(film.title);
-    expect(frame.tagName).toBe('IFRAME');
-    expect(frame.getAttribute('src')).toContain('autoplay=1');
+    const band = screen.getByLabelText('Peak Story Studio');
+    expect(band).toBeInTheDocument();
+    expect(screen.getByTitle(film.title).tagName).toBe('IFRAME');
   });
 
   it('survives an empty photo list', () => {
