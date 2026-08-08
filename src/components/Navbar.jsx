@@ -14,7 +14,8 @@ export default function Navbar({
   onOpenAuthModal,
   onOpenClientGallery,
   onLogout,
-  morePages = []
+  morePages = [],
+  logo = null
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -61,10 +62,18 @@ export default function Navbar({
 
   return (
     <header className="relative bg-offwhite-100 border-b border-pitch-900/10">
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-5">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-9 pb-6">
 
-        {/* Wordmark, centered */}
-        <div className="text-center">
+        {/* Wordmark lockup, centered — the studio logo as a circular badge
+            just before the wordmark when one has been uploaded in the admin. */}
+        <div className="flex items-center justify-center gap-3">
+          {logo && (
+            <img
+              src={logo}
+              alt=""
+              className="w-10 h-10 sm:w-11 sm:h-11 rounded-full object-cover ring-1 ring-pitch-900/15 shrink-0"
+            />
+          )}
           <Link
             to="/"
             className="inline-block font-garamond text-2xl sm:text-3xl tracking-[0.25em] text-pitch-900"
@@ -74,7 +83,7 @@ export default function Navbar({
         </div>
 
         {/* Page links, centered beneath the wordmark */}
-        <div className="hidden md:flex items-center justify-center gap-8 mt-5">
+        <div className="hidden md:flex items-center justify-center gap-8 mt-6">
           {navLinks.map((link) => (
             <NavLink key={link.name} to={link.to} end={link.end} className={linkClass}>
               {link.name}

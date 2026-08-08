@@ -79,3 +79,18 @@ describe('More dropdown', () => {
     expect(screen.getByRole('link', { name: 'Behind the Scenes' })).toHaveAttribute('href', '/more/behind-the-scenes');
   });
 });
+
+describe('logo badge', () => {
+  it('renders a circular logo before the wordmark when a logo is set', () => {
+    renderAt('/', { logo: '/images/logo.png' });
+    const img = document.querySelector('header img');
+    expect(img).not.toBeNull();
+    expect(img.getAttribute('src')).toBe('/images/logo.png');
+    expect(img.className).toMatch(/rounded-full/);
+  });
+
+  it('renders no logo image when none is set', () => {
+    renderAt('/');
+    expect(document.querySelector('header img')).toBeNull();
+  });
+});

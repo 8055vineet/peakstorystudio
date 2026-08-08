@@ -109,6 +109,7 @@ export default function App() {
               onOpenClientGallery={() => setClientGalleryOpen(true)}
               onLogout={handleLogout}
               contact={settings.contact}
+              logo={settings.logo}
               morePages={collections.map(({ title, slug }) => ({ title, slug }))}
             />
           }

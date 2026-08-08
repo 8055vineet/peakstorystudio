@@ -37,6 +37,7 @@ vi.mock('../hooks/useContent', () => ({
         whatsappNumber: '911111111111', instagramUrl: '', youtubeUrl: '',
       },
       fonts: { heading: 'Playfair Display', body: 'Inter' },
+      logo: null,
     },
     loading: false,
     error: null,
