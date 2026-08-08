@@ -97,6 +97,13 @@ using YouTube's own player — with a new `youtube.js` helper that turns any You
 (embed, watch, `youtu.be`, shorts) into a frameable embed URL. See the
 [Phase 3g design spec](superpowers/specs/2026-08-07-home-chrome-polish-design.md).
 
+**Phase 3h — Home hero, peaks, logo & navbar** (`v0.4h`) turned the Home video into a full-width,
+chromeless, looping **ambient hero** with a mountain-peaks + "Peak Story Studio" + "by abhinav"
+overlay (peaks tying to *Peak* Story Studio); changed the Home quote font to Dancing Script; made
+the studio **logo admin-uploadable** (`site_settings.logo_media_id`, a Settings upload slot),
+shown as a circular badge in a restyled navbar lockup. See the
+[Phase 3h design spec](superpowers/specs/2026-08-08-home-hero-logo-navbar-design.md).
+
 ## Phase and version table
 
 | Version | Phase | Deliverable | Definition of done | Runs on |
@@ -113,6 +120,7 @@ using YouTube's own player — with a new `youtube.js` helper that turns any You
 | **v0.4e** | 3e — Admin extensibility | Admin-created More pages (photos + videos); managed gallery categories; managed booking services | A new section, category, or service needs no code change | local |
 | **v0.4f** | 3f — Bulk uploads | Multi-image and folder upload queue; bulk add to Gallery | A folder of photos uploads and reaches the gallery in one flow | local |
 | **v0.4g** | 3g — Home & chrome polish | Admin font control; native cursor; autoplaying full-width Home video | Fonts change from the admin; Home video autoplays and fits every screen | local |
+| **v0.4h** | 3h — Home hero, peaks, logo, navbar | Full-width cinematic peaks hero; Dancing Script quote; admin logo; restyled navbar | The Home video is a branded full-width hero and the logo is admin-controlled | local |
 | **v0.5** | 4 — First deploy | Hosted Supabase project; Cloudflare Pages deploy; CI/CD; preview deploys | Site reachable on `*.pages.dev`, `noindex` set, deploys on merge | Cloudflare Pages |
 | **v0.6** | 5 — SEO and shareable pages | Routing, per-wedding URLs, prerendering, sitemap, OG images, structured data | Every wedding has its own indexable, shareable URL | Cloudflare Pages |
 | **v0.7** | 6 — Client proofing portal | Per-client galleries, magic-link auth, persisted favourites, high-res downloads | A couple signs in and sees only their own photographs | Cloudflare Pages |

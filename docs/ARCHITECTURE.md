@@ -20,7 +20,11 @@ Since Phase 3g (`v0.4g`) the two public type roles (`font-garamond` headings and
 body) are CSS-variable-driven and set by `App` from the `site_settings` row, so the owner picks
 the fonts from the admin's Settings → Typography section; the custom cursor was removed (the
 native pointer is used everywhere); and the Home video block autoplays its YouTube embed
-(muted — the only autoplay browsers permit) at full content width.
+(muted — the only autoplay browsers permit) at full content width. Since Phase 3h (`v0.4h`)
+that video is a **full-width, chromeless, looping ambient hero** with a mountain-peaks +
+"Peak Story Studio" + "by abhinav" overlay; the Home quote uses Dancing Script; and the navbar
+shows the admin-uploaded logo (`site_settings.logo_media_id`) as a circular badge before the
+wordmark.
 
 Since Phase 1b (`v0.2b`) the site reads its content from a Postgres database. Since Phase 3c
 the site's singular content (Home quote, Brand Story, Home image slots, contact details,

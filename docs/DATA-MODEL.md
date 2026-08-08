@@ -194,7 +194,10 @@ thirteen tables — lives in `supabase/migrations/`:
   shipped `/images/home/*.jpg` files (and its deletion pass never removes media the settings
   row references). Since Phase 3g it also carries `heading_font` and `body_font` (the
   admin-chosen public-site fonts, defaulted to `Cormorant Garamond` / `Plus Jakarta Sans`),
-  applied on the public site via CSS variables `App` sets from the settings row. Read path:
+  applied on the public site via CSS variables `App` sets from the settings row. Since Phase 3h
+  it also carries `logo_media_id` (a nullable `uuid` reference to `media`): the admin-uploadable
+  studio logo, resolved to a URL by the public query and rendered as a circular badge in the
+  navbar; there is no shipped default (null → wordmark alone). Read path:
   `src/lib/queries/siteSettings.js` → `useSiteSettings`
   (`src/hooks/useContent.js`), falling back to `src/data/siteSettingsFallback.js`; admin write
   path: `src/lib/queries/adminSettings.js` behind the Settings tab.
