@@ -19,6 +19,7 @@ const ROW = {
   whatsapp_number: '911', instagram_url: '', youtube_url: '',
   heading_font: 'Marcellus', body_font: 'Lato',
   logo_media_id: 'm-logo',
+  surface_warmth: 0.75,
 };
 
 function readChain(row, error = null) {
@@ -53,6 +54,7 @@ describe('getSettingsRow', () => {
     expect(item.headingFont).toBe('Marcellus');
     expect(item.bodyFont).toBe('Lato');
     expect(item.logoMediaId).toBe('m-logo');
+    expect(item.surfaceWarmth).toBe(0.75);
   });
 
   it('throws a prefixed error on failure', async () => {
@@ -68,9 +70,9 @@ describe('updateSiteSettings', () => {
     mockFrom.mockReturnValue(updateChain(captured, ROW));
     const { updateSiteSettings } = await import('../adminSettings');
     await updateSiteSettings({
-      id: 99, quoteText: 'New', unknownKey: 'x', heroMediaId: 'm-9',
+      id: 99, quoteText: 'New', unknownKey: 'x', heroMediaId: 'm-9', surfaceWarmth: 0.9,
     });
-    expect(captured.values).toEqual({ quote_text: 'New', hero_media_id: 'm-9' });
+    expect(captured.values).toEqual({ quote_text: 'New', hero_media_id: 'm-9', surface_warmth: 0.9 });
     expect(captured.eq).toEqual(['id', 1]);
   });
 

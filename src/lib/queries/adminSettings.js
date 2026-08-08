@@ -16,6 +16,7 @@ const COLUMNS = [
   'whatsapp_number', 'instagram_url', 'youtube_url',
   'heading_font', 'body_font',
   'logo_media_id',
+  'surface_warmth',
 ];
 
 const SELECT = COLUMNS.join(', ');

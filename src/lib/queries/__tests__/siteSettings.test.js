@@ -40,6 +40,7 @@ const FULL_ROW = {
   youtube_url: '',
   heading_font: 'Playfair Display',
   body_font: 'Inter',
+  surface_warmth: 0.75,
   logo: { storage_path: 'uploads/logo.webp' },
   hero: { storage_path: 'uploads/hero.webp', alt_text: 'Uploaded hero' },
   brand_story: { storage_path: '/images/home/brand-story.jpg', alt_text: '' },
@@ -76,6 +77,7 @@ describe('getSiteSettings', () => {
       youtubeUrl: '',
     });
     expect(settings.fonts).toEqual({ heading: 'Playfair Display', body: 'Inter' });
+    expect(settings.appearance).toEqual({ warmth: 0.75 });
     expect(settings.logo).toBe('https://cdn.peakstorystudio.test/uploads/logo.webp');
   });
 
@@ -89,6 +91,13 @@ describe('getSiteSettings', () => {
     expect(settings.images.brandStory.src).toBe('/images/home/brand-story.jpg');
     expect(settings.images.closing.src).toBe('/images/home/closing.jpg');
     expect(settings.logo).toBeNull();
+  });
+
+  it('defaults surface warmth to 0.5 when the column is null', async () => {
+    mockFrom.mockReturnValue(singleResult({ ...FULL_ROW, surface_warmth: null }));
+    const { getSiteSettings } = await importSettings();
+    const settings = await getSiteSettings();
+    expect(settings.appearance).toEqual({ warmth: 0.5 });
   });
 
   it('throws a prefixed error on a Postgres failure', async () => {
@@ -117,6 +126,7 @@ describe('SITE_SETTINGS_FALLBACK', () => {
         youtubeUrl: contact.STUDIO_YOUTUBE_URL,
       },
       fonts: { heading: 'Cormorant Garamond', body: 'Plus Jakarta Sans' },
+      appearance: { warmth: 0.5 },
       logo: null,
     });
   });

@@ -4,6 +4,7 @@ import {
   STUDIO_INSTAGRAM_URL, STUDIO_YOUTUBE_URL,
 } from './contact';
 import { DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT } from './fontOptions';
+import { DEFAULT_WARMTH } from './surfaceTint';
 
 // The shape useSiteSettings resolves, built from the shipped constants —
 // what the site renders before the settings query resolves, when it fails,
@@ -27,5 +28,6 @@ export const SITE_SETTINGS_FALLBACK = {
     youtubeUrl: STUDIO_YOUTUBE_URL,
   },
   fonts: { heading: DEFAULT_HEADING_FONT, body: DEFAULT_BODY_FONT },
+  appearance: { warmth: DEFAULT_WARMTH },
   logo: null,
 };

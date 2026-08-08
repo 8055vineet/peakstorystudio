@@ -197,7 +197,11 @@ thirteen tables — lives in `supabase/migrations/`:
   applied on the public site via CSS variables `App` sets from the settings row. Since Phase 3h
   it also carries `logo_media_id` (a nullable `uuid` reference to `media`): the admin-uploadable
   studio logo, resolved to a URL by the public query and rendered as a circular badge in the
-  navbar; there is no shipped default (null → wordmark alone). Read path:
+  navbar; there is no shipped default (null → wordmark alone). Since Phase 3i it also carries
+  `surface_warmth` (a `numeric` in [0, 1], default 0.5, `check`-constrained): the admin-chosen
+  background warmth, which the public query maps to `appearance.warmth` and `App` applies by
+  setting the `--offwhite-*` CSS variables from `surfaceRamp()` (`src/data/surfaceTint.js`) —
+  0.5 reproduces the shipped palette exactly. Read path:
   `src/lib/queries/siteSettings.js` → `useSiteSettings`
   (`src/hooks/useContent.js`), falling back to `src/data/siteSettingsFallback.js`; admin write
   path: `src/lib/queries/adminSettings.js` behind the Settings tab.
