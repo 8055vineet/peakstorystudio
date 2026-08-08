@@ -32,6 +32,7 @@ const INITIAL = {
   youtubeUrl: '',
   headingFont: 'Cormorant Garamond',
   bodyFont: 'Plus Jakarta Sans',
+  logoMediaId: null,
 };
 
 const MEDIA = [
@@ -116,6 +117,11 @@ describe('SettingsForm', () => {
       studioEmail: 'peakstorystudio@gmail.com',
       heroMediaId: 'm-hero',
     });
+  });
+
+  it('offers a Logo upload slot', async () => {
+    await renderForm();
+    expect(screen.getByRole('group', { name: /^logo$/i })).toBeInTheDocument();
   });
 
   it('renders the Typography selects with the current fonts and submits a change', async () => {

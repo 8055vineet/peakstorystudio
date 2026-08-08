@@ -54,6 +54,7 @@ const IMAGE_SLOTS = [
   { key: 'heroMediaId', label: 'Hero image', help: 'The full-width photograph the Home page opens with.' },
   { key: 'brandStoryMediaId', label: 'Brand Story portrait', help: 'Shown beside the Brand Story text on Home and About.' },
   { key: 'closingMediaId', label: 'Closing image', help: 'The full-width photograph that ends the Home page.' },
+  { key: 'logoMediaId', label: 'Logo', help: 'Shown as a circular badge in the navbar. A square image works best.' },
 ];
 
 function Field({ id, label, error, children, help }) {
