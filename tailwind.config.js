@@ -41,7 +41,7 @@ export default {
         // back to the shipped families when a variable is unset.
         cinzel: ['Cinzel', 'serif'],
         garamond: ['var(--font-heading, "Cormorant Garamond")', 'serif'],
-        script: ['Great Vibes', 'cursive'],
+        script: ['Dancing Script', 'cursive'],
         sans: ['var(--font-body, "Plus Jakarta Sans")', 'sans-serif'],
       },
       animation: {
