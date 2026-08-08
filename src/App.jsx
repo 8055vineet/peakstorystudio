@@ -20,6 +20,7 @@ import {
   useWeddings, useGalleryPhotos, useFilms, useTestimonials, useSiteSettings,
   useGalleryCategories, useBookingServices, useCollections,
 } from './hooks/useContent';
+import { surfaceRamp } from './data/surfaceTint';
 
 export default function App() {
   const { data: stories } = useWeddings();
@@ -57,6 +58,17 @@ export default function App() {
     if (settings.fonts?.heading) root.style.setProperty('--font-heading', `"${settings.fonts.heading}"`);
     if (settings.fonts?.body) root.style.setProperty('--font-body', `"${settings.fonts.body}"`);
   }, [settings.fonts?.heading, settings.fonts?.body]);
+
+  // Apply the admin-chosen surface warmth site-wide (Phase 3i). Tailwind's
+  // offwhite-* tokens read these variables; surfaceRamp(0.5) reproduces the
+  // shipped palette, so an unset/outage value leaves the site unchanged.
+  useEffect(() => {
+    const root = document.documentElement;
+    const ramp = surfaceRamp(settings.appearance?.warmth);
+    Object.entries(ramp).forEach(([key, hex]) => {
+      root.style.setProperty(`--offwhite-${key}`, hex);
+    });
+  }, [settings.appearance?.warmth]);
 
   const [lightboxState, setLightboxState] = useState({
     isOpen: false,

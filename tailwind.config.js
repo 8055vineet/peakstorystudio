@@ -8,11 +8,11 @@ export default {
     extend: {
       colors: {
         offwhite: {
-          50: '#ffffff',
-          100: '#faf9f6',
-          200: '#f5f3ee',
-          300: '#e8e4dc',
-          400: '#d5cfc2',
+          50: 'var(--offwhite-50, #ffffff)',
+          100: 'var(--offwhite-100, #faf9f6)',
+          200: 'var(--offwhite-200, #f5f3ee)',
+          300: 'var(--offwhite-300, #e8e4dc)',
+          400: 'var(--offwhite-400, #d5cfc2)',
         },
         pitch: {
           950: '#2A0813',

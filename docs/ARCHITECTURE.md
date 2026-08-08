@@ -24,7 +24,11 @@ native pointer is used everywhere); and the Home video block autoplays its YouTu
 that video is a **full-width, chromeless, looping ambient hero** with a mountain-peaks +
 "Peak Story Studio" + "by abhinav" overlay; the Home quote uses Dancing Script; and the navbar
 shows the admin-uploaded logo (`site_settings.logo_media_id`) as a circular badge before the
-wordmark.
+wordmark. Since Phase 3i (`v0.4i`) the cream **surface** tokens (`offwhite-*`) are
+CSS-variable-driven too: `App` sets `--offwhite-50..400` from `settings.appearance.warmth` via
+`surfaceRamp()` (`src/data/surfaceTint.js`), so an admin **Appearance** slider warms or cools
+every surface from white to ivory (`0.5` = the shipped palette); and the Home route plays a
+once-per-session `IntroSplash` — the logo fills the screen, then collapses into the navbar badge.
 
 Since Phase 1b (`v0.2b`) the site reads its content from a Postgres database. Since Phase 3c
 the site's singular content (Home quote, Brand Story, Home image slots, contact details,

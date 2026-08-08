@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../App';
@@ -37,7 +37,8 @@ vi.mock('../hooks/useContent', () => ({
         whatsappNumber: '911111111111', instagramUrl: '', youtubeUrl: '',
       },
       fonts: { heading: 'Playfair Display', body: 'Inter' },
-      logo: null,
+      appearance: { warmth: 1 },
+      logo: '/images/home/logo.jpg',
     },
     loading: false,
     error: null,
@@ -46,6 +47,8 @@ vi.mock('../hooks/useContent', () => ({
 
 const renderAt = (path) =>
   render(<MemoryRouter initialEntries={[path]}><App /></MemoryRouter>);
+
+beforeEach(() => { window.sessionStorage.clear(); });
 
 describe('routing', () => {
   it.each([
@@ -64,6 +67,11 @@ describe('routing', () => {
     renderAt('/');
     expect(document.documentElement.style.getPropertyValue('--font-heading')).toContain('Playfair Display');
     expect(document.documentElement.style.getPropertyValue('--font-body')).toContain('Inter');
+  });
+
+  it('applies the admin-chosen surface warmth as CSS variables on the document', () => {
+    renderAt('/');
+    expect(document.documentElement.style.getPropertyValue('--offwhite-100')).toBe('#f6efe1');
   });
 
   it('an unknown URL renders the not-found page with a way home', () => {

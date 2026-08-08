@@ -41,7 +41,7 @@ body::before {
   width: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: #f5f3ee;
+  background: var(--offwhite-200, #f5f3ee);
 }
 ::-webkit-scrollbar-thumb {
   background: #d5cfc2;
@@ -60,7 +60,7 @@ body::before {
 }
 
 .minimal-card {
-  background: #ffffff;
+  background: var(--offwhite-50, #ffffff);
   border: 1px solid rgba(10, 10, 10, 0.08);
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
 }
