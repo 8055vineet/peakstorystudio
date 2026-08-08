@@ -36,6 +36,11 @@ describe('Navbar', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /book date/i })[0]);
     expect(screen.getByTestId('contact-route')).toBeInTheDocument();
   });
+
+  it('separates the navbar from the page with a shadow', () => {
+    renderAt('/');
+    expect(document.querySelector('header').className).toMatch(/shadow/);
+  });
 });
 
 describe('More dropdown', () => {

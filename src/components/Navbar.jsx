@@ -61,7 +61,7 @@ export default function Navbar({
   };
 
   return (
-    <header className="relative bg-offwhite-100 border-b border-pitch-900/10">
+    <header className="relative bg-offwhite-100 border-b border-pitch-900/10 shadow-md shadow-pitch-900/10">
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-9 pb-6">
 
         {/* Wordmark lockup, centered — the studio logo as a circular badge
