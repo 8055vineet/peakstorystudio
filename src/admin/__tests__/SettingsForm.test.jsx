@@ -33,6 +33,7 @@ const INITIAL = {
   headingFont: 'Cormorant Garamond',
   bodyFont: 'Plus Jakarta Sans',
   logoMediaId: null,
+  surfaceWarmth: 0.5,
 };
 
 const MEDIA = [
@@ -133,6 +134,15 @@ describe('SettingsForm', () => {
     fireEvent.change(screen.getByLabelText(/heading font/i), { target: { value: 'Playfair Display' } });
     fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
     expect(props.onSave.mock.calls[0][0]).toMatchObject({ headingFont: 'Playfair Display' });
+  });
+
+  it('renders the Appearance warmth slider and submits a changed value', async () => {
+    const { props } = await renderForm();
+    const slider = screen.getByLabelText(/background warmth/i);
+    expect(slider.value).toBe('50');
+    fireEvent.change(slider, { target: { value: '80' } });
+    fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
+    expect(props.onSave.mock.calls[0][0]).toMatchObject({ surfaceWarmth: 0.8 });
   });
 
   it('shows the saved confirmation and the error message', async () => {

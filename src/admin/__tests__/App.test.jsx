@@ -406,6 +406,7 @@ beforeEach(() => {
     whatsappNumber: '', instagramUrl: '', youtubeUrl: '',
     headingFont: 'Cormorant Garamond', bodyFont: 'Plus Jakarta Sans',
     logoMediaId: null,
+    surfaceWarmth: 0.5,
   });
   listInquiries.mockResolvedValue([]);
   listMedia.mockResolvedValue([]);

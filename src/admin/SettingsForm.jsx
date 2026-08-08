@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import MediaSlot from './MediaSlot.jsx';
 import { HEADING_FONTS, BODY_FONTS } from '../data/fontOptions';
+import { surfaceRamp, DEFAULT_WARMTH } from '../data/surfaceTint';
 
 // The Settings tab's form: the site's singular content — quote, Brand
 // Story, the three Home images, contact and social details — as one
@@ -66,6 +67,33 @@ function Field({ id, label, error, children, help }) {
       {children}
       {help && <p className="mt-1 text-xs text-charcoal-500">{help}</p>}
       {error && <p role="alert" className="mt-1 text-xs font-semibold text-pitch-900">{error}</p>}
+    </div>
+  );
+}
+
+// A contained preview of the cream surfaces at a given warmth. Colors come
+// from surfaceRamp() (computed data, not literal hex), and it never mutates
+// :root — the public site changes only on Save.
+function WarmthPreview({ warmth }) {
+  const ramp = surfaceRamp(warmth);
+  return (
+    <div>
+      <div className="flex gap-1.5" aria-hidden="true">
+        {Object.entries(ramp).map(([key, hex]) => (
+          <span
+            key={key}
+            className="h-6 flex-1 rounded border border-pitch-900/10"
+            style={{ backgroundColor: hex }}
+          />
+        ))}
+      </div>
+      <div
+        className="mt-3 rounded-lg border border-pitch-900/10 p-4"
+        style={{ backgroundColor: ramp['100'] }}
+      >
+        <p className="font-garamond text-lg text-pitch-900">The Brand Story</p>
+        <p className="text-sm text-charcoal-700">A preview of the site&rsquo;s surfaces at this warmth.</p>
+      </div>
     </div>
   );
 }
@@ -162,6 +190,30 @@ export default function SettingsForm({
         </p>
         {fontSelect('headingFont', 'Heading font', HEADING_FONTS)}
         {fontSelect('bodyFont', 'Body font', BODY_FONTS)}
+      </section>
+
+      <section className={SECTION_CLASS}>
+        <h2 className="font-cinzel text-lg font-bold text-pitch-900">Appearance</h2>
+        <p className="text-xs text-charcoal-500">
+          The background warmth of the public site &mdash; crisp white through warm ivory.
+        </p>
+        <Field id={`${uid}-surfaceWarmth`} label="Background warmth">
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] uppercase tracking-widest text-charcoal-500">White</span>
+            <input
+              id={`${uid}-surfaceWarmth`}
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value={Math.round((values.surfaceWarmth ?? DEFAULT_WARMTH) * 100)}
+              onChange={(e) => set('surfaceWarmth', Number(e.target.value) / 100)}
+              className="flex-1 accent-pitch-900"
+            />
+            <span className="text-[10px] uppercase tracking-widest text-charcoal-500">Ivory</span>
+          </div>
+        </Field>
+        <WarmthPreview warmth={values.surfaceWarmth ?? DEFAULT_WARMTH} />
       </section>
 
       <section className={SECTION_CLASS}>
