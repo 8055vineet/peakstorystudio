@@ -32,3 +32,15 @@ describe('youtubeEmbedUrl', () => {
     expect(youtubeEmbedUrl('https://player.vimeo.com/video/123')).toBe('https://player.vimeo.com/video/123');
   });
 });
+
+describe('youtubeEmbedUrl — background mode', () => {
+  it('builds an ambient loop embed (muted, looping, no controls)', () => {
+    const url = youtubeEmbedUrl('https://youtu.be/4KEZRGlwJU4', { background: true });
+    expect(url).toContain('/embed/4KEZRGlwJU4?');
+    expect(url).toContain('autoplay=1');
+    expect(url).toContain('mute=1');
+    expect(url).toContain('loop=1');
+    expect(url).toContain('playlist=4KEZRGlwJU4');
+    expect(url).toContain('controls=0');
+  });
+});

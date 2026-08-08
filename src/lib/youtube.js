@@ -12,10 +12,15 @@ export function youtubeId(url) {
   return v ? v[1] : null;
 }
 
-// autoplay implies mute — the only autoplay a browser will honour.
-export function youtubeEmbedUrl(url, { autoplay = false } = {}) {
+// autoplay implies mute — the only autoplay a browser will honour. `background`
+// is the ambient hero mode: muted, looping, chromeless (loop needs playlist=id).
+export function youtubeEmbedUrl(url, { autoplay = false, background = false } = {}) {
   const id = youtubeId(url);
   if (!id) return url ?? '';
+  if (background) {
+    const p = `autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&modestbranding=1&playsinline=1&rel=0`;
+    return `https://www.youtube.com/embed/${id}?${p}`;
+  }
   const params = ['rel=0', 'playsinline=1'];
   if (autoplay) params.push('autoplay=1', 'mute=1');
   return `https://www.youtube.com/embed/${id}?${params.join('&')}`;
