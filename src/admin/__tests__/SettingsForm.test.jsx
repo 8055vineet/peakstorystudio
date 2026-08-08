@@ -119,9 +119,11 @@ describe('SettingsForm', () => {
     });
   });
 
-  it('offers a Logo upload slot', async () => {
+  it('offers a Logo upload slot with a circular preview', async () => {
     await renderForm();
-    expect(screen.getByRole('group', { name: /^logo$/i })).toBeInTheDocument();
+    const group = screen.getByRole('group', { name: /^logo$/i });
+    expect(group).toBeInTheDocument();
+    expect(within(group).getByTestId('media-slot-preview').className).toMatch(/rounded-full/);
   });
 
   it('renders the Typography selects with the current fonts and submits a change', async () => {

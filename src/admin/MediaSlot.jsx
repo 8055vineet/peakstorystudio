@@ -13,11 +13,20 @@ const BUTTON_CLASS = 'px-4 py-2 rounded-lg border border-pitch-900/20 text-pitch
 export default function MediaSlot({
   label, help = null, required = false, error = null, value,
   media, mediaStatus, mediaError, onRetryMedia, onUploaded, onChange,
+  previewShape = 'square',
 }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const errorId = useId();
   const selected = media.find((item) => item.id === value);
   const url = selected ? mediaUrl(selected.storagePath) : null;
+
+  // A circle preview shows the thumbnail exactly as a circular badge renders
+  // it on the public site (same crop, same object-cover) and larger, so the
+  // owner can judge a logo before saving. Square is the default everywhere else.
+  const isCircle = previewShape === 'circle';
+  const boxClass = isCircle
+    ? 'w-28 h-28 shrink-0 rounded-full overflow-hidden bg-offwhite-100 border border-pitch-900/15 flex items-center justify-center'
+    : 'w-24 h-24 shrink-0 rounded-lg overflow-hidden bg-offwhite-200 border border-pitch-900/10 flex items-center justify-center';
 
   return (
     <fieldset
@@ -29,7 +38,7 @@ export default function MediaSlot({
       </legend>
       {help && <p className="text-xs text-charcoal-500">{help}</p>}
       <div className="flex items-center gap-4">
-        <div className="w-24 h-24 shrink-0 rounded-lg overflow-hidden bg-offwhite-200 border border-pitch-900/10 flex items-center justify-center">
+        <div className={boxClass} data-testid="media-slot-preview">
           {value ? (
             url ? (
               <img

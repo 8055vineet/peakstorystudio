@@ -54,7 +54,9 @@ const IMAGE_SLOTS = [
   { key: 'heroMediaId', label: 'Hero image', help: 'The full-width photograph the Home page opens with.' },
   { key: 'brandStoryMediaId', label: 'Brand Story portrait', help: 'Shown beside the Brand Story text on Home and About.' },
   { key: 'closingMediaId', label: 'Closing image', help: 'The full-width photograph that ends the Home page.' },
-  { key: 'logoMediaId', label: 'Logo', help: 'Shown as a circular badge in the navbar. A square image works best.' },
+  {
+    key: 'logoMediaId', label: 'Logo', help: 'Shown as a circular badge in the navbar. A square image works best.', circle: true,
+  },
 ];
 
 function Field({ id, label, error, children, help }) {
@@ -133,12 +135,15 @@ export default function SettingsForm({
         {/* Every slot is optional by design: all three media columns are
             nullable, and src/lib/queries/siteSettings.js falls back to the
             shipped static image on null — which is why each keeps Remove. */}
-        {IMAGE_SLOTS.map(({ key, label, help }) => (
+        {IMAGE_SLOTS.map(({
+          key, label, help, circle,
+        }) => (
           <MediaSlot
             key={key}
             label={label}
             help={help}
             required={false}
+            previewShape={circle ? 'circle' : 'square'}
             value={values[key] ?? null}
             media={media}
             mediaStatus={mediaStatus}

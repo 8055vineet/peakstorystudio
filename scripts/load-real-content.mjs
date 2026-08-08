@@ -73,12 +73,14 @@ async function main() {
   const oldMedia = new Set();
   const { data: settingsRow } = await db
     .from('site_settings')
-    .select('hero_media_id, brand_story_media_id, closing_media_id')
+    .select('hero_media_id, brand_story_media_id, closing_media_id, logo_media_id')
     .eq('id', 1)
     .maybeSingle();
   const settingsMedia = new Set(
-    [settingsRow?.hero_media_id, settingsRow?.brand_story_media_id, settingsRow?.closing_media_id]
-      .filter(Boolean),
+    [
+      settingsRow?.hero_media_id, settingsRow?.brand_story_media_id,
+      settingsRow?.closing_media_id, settingsRow?.logo_media_id,
+    ].filter(Boolean),
   );
   const { data: oldWeddings } = await db.from('weddings').select('cover_media_id');
   (oldWeddings ?? []).forEach((w) => w.cover_media_id && oldMedia.add(w.cover_media_id));
@@ -170,9 +172,12 @@ async function main() {
   const heroId = await mediaIdForPath('/images/home/hero.jpg', 'A couple embracing beneath the arches of a Lucknow monument at golden hour');
   const brandId = await mediaIdForPath('/images/home/brand-story.jpg', 'A bride in an embellished navy lehenga, framed by dark leaves');
   const closingId = await mediaIdForPath('/images/home/closing.jpg', "A couple's hands holding their two gold wedding rings");
+  const logoId = await mediaIdForPath('/images/home/logo.jpg', 'Peak Story Studio logo');
   const { error: settingsErr } = await db
     .from('site_settings')
-    .update({ hero_media_id: heroId, brand_story_media_id: brandId, closing_media_id: closingId })
+    .update({
+      hero_media_id: heroId, brand_story_media_id: brandId, closing_media_id: closingId, logo_media_id: logoId,
+    })
     .eq('id', 1);
   if (settingsErr) throw new Error(`site_settings update failed: ${settingsErr.message}`);
   n.settings = 1;

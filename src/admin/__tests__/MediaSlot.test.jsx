@@ -110,6 +110,18 @@ describe('MediaSlot', () => {
     expect(screen.queryByLabelText(/choose folder/i)).toBeNull();
   });
 
+  it('renders a circular preview when previewShape is circle', () => {
+    render(<MediaSlot {...baseProps({ value: 'm-1', previewShape: 'circle' })} />);
+    expect(screen.getByTestId('media-slot-preview').className).toMatch(/rounded-full/);
+  });
+
+  it('renders a square preview by default', () => {
+    render(<MediaSlot {...baseProps({ value: 'm-1' })} />);
+    const box = screen.getByTestId('media-slot-preview');
+    expect(box.className).toMatch(/rounded-lg/);
+    expect(box.className).not.toMatch(/rounded-full/);
+  });
+
   it('renders a field error inline as an alert', () => {
     render(<MediaSlot {...baseProps({ error: 'Photograph is required.' })} />);
     expect(screen.getByRole('alert')).toHaveTextContent(/photograph is required/i);
