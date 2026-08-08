@@ -18,6 +18,7 @@ const ROW = {
   studio_address: 'A', studio_email: 'e@x.test', studio_phone: '+91 1',
   whatsapp_number: '911', instagram_url: '', youtube_url: '',
   heading_font: 'Marcellus', body_font: 'Lato',
+  logo_media_id: 'm-logo',
 };
 
 function readChain(row, error = null) {
@@ -51,6 +52,7 @@ describe('getSettingsRow', () => {
     expect(item.whatsappNumber).toBe('911');
     expect(item.headingFont).toBe('Marcellus');
     expect(item.bodyFont).toBe('Lato');
+    expect(item.logoMediaId).toBe('m-logo');
   });
 
   it('throws a prefixed error on failure', async () => {

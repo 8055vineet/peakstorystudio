@@ -40,6 +40,7 @@ const FULL_ROW = {
   youtube_url: '',
   heading_font: 'Playfair Display',
   body_font: 'Inter',
+  logo: { storage_path: 'uploads/logo.webp' },
   hero: { storage_path: 'uploads/hero.webp', alt_text: 'Uploaded hero' },
   brand_story: { storage_path: '/images/home/brand-story.jpg', alt_text: '' },
   closing: null,
@@ -75,15 +76,19 @@ describe('getSiteSettings', () => {
       youtubeUrl: '',
     });
     expect(settings.fonts).toEqual({ heading: 'Playfair Display', body: 'Inter' });
+    expect(settings.logo).toBe('https://cdn.peakstorystudio.test/uploads/logo.webp');
   });
 
   it('falls back to all three static paths when every media id is null', async () => {
-    mockFrom.mockReturnValue(singleResult({ ...FULL_ROW, hero: null, brand_story: null, closing: null }));
+    mockFrom.mockReturnValue(singleResult({
+      ...FULL_ROW, logo: null, hero: null, brand_story: null, closing: null,
+    }));
     const { getSiteSettings } = await importSettings();
     const settings = await getSiteSettings();
     expect(settings.images.hero.src).toBe('/images/home/hero.jpg');
     expect(settings.images.brandStory.src).toBe('/images/home/brand-story.jpg');
     expect(settings.images.closing.src).toBe('/images/home/closing.jpg');
+    expect(settings.logo).toBeNull();
   });
 
   it('throws a prefixed error on a Postgres failure', async () => {
@@ -112,6 +117,7 @@ describe('SITE_SETTINGS_FALLBACK', () => {
         youtubeUrl: contact.STUDIO_YOUTUBE_URL,
       },
       fonts: { heading: 'Cormorant Garamond', body: 'Plus Jakarta Sans' },
+      logo: null,
     });
   });
 });

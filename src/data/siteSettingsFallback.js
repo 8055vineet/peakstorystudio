@@ -27,4 +27,5 @@ export const SITE_SETTINGS_FALLBACK = {
     youtubeUrl: STUDIO_YOUTUBE_URL,
   },
   fonts: { heading: DEFAULT_HEADING_FONT, body: DEFAULT_BODY_FONT },
+  logo: null,
 };

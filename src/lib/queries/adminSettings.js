@@ -15,6 +15,7 @@ const COLUMNS = [
   'studio_address', 'studio_email', 'studio_phone',
   'whatsapp_number', 'instagram_url', 'youtube_url',
   'heading_font', 'body_font',
+  'logo_media_id',
 ];
 
 const SELECT = COLUMNS.join(', ');

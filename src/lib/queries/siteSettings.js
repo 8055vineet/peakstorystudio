@@ -10,6 +10,7 @@ const SETTINGS_SELECT = `
   quote_text, quote_credit, brand_story_heading, brand_story_p1, brand_story_p2,
   studio_address, studio_email, studio_phone, whatsapp_number, instagram_url, youtube_url,
   heading_font, body_font,
+  logo:logo_media_id (storage_path),
   hero:hero_media_id (storage_path, alt_text),
   brand_story:brand_story_media_id (storage_path, alt_text),
   closing:closing_media_id (storage_path, alt_text)
@@ -54,5 +55,6 @@ export async function getSiteSettings() {
       youtubeUrl: data.youtube_url,
     },
     fonts: { heading: data.heading_font, body: data.body_font },
+    logo: data.logo?.storage_path ? publicMediaUrl(data.logo.storage_path) : null,
   };
 }
