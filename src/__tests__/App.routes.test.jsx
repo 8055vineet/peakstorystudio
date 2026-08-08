@@ -74,6 +74,16 @@ describe('routing', () => {
     expect(document.documentElement.style.getPropertyValue('--offwhite-100')).toBe('#f6efe1');
   });
 
+  it('plays the intro splash on Home', () => {
+    renderAt('/');
+    expect(screen.getByTestId('intro-splash')).toBeInTheDocument();
+  });
+
+  it('does not render the intro splash off Home', () => {
+    renderAt('/gallery');
+    expect(screen.queryByTestId('intro-splash')).toBeNull();
+  });
+
   it('an unknown URL renders the not-found page with a way home', () => {
     renderAt('/no-such-page');
     expect(screen.getByTestId('not-found-page')).toBeInTheDocument();

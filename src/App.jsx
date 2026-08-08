@@ -15,6 +15,7 @@ import NotFoundPage from './pages/NotFoundPage';
 import LightboxModal from './components/LightboxModal';
 import AuthModal from './components/AuthModal';
 import ClientGalleryModal from './components/ClientGalleryModal';
+import IntroSplash from './components/IntroSplash';
 
 import {
   useWeddings, useGalleryPhotos, useFilms, useTestimonials, useSiteSettings,
@@ -129,14 +130,17 @@ export default function App() {
           <Route
             index
             element={
-              <HomePage
-                films={films}
-                photos={photos}
-                onOpenLightbox={handleOpenLightbox}
-                quote={settings.quote}
-                brandStory={settings.brandStory}
-                images={settings.images}
-              />
+              <>
+                {settings.logo ? <IntroSplash logoUrl={settings.logo} /> : null}
+                <HomePage
+                  films={films}
+                  photos={photos}
+                  onOpenLightbox={handleOpenLightbox}
+                  quote={settings.quote}
+                  brandStory={settings.brandStory}
+                  images={settings.images}
+                />
+              </>
             }
           />
           <Route path="gallery" element={<GalleryPage photos={photos} onOpenLightbox={handleOpenLightbox} categoryOrder={galleryCategories} />} />

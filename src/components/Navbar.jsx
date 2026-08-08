@@ -71,6 +71,7 @@ export default function Navbar({
             <img
               src={logo}
               alt=""
+              data-logo-badge
               className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover ring-1 ring-pitch-900/15 shrink-0"
             />
           )}

@@ -89,6 +89,11 @@ describe('logo badge', () => {
     expect(img.className).toMatch(/rounded-full/);
   });
 
+  it('marks the badge as the intro-collapse target', () => {
+    renderAt('/', { logo: '/images/logo.png' });
+    expect(document.querySelector('header [data-logo-badge]')).not.toBeNull();
+  });
+
   it('renders no logo image when none is set', () => {
     renderAt('/');
     expect(document.querySelector('header img')).toBeNull();
