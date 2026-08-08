@@ -5,6 +5,7 @@ import {
 } from '../lib/queries/adminCollectionItems';
 import { listMedia } from '../lib/queries/media';
 import { mediaUrl } from '../lib/mediaUrl.js';
+import { youtubeId, youtubeEmbedUrl } from '../lib/youtube';
 import MediaPickerDialog from './MediaPickerDialog.jsx';
 import MediaSlot from './MediaSlot.jsx';
 
@@ -76,13 +77,16 @@ export default function CollectionItems({ collectionId }) {
 
   function handleAddVideo() {
     const url = videoUrl.trim();
-    if (!/^https?:\/\//i.test(url)) {
-      setVideoUrlError('Must start with http:// or https://.');
+    // Accept any YouTube link (watch, share, youtu.be, shorts — with or
+    // without a scheme) or a full http(s) embed URL from another provider,
+    // and store the normalized embed URL so the public page can frame it.
+    if (!youtubeId(url) && !/^https?:\/\//i.test(url)) {
+      setVideoUrlError('Paste a YouTube link, or a full https:// embed URL.');
       return;
     }
     setVideoUrlError(null);
     runAction('addVideo', {
-      videoEmbedUrl: url,
+      videoEmbedUrl: youtubeEmbedUrl(url),
       posterMediaId: videoPosterId,
       caption: videoCaption.trim() || null,
     });
@@ -202,7 +206,7 @@ export default function CollectionItems({ collectionId }) {
         <div className="border border-pitch-900/10 rounded-xl p-4 space-y-4 max-w-xl">
           <div>
             <label htmlFor="collection-video-url" className="block text-xs uppercase tracking-widest text-pitch-900 mb-2 font-semibold">
-              Video Embed URL
+              Video Link
             </label>
             <input
               id="collection-video-url"
@@ -212,7 +216,7 @@ export default function CollectionItems({ collectionId }) {
               className={INPUT_CLASS}
             />
             <p className="mt-1 text-xs text-charcoal-500">
-              An embed URL, e.g. https://www.youtube.com/embed/VIDEO_ID — not a normal watch-page link.
+              Paste any YouTube link — watch, share (youtu.be), or embed. Other providers: their embed URL.
             </p>
             {videoUrlError && (
               <p role="alert" className="mt-2 text-xs font-semibold text-pitch-900">{videoUrlError}</p>

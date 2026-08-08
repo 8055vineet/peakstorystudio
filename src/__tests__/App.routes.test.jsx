@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from '../App';
 
@@ -10,7 +10,7 @@ const MOCK_COLLECTIONS = [{
   description: 'On the road with couples.',
   items: [
     { id: 'i-1', url: '/images/x/1.jpg', videoEmbedUrl: null, caption: null },
-    { id: 'i-2', url: '', videoEmbedUrl: 'https://www.youtube.com/embed/abc', caption: 'Teaser' },
+    { id: 'i-2', url: '', videoEmbedUrl: 'https://youtu.be/dQw4w9WgXcQ', caption: 'Teaser' },
   ],
 }];
 
@@ -121,6 +121,14 @@ describe('/more/:slug', () => {
     expect(screen.getByText('On the road with couples.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /view photo/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /play video/i })).toBeInTheDocument();
+  });
+
+  it('normalizes a collection video URL when the modal opens', () => {
+    renderAt('/more/travels');
+    fireEvent.click(screen.getByRole('button', { name: /play video/i }));
+    const iframe = document.querySelector('iframe[title="Cinematic Film Preview"]');
+    expect(iframe).not.toBeNull();
+    expect(iframe.getAttribute('src')).toContain('/embed/dQw4w9WgXcQ');
   });
 
   it('shows the not-found content for an unknown slug once loaded', () => {

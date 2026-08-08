@@ -117,16 +117,16 @@ describe('CollectionItems', () => {
     expect(addCollectionPhoto).not.toHaveBeenCalled();
   });
 
-  it('refuses a video URL that is not http(s) and never calls addCollectionVideo', async () => {
+  it('refuses a link that is neither a YouTube link nor an http(s) URL', async () => {
     const user = userEvent.setup();
     await renderItems();
     await waitFor(() => expect(screen.getByText(/no items on this page yet/i)).toBeInTheDocument());
 
     await user.click(screen.getByRole('button', { name: /add video/i }));
-    await user.type(screen.getByLabelText(/video embed url/i), 'not-a-url');
+    await user.type(screen.getByLabelText(/video link/i), 'not-a-url');
     await user.click(screen.getByRole('button', { name: /^add$/i }));
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/must start with http/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/paste a youtube link/i);
     expect(addCollectionVideo).not.toHaveBeenCalled();
   });
 
@@ -137,7 +137,7 @@ describe('CollectionItems', () => {
     await waitFor(() => expect(screen.getByText(/no items on this page yet/i)).toBeInTheDocument());
 
     await user.click(screen.getByRole('button', { name: /add video/i }));
-    await user.type(screen.getByLabelText(/video embed url/i), 'https://www.youtube.com/embed/x');
+    await user.type(screen.getByLabelText(/video link/i), 'https://www.youtube.com/embed/x');
     await user.type(screen.getByLabelText(/caption/i), 'Teaser');
     listCollectionItems.mockResolvedValueOnce([VIDEO_ITEM]);
     await user.click(screen.getByRole('button', { name: /^add$/i }));
@@ -145,6 +145,21 @@ describe('CollectionItems', () => {
     await waitFor(() => expect(addCollectionVideo).toHaveBeenCalledWith('c-1', {
       videoEmbedUrl: 'https://www.youtube.com/embed/x', posterMediaId: null, caption: 'Teaser',
     }));
+  });
+
+  it('normalizes a pasted YouTube share link to an embed URL', async () => {
+    const user = userEvent.setup();
+    addCollectionVideo.mockResolvedValue(VIDEO_ITEM);
+    await renderItems();
+    await waitFor(() => expect(screen.getByText(/no items on this page yet/i)).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: /add video/i }));
+    await user.type(screen.getByLabelText(/video link/i), 'https://youtu.be/4KEZRGlwJU4');
+    await user.click(screen.getByRole('button', { name: /^add$/i }));
+
+    await waitFor(() => expect(addCollectionVideo).toHaveBeenCalledWith('c-1', expect.objectContaining({
+      videoEmbedUrl: expect.stringContaining('/embed/4KEZRGlwJU4'),
+    })));
   });
 
   it('removes an item after confirm — the photograph itself is kept', async () => {

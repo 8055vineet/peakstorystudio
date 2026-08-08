@@ -22,6 +22,7 @@ import {
   useGalleryCategories, useBookingServices, useCollections,
 } from './hooks/useContent';
 import { surfaceRamp } from './data/surfaceTint';
+import { youtubeEmbedUrl } from './lib/youtube';
 
 export default function App() {
   const { data: stories } = useWeddings();
@@ -192,7 +193,7 @@ export default function App() {
               <X className="w-6 h-6" />
             </button>
             <iframe
-              src={videoModalUrl}
+              src={youtubeEmbedUrl(videoModalUrl)}
               title="Cinematic Film Preview"
               className="w-full h-full border-0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
