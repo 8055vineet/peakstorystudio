@@ -35,13 +35,14 @@ export default {
         }
       },
       fontFamily: {
-        // cinzel (admin-only) and script (Home quote) stay fixed. garamond
-        // and sans are the public heading/body roles, admin-chosen (Phase
-        // 3g): they read CSS variables App sets from site_settings, falling
-        // back to the shipped families when a variable is unset.
+        // cinzel stays fixed (admin-only). garamond, sans, and script are the
+        // public heading / body / quote roles, admin-chosen: they read CSS
+        // variables App sets from site_settings, falling back to the shipped
+        // families when a variable is unset (garamond/sans since Phase 3g,
+        // script/quote since Phase 3j).
         cinzel: ['Cinzel', 'serif'],
         garamond: ['var(--font-heading, "Cormorant Garamond")', 'serif'],
-        script: ['Dancing Script', 'cursive'],
+        script: ['var(--font-quote, "Quicksand")', 'sans-serif'],
         sans: ['var(--font-body, "Plus Jakarta Sans")', 'sans-serif'],
       },
       animation: {

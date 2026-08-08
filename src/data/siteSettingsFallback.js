@@ -3,7 +3,7 @@ import {
   STUDIO_ADDRESS, STUDIO_EMAIL, STUDIO_PHONE, WHATSAPP_NUMBER,
   STUDIO_INSTAGRAM_URL, STUDIO_YOUTUBE_URL,
 } from './contact';
-import { DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT } from './fontOptions';
+import { DEFAULT_HEADING_FONT, DEFAULT_BODY_FONT, DEFAULT_QUOTE_FONT } from './fontOptions';
 import { DEFAULT_WARMTH } from './surfaceTint';
 
 // The shape useSiteSettings resolves, built from the shipped constants —
@@ -27,7 +27,7 @@ export const SITE_SETTINGS_FALLBACK = {
     instagramUrl: STUDIO_INSTAGRAM_URL,
     youtubeUrl: STUDIO_YOUTUBE_URL,
   },
-  fonts: { heading: DEFAULT_HEADING_FONT, body: DEFAULT_BODY_FONT },
+  fonts: { heading: DEFAULT_HEADING_FONT, body: DEFAULT_BODY_FONT, quote: DEFAULT_QUOTE_FONT },
   appearance: { warmth: DEFAULT_WARMTH },
   logo: null,
 };

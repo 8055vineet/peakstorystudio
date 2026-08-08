@@ -201,7 +201,9 @@ thirteen tables — lives in `supabase/migrations/`:
   `surface_warmth` (a `numeric` in [0, 1], default 0.5, `check`-constrained): the admin-chosen
   background warmth, which the public query maps to `appearance.warmth` and `App` applies by
   setting the `--offwhite-*` CSS variables from `surfaceRamp()` (`src/data/surfaceTint.js`) —
-  0.5 reproduces the shipped palette exactly. Read path:
+  0.5 reproduces the shipped palette exactly. Since Phase 3j it also carries `quote_font` (the
+  Home quote's font, defaulted to `Quicksand`), applied via a `--font-quote` variable the same
+  way. Read path:
   `src/lib/queries/siteSettings.js` → `useSiteSettings`
   (`src/hooks/useContent.js`), falling back to `src/data/siteSettingsFallback.js`; admin write
   path: `src/lib/queries/adminSettings.js` behind the Settings tab.

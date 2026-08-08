@@ -17,7 +17,7 @@ const ROW = {
   hero_media_id: 'm-1', brand_story_media_id: null, closing_media_id: 'm-3',
   studio_address: 'A', studio_email: 'e@x.test', studio_phone: '+91 1',
   whatsapp_number: '911', instagram_url: '', youtube_url: '',
-  heading_font: 'Marcellus', body_font: 'Lato',
+  heading_font: 'Marcellus', body_font: 'Lato', quote_font: 'Cinzel',
   logo_media_id: 'm-logo',
   surface_warmth: 0.75,
 };
@@ -53,6 +53,7 @@ describe('getSettingsRow', () => {
     expect(item.whatsappNumber).toBe('911');
     expect(item.headingFont).toBe('Marcellus');
     expect(item.bodyFont).toBe('Lato');
+    expect(item.quoteFont).toBe('Cinzel');
     expect(item.logoMediaId).toBe('m-logo');
     expect(item.surfaceWarmth).toBe(0.75);
   });

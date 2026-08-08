@@ -32,6 +32,7 @@ const INITIAL = {
   youtubeUrl: '',
   headingFont: 'Cormorant Garamond',
   bodyFont: 'Plus Jakarta Sans',
+  quoteFont: 'Quicksand',
   logoMediaId: null,
   surfaceWarmth: 0.5,
 };
@@ -131,9 +132,11 @@ describe('SettingsForm', () => {
     const { props } = await renderForm();
     expect(screen.getByLabelText(/heading font/i)).toHaveValue('Cormorant Garamond');
     expect(screen.getByLabelText(/body font/i)).toHaveValue('Plus Jakarta Sans');
+    expect(screen.getByLabelText(/quote font/i)).toHaveValue('Quicksand');
     fireEvent.change(screen.getByLabelText(/heading font/i), { target: { value: 'Playfair Display' } });
+    fireEvent.change(screen.getByLabelText(/quote font/i), { target: { value: 'Cinzel' } });
     fireEvent.click(screen.getByRole('button', { name: /save settings/i }));
-    expect(props.onSave.mock.calls[0][0]).toMatchObject({ headingFont: 'Playfair Display' });
+    expect(props.onSave.mock.calls[0][0]).toMatchObject({ headingFont: 'Playfair Display', quoteFont: 'Cinzel' });
   });
 
   it('renders the Appearance warmth slider and submits a changed value', async () => {

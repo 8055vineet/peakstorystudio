@@ -14,7 +14,7 @@ const COLUMNS = [
   'hero_media_id', 'brand_story_media_id', 'closing_media_id',
   'studio_address', 'studio_email', 'studio_phone',
   'whatsapp_number', 'instagram_url', 'youtube_url',
-  'heading_font', 'body_font',
+  'heading_font', 'body_font', 'quote_font',
   'logo_media_id',
   'surface_warmth',
 ];

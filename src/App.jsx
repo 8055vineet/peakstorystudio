@@ -59,7 +59,8 @@ export default function App() {
     const root = document.documentElement;
     if (settings.fonts?.heading) root.style.setProperty('--font-heading', `"${settings.fonts.heading}"`);
     if (settings.fonts?.body) root.style.setProperty('--font-body', `"${settings.fonts.body}"`);
-  }, [settings.fonts?.heading, settings.fonts?.body]);
+    if (settings.fonts?.quote) root.style.setProperty('--font-quote', `"${settings.fonts.quote}"`);
+  }, [settings.fonts?.heading, settings.fonts?.body, settings.fonts?.quote]);
 
   // Apply the admin-chosen surface warmth site-wide (Phase 3i). Tailwind's
   // offwhite-* tokens read these variables; surfaceRamp(0.5) reproduces the

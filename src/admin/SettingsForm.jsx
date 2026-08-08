@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import MediaSlot from './MediaSlot.jsx';
-import { HEADING_FONTS, BODY_FONTS } from '../data/fontOptions';
+import { HEADING_FONTS, BODY_FONTS, QUOTE_FONTS } from '../data/fontOptions';
 import { surfaceRamp, DEFAULT_WARMTH } from '../data/surfaceTint';
 
 // The Settings tab's form: the site's singular content — quote, Brand
@@ -190,6 +190,7 @@ export default function SettingsForm({
         </p>
         {fontSelect('headingFont', 'Heading font', HEADING_FONTS)}
         {fontSelect('bodyFont', 'Body font', BODY_FONTS)}
+        {fontSelect('quoteFont', 'Quote font', QUOTE_FONTS)}
       </section>
 
       <section className={SECTION_CLASS}>

@@ -10,7 +10,7 @@ import { DEFAULT_WARMTH } from '../../data/surfaceTint';
 const SETTINGS_SELECT = `
   quote_text, quote_credit, brand_story_heading, brand_story_p1, brand_story_p2,
   studio_address, studio_email, studio_phone, whatsapp_number, instagram_url, youtube_url,
-  heading_font, body_font,
+  heading_font, body_font, quote_font,
   surface_warmth,
   logo:logo_media_id (storage_path),
   hero:hero_media_id (storage_path, alt_text),
@@ -56,7 +56,7 @@ export async function getSiteSettings() {
       instagramUrl: data.instagram_url,
       youtubeUrl: data.youtube_url,
     },
-    fonts: { heading: data.heading_font, body: data.body_font },
+    fonts: { heading: data.heading_font, body: data.body_font, quote: data.quote_font },
     appearance: { warmth: data.surface_warmth ?? DEFAULT_WARMTH },
     logo: data.logo?.storage_path ? publicMediaUrl(data.logo.storage_path) : null,
   };

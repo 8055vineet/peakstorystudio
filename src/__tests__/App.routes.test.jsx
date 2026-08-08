@@ -36,7 +36,7 @@ vi.mock('../hooks/useContent', () => ({
         address: 'Settings Street 1', email: 'settings@example.test', phone: '+91 11111 11111',
         whatsappNumber: '911111111111', instagramUrl: '', youtubeUrl: '',
       },
-      fonts: { heading: 'Playfair Display', body: 'Inter' },
+      fonts: { heading: 'Playfair Display', body: 'Inter', quote: 'Marcellus' },
       appearance: { warmth: 1 },
       logo: '/images/home/logo.jpg',
     },
@@ -67,6 +67,7 @@ describe('routing', () => {
     renderAt('/');
     expect(document.documentElement.style.getPropertyValue('--font-heading')).toContain('Playfair Display');
     expect(document.documentElement.style.getPropertyValue('--font-body')).toContain('Inter');
+    expect(document.documentElement.style.getPropertyValue('--font-quote')).toContain('Marcellus');
   });
 
   it('applies the admin-chosen surface warmth as CSS variables on the document', () => {

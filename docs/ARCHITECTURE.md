@@ -16,13 +16,13 @@ documents and commits that describe it that way predate `v0.4b`. The visual desi
 owner's approved Phase 3b redesign: a centered Cormorant Garamond wordmark, quiet cream
 surfaces, and the deep-maroon `pitch` accents.
 
-Since Phase 3g (`v0.4g`) the two public type roles (`font-garamond` headings and `font-sans`
-body) are CSS-variable-driven and set by `App` from the `site_settings` row, so the owner picks
+Since Phase 3g (`v0.4g`) the public type roles (`font-garamond` headings, `font-sans` body, and — since Phase 3j —
+the `font-script` Home quote) are CSS-variable-driven and set by `App` from the `site_settings` row, so the owner picks
 the fonts from the admin's Settings → Typography section; the custom cursor was removed (the
 native pointer is used everywhere); and the Home video block autoplays its YouTube embed
 (muted — the only autoplay browsers permit) at full content width. Since Phase 3h (`v0.4h`)
 that video is a **full-width, chromeless, looping ambient hero** (its wordmark/mountain/tagline
-overlay was removed in Phase 3j); the Home quote uses Dancing Script; and the navbar
+overlay was removed in Phase 3j); the Home quote font is admin-chosen (Quicksand by default); and the navbar
 shows the admin-uploaded logo (`site_settings.logo_media_id`) as a circular badge before the
 wordmark. Since Phase 3i (`v0.4i`) the cream **surface** tokens (`offwhite-*`) are
 CSS-variable-driven too: `App` sets `--offwhite-50..400` from `settings.appearance.warmth` via
