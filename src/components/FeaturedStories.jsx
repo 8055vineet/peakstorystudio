@@ -7,7 +7,7 @@ export default function FeaturedStories({ stories, onOpenLightbox, onOpenVideo }
   const [selectedStory, setSelectedStory] = useState(null);
 
   return (
-    <section id="stories" className="py-24 relative bg-offwhite-100 overflow-hidden border-t border-pitch-900/5">
+    <section id="stories" className="py-24 relative bg-offwhite-100 overflow-hidden border-t border-pitch-900/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
         {/* Section Header */}

@@ -27,7 +27,7 @@ export default function CollectionPage({ collections, loading, onOpenLightbox, o
   return (
     <div data-testid="collection-page">
       <PageHeader title={collection.title} />
-      <section className="py-6">
+      <section className="py-6 border-t border-pitch-900/10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           {collection.description && (
             <p className="text-center text-sm text-charcoal-700 max-w-2xl mx-auto mb-10">{collection.description}</p>

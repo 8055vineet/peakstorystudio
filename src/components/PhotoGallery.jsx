@@ -21,7 +21,7 @@ export default function PhotoGallery({ photos, onOpenLightbox, categoryOrder = G
   });
 
   return (
-    <section id="gallery" className="py-10 relative">
+    <section id="gallery" className="py-10 relative border-t border-pitch-900/10">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {photos.length === 0 && (
           <p className="text-center text-charcoal-500 py-16">Photographs are on their way.</p>
