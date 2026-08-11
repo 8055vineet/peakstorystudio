@@ -170,8 +170,11 @@ Set `RESEND_API_KEY` (from your Resend dashboard), `RESEND_FROM = onboarding@res
   sees the on-screen success message, and the send outcome is recorded per-inquiry in
   the database (`notification_status`). No lead is ever lost to an email failure.
 
-If you'd rather have couple acknowledgements from day one, the domain purchase can be
-pulled forward from Phase 7 — say so and we'll verify it in Resend during Phase 4.
+**Owner decision (2026-08-11): the domain stays deferred.** The site goes live on the
+`pages.dev` URL first and is judged working there; the domain (and with it couple
+acknowledgement emails, a verified sender, and search indexing) is the final step
+afterwards. Phase 4 therefore ships with the sandbox sender and studio-only notification
+described above — a deliberate, recorded trade, not an oversight.
 
 ## Stage 6 — Cloudflare Pages (engineering)
 
