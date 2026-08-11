@@ -104,6 +104,11 @@ the studio **logo admin-uploadable** (`site_settings.logo_media_id`, a Settings 
 shown as a circular badge in a restyled navbar lockup. See the
 [Phase 3h design spec](superpowers/specs/2026-08-08-home-hero-logo-navbar-design.md).
 
+**Next up — Phase 4, first deploy** (`v0.5`): the owner-facing runbook, including the
+account checklist and every variable/secret involved, is
+[docs/DEPLOYMENT.md](DEPLOYMENT.md); Phase 4 still opens with its own design spec as
+every phase does.
+
 ## Phase and version table
 
 | Version | Phase | Deliverable | Definition of done | Runs on |
