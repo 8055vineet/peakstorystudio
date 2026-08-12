@@ -17,8 +17,13 @@ import { mediaUrl } from '../lib/mediaUrl.js';
 // `onAddToGallery` is the standalone library's own forward path: upload,
 // then send the photograph straight into a pre-filled Add Gallery Photo
 // form — the drawer suggests the next step instead of dead-ending.
+// `onDelete` (Phase 4) is likewise standalone-library-only: permanent
+// deletion has no place inside a picker dialog someone opened to choose a
+// photograph, so the embedding forms simply never pass it. Confirmation
+// and error handling live in the caller — this stays presentational.
 export default function MediaPicker({
   items, status, error, onRetry, onSelect, selectedId, selectedIds, onAddToGallery,
+  onDelete, deleteDisabled = false,
   gridClass = 'grid grid-cols-2 sm:grid-cols-3 gap-4',
 }) {
   if (status === 'error') {
@@ -136,6 +141,17 @@ export default function MediaPicker({
                   }`}
                 >
                   {isSelected ? '✓ Selected' : 'Select'}
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={() => onDelete(item)}
+                  disabled={deleteDisabled}
+                  aria-label={`Delete photograph: ${item.altText || 'Untitled photograph'}`}
+                  className="w-full px-2 py-1.5 rounded-lg border border-pitch-900/20 text-pitch-900 text-[10px] uppercase tracking-widest font-semibold hover:bg-offwhite-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  Delete
                 </button>
               )}
             </div>

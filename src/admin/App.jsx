@@ -3,7 +3,7 @@ import { useSession } from '../hooks/useSession';
 import { useResource } from '../hooks/useResource';
 import { useScrollToTop } from './useScrollToTop.js';
 import { listInquiries, updateInquiryStatus } from '../lib/queries/adminInquiries';
-import { listMedia } from '../lib/queries/media';
+import { listMedia, deleteMedia } from '../lib/queries/media';
 import { getSettingsRow, updateSiteSettings } from '../lib/queries/adminSettings';
 import {
   listGalleryCategories, addGalleryCategory, renameGalleryCategory,
@@ -79,11 +79,47 @@ function InquiriesDashboard() {
 // UploadField stay fully presentational either way: this is the composition
 // that hands MediaPicker its items and hands UploadField the reload that
 // makes an upload show up here without any optimistic update.
+// Deletion failures come back as typed MediaError codes (see
+// src/lib/queries/media.js). IN_USE is the one an admin can actually act
+// on, so it gets a sentence that says where to go; everything else falls
+// back to the code or message as-is.
+function deleteFailureMessage(err) {
+  if (err?.code === 'IN_USE') {
+    return 'This photograph is still used by a wedding, gallery photo, film, page, or the site settings. Remove it there first, then delete it here.';
+  }
+  if (err?.code === 'NOT_FOUND') {
+    return 'That photograph is already gone — reloading the library.';
+  }
+  return `Could not delete: ${err?.code ?? err?.message ?? 'unknown error'}`;
+}
+
 function MediaLibraryDashboard({ onAddToGallery }) {
-  const queries = useMemo(() => ({ list: listMedia }), []);
+  const queries = useMemo(() => ({ list: listMedia, remove: deleteMedia }), []);
   const {
-    items, status, error, reload,
+    items, status, error, reload, mutate,
   } = useResource(queries);
+  const [deletePending, setDeletePending] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+
+  // Permanent and admin-only, so it confirms in words that name the stakes.
+  // No optimistic UI, per the useResource contract: the tile disappears only
+  // once the database confirms the row is gone.
+  async function handleDelete(item) {
+    const name = item.altText || 'this photograph';
+    if (!window.confirm(`Delete ${name} permanently? It is removed from storage and cannot be recovered.`)) return;
+    setDeletePending(true);
+    setDeleteError(null);
+    try {
+      await mutate('remove', item.id);
+    } catch (err) {
+      setDeleteError(err);
+      // Stale-tile case: someone else (or another tab) already deleted it —
+      // the library is refreshed so the alert matches what is on screen.
+      if (err?.code === 'NOT_FOUND') reload();
+    } finally {
+      setDeletePending(false);
+    }
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
@@ -92,6 +128,11 @@ function MediaLibraryDashboard({ onAddToGallery }) {
         <UploadField onUploaded={reload} />
       </div>
       <div className="lg:col-span-3">
+        {deleteError && (
+          <div role="alert" className="mb-4 p-4 rounded-lg border border-pitch-900/20 bg-offwhite-50">
+            <p className="text-xs font-semibold text-pitch-900">{deleteFailureMessage(deleteError)}</p>
+          </div>
+        )}
         {/* No selection consumer exists yet — Task 7's `media` field type
             and Task 8's WeddingPhotos are what will pass a real onSelect,
             per the plan's own task ordering. Until then this screen is
@@ -108,6 +149,8 @@ function MediaLibraryDashboard({ onAddToGallery }) {
           error={error}
           onRetry={reload}
           onAddToGallery={onAddToGallery}
+          onDelete={handleDelete}
+          deleteDisabled={deletePending}
         />
       </div>
     </div>

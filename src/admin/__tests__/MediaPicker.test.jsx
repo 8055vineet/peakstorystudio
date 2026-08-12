@@ -212,4 +212,33 @@ describe('MediaPicker selection affordances', () => {
     });
     expect(screen.getByRole('list')).toHaveClass('grid-cols-6');
   });
+
+  it('renders a Delete control per photograph only when onDelete is supplied', async () => {
+    const onDelete = vi.fn();
+    await renderPicker({
+      items: ITEMS, status: 'ready', error: null, onRetry: vi.fn(), onDelete,
+    });
+
+    const buttons = screen.getAllByRole('button', { name: /delete photograph:/i });
+    expect(buttons).toHaveLength(2);
+    buttons[0].click();
+    expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ id: 'media-1' }));
+  });
+
+  it('renders no Delete control at all without onDelete (picker dialogs)', async () => {
+    await renderPicker({
+      items: ITEMS, status: 'ready', error: null, onRetry: vi.fn(), onSelect: vi.fn(),
+    });
+    expect(screen.queryByRole('button', { name: /delete photograph:/i })).toBeNull();
+  });
+
+  it('disables Delete while a deletion is pending', async () => {
+    await renderPicker({
+      items: ITEMS, status: 'ready', error: null, onRetry: vi.fn(), onDelete: vi.fn(), deleteDisabled: true,
+    });
+    for (const b of screen.getAllByRole('button', { name: /delete photograph:/i })) {
+      expect(b).toBeDisabled();
+    }
+  });
+
 });

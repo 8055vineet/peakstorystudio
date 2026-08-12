@@ -7,6 +7,7 @@ const useSession = vi.fn();
 const listInquiries = vi.fn();
 const updateInquiryStatus = vi.fn();
 const listMedia = vi.fn();
+const deleteMediaMock = vi.fn();
 const getOverviewCounts = vi.fn();
 const getSettingsRow = vi.fn();
 const updateSiteSettings = vi.fn();
@@ -77,6 +78,7 @@ vi.mock('../../lib/queries/adminInquiries', () => ({
 // UploadField.test.jsx already exercises against a mocked hook of its own.
 vi.mock('../../lib/queries/media', () => ({
   listMedia: (...args) => listMedia(...args),
+  deleteMedia: (...args) => deleteMediaMock(...args),
 }));
 
 // The Dashboard landing tab fetches counts on mount, and the Settings tab
@@ -328,6 +330,7 @@ beforeEach(() => {
   listInquiries.mockReset();
   updateInquiryStatus.mockReset();
   listMedia.mockReset();
+  deleteMediaMock.mockReset();
   weddingsList.mockReset();
   weddingsCreate.mockReset();
   weddingsUpdate.mockReset();
@@ -656,6 +659,67 @@ describe('admin App shell', () => {
       expect(screen.getByRole('heading', { name: /add gallery photo/i })).toBeInTheDocument();
       await waitFor(() => expect(screen.getByAltText('Bride among leaves')).toBeInTheDocument());
       expect(screen.getByRole('button', { name: /^change$/i })).toBeInTheDocument();
+    });
+
+    it('deletes a photograph from the library after confirmation, via deleteMedia', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      listMedia.mockResolvedValueOnce([{
+        id: 'media-1',
+        storagePath: 'uploads/one.webp',
+        width: 2000,
+        height: 1500,
+        altText: 'A couple at dusk.',
+        blurhash: null,
+        createdAt: '2026-08-01T10:00:00Z',
+      }]);
+      deleteMediaMock.mockResolvedValue({ id: 'media-1', objectDeleted: true });
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+
+      const nav = screen.getByRole('navigation', { name: /admin sections/i });
+      await user.click(within(nav).getByRole('button', { name: /media library/i }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /delete photograph: a couple at dusk/i })).toBeInTheDocument());
+
+      listMedia.mockResolvedValueOnce([]);
+      await user.click(screen.getByRole('button', { name: /delete photograph: a couple at dusk/i }));
+
+      expect(confirmSpy).toHaveBeenCalledWith(expect.stringMatching(/permanently/i));
+      await waitFor(() => expect(deleteMediaMock).toHaveBeenCalledWith('media-1'));
+      // No optimistic UI: the tile leaves only after the reload confirms it.
+      await waitFor(() => expect(screen.getByText(/no media yet/i)).toBeInTheDocument());
+      confirmSpy.mockRestore();
+    });
+
+    it('surfaces an in-use refusal without removing the tile', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+      listMedia.mockResolvedValue([{
+        id: 'media-1',
+        storagePath: 'uploads/one.webp',
+        width: 2000,
+        height: 1500,
+        altText: 'A couple at dusk.',
+        blurhash: null,
+        createdAt: '2026-08-01T10:00:00Z',
+      }]);
+      const inUse = new Error('IN_USE');
+      inUse.code = 'IN_USE';
+      deleteMediaMock.mockRejectedValue(inUse);
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+
+      const nav = screen.getByRole('navigation', { name: /admin sections/i });
+      await user.click(within(nav).getByRole('button', { name: /media library/i }));
+      await waitFor(() => expect(screen.getByRole('button', { name: /delete photograph: a couple at dusk/i })).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /delete photograph: a couple at dusk/i }));
+
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/still used by/i));
+      expect(screen.getByRole('button', { name: /delete photograph: a couple at dusk/i })).toBeInTheDocument();
+      confirmSpy.mockRestore();
     });
 
     it('opens on the tab named in the URL hash after a refresh', async () => {

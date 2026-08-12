@@ -62,3 +62,58 @@ export async function presignPut({
 
   return signed.url;
 }
+
+// Deletes one object, server-side. Unlike presignPut this never hands the
+// browser anything: delete-media signs AND performs the DELETE itself,
+// because deletion is an admin-gated, audited act — there is no reason a
+// credentialless URL for it should ever exist beyond the instant it is
+// dialled. Same one-code-path property as presignPut: local Supabase
+// storage and Cloudflare R2 both speak S3 DeleteObject.
+//
+// Query-signed (signQuery), NOT header-signed, deliberately: header-signed
+// requests come back SignatureDoesNotMatch from the local storage stack
+// (verified live — its header-auth canonicalization disagrees with
+// aws4fetch about something, most plausibly the nonstandard port in Host),
+// while query-signed URLs are the exact surface every presigned PUT this
+// project performs already validates against, locally and on R2.
+//
+// `fetchImpl` is injectable for the same reason `now` is: tests assert the
+// signed request's shape without a network. S3 returns 204 for a successful
+// delete — and also for a key that never existed, which is fine here: the
+// caller wants the object gone, and "already gone" is gone.
+export async function deleteObject({
+  endpoint,
+  region,
+  bucket,
+  accessKeyId,
+  secretAccessKey,
+  key,
+  now = new Date(),
+  fetchImpl = fetch,
+}) {
+  const client = new AwsClient({
+    accessKeyId,
+    secretAccessKey,
+    service: 's3',
+    region,
+  });
+
+  const url = new URL(`${endpoint.replace(/\/$/, '')}/${bucket}/${key}`);
+  url.searchParams.set('X-Amz-Expires', '60');
+  const signed = await client.sign(url.toString(), {
+    method: 'DELETE',
+    aws: { signQuery: true, datetime: now.toISOString().replace(/[:-]|\.\d{3}/g, '') },
+  });
+
+  const response = await fetchImpl(new Request(signed.url, { method: 'DELETE' }));
+  if (!response.ok && response.status !== 404) {
+    // The S3 error body names the actual cause (SignatureDoesNotMatch,
+    // AccessDenied, ...) — a bare status number sends whoever reads the log
+    // guessing. Read defensively: a test double may not implement text().
+    let detail = '';
+    try {
+      detail = (await response.text?.())?.slice(0, 300) ?? '';
+    } catch { /* body unavailable — the status alone will have to do */ }
+    throw new Error(`deleteObject: storage responded ${response.status}${detail ? ` — ${detail}` : ''}`);
+  }
+}

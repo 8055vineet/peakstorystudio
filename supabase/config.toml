@@ -432,3 +432,10 @@ entrypoint = "./functions/sign-upload/index.js"
 # a valid JWT belonging to a signed-in non-admin passes this gate — it only
 # narrows what reaches the function to "at least presents some token".
 verify_jwt = true
+
+[functions.delete-media]
+# Same explicit-entrypoint and verify_jwt rationale as sign-upload above,
+# and the same in-function admin gate — the gateway check only filters
+# tokenless requests.
+entrypoint = "./functions/delete-media/index.js"
+verify_jwt = true

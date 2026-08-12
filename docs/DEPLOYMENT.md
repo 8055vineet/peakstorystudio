@@ -129,7 +129,8 @@ Phase 4 owns, all small:
 5. Seed the production admin — `scripts/seed-admin.mjs` pointed at the hosted project,
    with your Stage 0.3 email/password in shell variables. The script is idempotent and
    refuses to create a *second* admin by typo.
-6. Deploy the two Edge Functions (`supabase functions deploy submit-inquiry sign-upload`)
+6. Deploy the three Edge Functions
+   (`supabase functions deploy submit-inquiry sign-upload delete-media`)
    and set their secrets (reference table below). Two need generating fresh:
    `RATE_LIMIT_SALT` (a long random string — unset would make the rate-limiter's IP
    hashes trivially reversible) and the real Turnstile secret from Stage 4.
@@ -247,6 +248,7 @@ deploys on merge, preview deploys per PR — plus, from the issues register: `PS
 | `STUDIO_NOTIFY_EMAIL` | `peakstorystudio@gmail.com` | Where "new inquiry" lands |
 | `ALLOWED_ORIGINS` | `https://<project>.pages.dev` | Comma-append the real domain in Phase 7 |
 | `S3_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | from Stage 3 | Upload signing fails closed (500) if incomplete |
+| `S3_INTERNAL_ENDPOINT` | **leave unset in production** | Local-only override for delete-media; see `supabase/functions/.env.example` |
 | `INQUIRY_RATE_LIMIT` / `INQUIRY_RATE_WINDOW_MINUTES` / `MAX_UPLOAD_BYTES` | optional | Sensible defaults (5/hour; 15 MiB) |
 
 (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` are injected into

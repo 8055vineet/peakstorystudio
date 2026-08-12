@@ -127,6 +127,28 @@ export async function listMedia() {
   return (data ?? []).map(toMedia);
 }
 
+// Permanent deletion, through the delete-media Edge Function — the browser
+// never holds a storage credential, and Postgres's own foreign keys are what
+// refuse deleting a photograph something still uses (surfaced as the IN_USE
+// code). Response mapping mirrors signUpload: every typed response
+// (400/401/403/404/409/500) becomes a distinct MediaError code.
+export async function deleteMedia(id) {
+  const { data, error } = await supabase.functions.invoke('delete-media', {
+    body: { mediaId: id },
+  });
+
+  if (error) {
+    const body = await readErrorBody(error);
+    throw new MediaError(body?.error ?? 'NETWORK_ERROR', body);
+  }
+
+  if (!data?.ok) {
+    throw new MediaError(data?.error ?? 'SERVER_ERROR', data);
+  }
+
+  return { id, objectDeleted: data.objectDeleted ?? null };
+}
+
 export async function updateMediaAltText(id, altText) {
   const { data, error } = await supabase
     .from('media')

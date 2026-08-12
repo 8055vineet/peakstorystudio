@@ -366,6 +366,28 @@ No optimistic UI: `useMediaUpload`'s status only reaches `'done'` once the `medi
 confirmed. A failure at any stage — including the fourth — surfaces as `'error'`, never a false
 `'done'`.
 
+### The delete flow (Phase 4)
+
+Deletion is the mirror of upload, behind the same two checks: the **`delete-media`** Edge
+Function authenticates the caller with `getUser` and reads `profiles.role` with the
+service-role key (a non-admin is refused before anything else happens), then deletes the
+`media` **row first** — Postgres's own foreign keys are the "still in use" check: every
+consumer of a media row (`weddings.cover_media_id`, `wedding_photos`, `gallery_photos`,
+`films`, `collection_items`, the four `site_settings` slots) references it with a
+non-cascading constraint, so a referenced row's delete fails with `23503`, surfaced to the
+admin as a 409 `IN_USE` with a message naming where to look. Only after the row is gone does
+the function delete the storage **object** (S3 `DeleteObject`, query-signed server-side —
+the browser never holds a storage credential and no presigned delete URL is ever handed
+out), and only for real bucket keys — seeded/static `media` rows (`/images/...`, absolute
+URLs) have no object to delete. An object-deletion failure is logged and accepted (one
+orphaned, unreachable file — the `PS-029` family), never a failed deletion of content the
+admin asked to remove. Local quirk, documented in `supabase/functions/.env.example`: this is
+the one function that *dials* storage rather than embedding its URL for the browser, and the
+local storage API validates signatures against the Kong-forwarded host, so local development
+sets `S3_INTERNAL_ENDPOINT` (via `host.docker.internal`) while production leaves it unset.
+The UI lives only in the standalone Media Library (a Delete control per photograph, with a
+plain-words confirmation); picker dialogs embedded in forms never offer deletion.
+
 **What a real upload does not yet do:** it does not make the photograph visible on the public
 site — but the reason changed as of Task 12b, and it is narrower than it used to be. The public
 read path (`src/lib/queries/weddings.js`/`gallery.js`/`films.js`) now resolves every

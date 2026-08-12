@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { presignPut } from '../s3-presign.js';
+import { presignPut, deleteObject } from '../s3-presign.js';
 
 const BASE = {
   endpoint: 'http://127.0.0.1:54321/storage/v1/s3',
@@ -46,5 +46,41 @@ describe('presignPut', () => {
     const first = await presignPut({ ...BASE, key: 'uploads/abc123.jpg' });
     const second = await presignPut({ ...BASE, key: 'uploads/abc123.jpg' });
     expect(first).toBe(second);
+  });
+});
+
+describe('deleteObject', () => {
+  const fetchOk = () => {
+    const calls = [];
+    const impl = async (request) => { calls.push(request); return { ok: true, status: 204 }; };
+    return { calls, impl };
+  };
+
+  it('performs a query-signed DELETE against the bucket key and dials it itself', async () => {
+    const { calls, impl } = fetchOk();
+    await deleteObject({ ...BASE, key: 'uploads/abc123.webp', fetchImpl: impl });
+    expect(calls).toHaveLength(1);
+    const request = calls[0];
+    expect(request.method).toBe('DELETE');
+    const parsed = new URL(request.url);
+    expect(parsed.pathname).toBe('/storage/v1/s3/media/uploads/abc123.webp');
+    // Query-signed, same surface as the presigned PUTs this stack already
+    // validates (header-signed DELETEs come back SignatureDoesNotMatch —
+    // see deleteObject's comment).
+    expect(parsed.searchParams.get('X-Amz-Signature')).toMatch(/^[0-9a-f]{64}$/);
+    expect(parsed.searchParams.get('X-Amz-Expires')).toBe('60');
+    expect(request.headers.get('authorization')).toBeNull();
+  });
+
+  it('treats an already-gone object (404) as deleted', async () => {
+    await expect(deleteObject({
+      ...BASE, key: 'uploads/gone.webp', fetchImpl: async () => ({ ok: false, status: 404 }),
+    })).resolves.toBeUndefined();
+  });
+
+  it('throws on any other storage failure so the caller can report it', async () => {
+    await expect(deleteObject({
+      ...BASE, key: 'uploads/abc.webp', fetchImpl: async () => ({ ok: false, status: 500 }),
+    })).rejects.toThrow('deleteObject: storage responded 500');
   });
 });

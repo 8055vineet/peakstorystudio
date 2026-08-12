@@ -10,8 +10,9 @@ vi.mock('../../supabase', () => ({
   },
 }));
 
-const { signUpload, uploadObject, createMedia, listMedia, updateMediaAltText, MediaError } =
-  await import('../media.js');
+const {
+  signUpload, uploadObject, createMedia, listMedia, updateMediaAltText, deleteMedia, MediaError,
+} = await import('../media.js');
 
 // Mirrors src/lib/queries/__tests__/adminInquiries.test.js's chain spies:
 // every link individually spy-able so tests can assert exactly which calls
@@ -248,5 +249,45 @@ describe('updateMediaAltText', () => {
     mockFrom.mockReturnValue(makeUpdateChain({ row: null, error: { message: 'row not found' } }));
 
     await expect(updateMediaAltText('media-1', 'x')).rejects.toThrow(/row not found/);
+  });
+});
+
+describe('deleteMedia', () => {
+  it('invokes delete-media with the id and returns the object-deletion outcome', async () => {
+    invoke.mockResolvedValue({ data: { ok: true, objectDeleted: true }, error: null });
+
+    const result = await deleteMedia('media-9');
+
+    expect(invoke).toHaveBeenCalledWith('delete-media', { body: { mediaId: 'media-9' } });
+    expect(result).toEqual({ id: 'media-9', objectDeleted: true });
+  });
+
+  it('reports null objectDeleted for a row with no storage object (seeded/static path)', async () => {
+    invoke.mockResolvedValue({ data: { ok: true, objectDeleted: null }, error: null });
+    await expect(deleteMedia('media-static')).resolves.toEqual({ id: 'media-static', objectDeleted: null });
+  });
+
+  it.each([
+    ['IN_USE'],
+    ['NOT_FOUND'],
+    ['UNAUTHENTICATED'],
+    ['FORBIDDEN'],
+    ['SERVER_ERROR'],
+  ])('surfaces a %s response as a distinct MediaError', async (code) => {
+    invoke.mockResolvedValue({
+      data: null,
+      error: { context: { json: async () => ({ ok: false, error: code }) } },
+    });
+
+    const failure = await deleteMedia('media-9').catch((error) => error);
+    expect(failure).toBeInstanceOf(MediaError);
+    expect(failure.code).toBe(code);
+  });
+
+  it('maps a bare network failure to NETWORK_ERROR', async () => {
+    invoke.mockResolvedValue({ data: null, error: new Error('fetch failed') });
+    const failure = await deleteMedia('media-9').catch((error) => error);
+    expect(failure).toBeInstanceOf(MediaError);
+    expect(failure.code).toBe('NETWORK_ERROR');
   });
 });
