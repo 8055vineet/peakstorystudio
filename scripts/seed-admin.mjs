@@ -97,9 +97,13 @@ async function ensureAuthUser(email, password) {
 }
 
 async function ensureAdminProfile(userId) {
+  // is_owner: the seeded account is THE owner — the only one manage-team
+  // accepts for creating or removing other admins. Additional admins are
+  // created through that function (never this script) and get is_owner
+  // false; see docs/superpowers/specs/2026-08-12-client-portal-and-team-design.md.
   const { error } = await admin
     .from('profiles')
-    .upsert({ user_id: userId, role: 'admin' }, { onConflict: 'user_id' });
+    .upsert({ user_id: userId, role: 'admin', is_owner: true }, { onConflict: 'user_id' });
   if (error) throw new Error(`profiles upsert failed: ${error.message}`);
 }
 

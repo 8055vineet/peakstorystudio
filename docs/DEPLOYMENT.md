@@ -127,10 +127,12 @@ Phase 4 owns, all small:
 4. Create the private storage bucket `media` (locally this is created outside
    migrations; hosted needs the same one-time step).
 5. Seed the production admin — `scripts/seed-admin.mjs` pointed at the hosted project,
-   with your Stage 0.3 email/password in shell variables. The script is idempotent and
-   refuses to create a *second* admin by typo.
-6. Deploy the three Edge Functions
-   (`supabase functions deploy submit-inquiry sign-upload delete-media`)
+   with your Stage 0.3 email/password in shell variables. The script is idempotent,
+   refuses to create a *second* admin by typo, and marks the account it seeds as the
+   **owner** (`profiles.is_owner`) — the only account that can create or remove other
+   admins, from Settings → Team.
+6. Deploy the four Edge Functions
+   (`supabase functions deploy submit-inquiry sign-upload delete-media manage-team`)
    and set their secrets (reference table below). Two need generating fresh:
    `RATE_LIMIT_SALT` (a long random string — unset would make the rate-limiter's IP
    hashes trivially reversible) and the real Turnstile secret from Stage 4.

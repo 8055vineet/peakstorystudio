@@ -366,6 +366,27 @@ No optimistic UI: `useMediaUpload`'s status only reaches `'done'` once the `medi
 confirmed. A failure at any stage — including the fourth — surfaces as `'error'`, never a false
 `'done'`.
 
+### The client delivery portal and the team (pre-deploy rework)
+
+Client sign-in on the public site is real since the 2026-08-12 rework: a couple enters the
+**access code** the studio gave them (`AuthModal` → `useClientAccess` →
+`src/lib/queries/clientGalleries.js` → the `client_galleries_for_code` RPC), and
+`ClientGalleryModal` shows the published `client_galleries` entries matching that code —
+each a title, description, and Google Drive folder link, which is how the studio actually
+delivers photographs. Per-couple privacy is structural: the table is admin-only under RLS
+and the RPC filters by the presented code, so no couple can reach — or count — anyone
+else's deliveries. Entries are managed under the admin's **Client Galleries** tab
+(resource factory, draft-first like everything else). The Studio tab of the sign-in modal
+is now a plain link to `/admin.html` — the old fake email/password form is gone.
+
+Separately, `profiles.is_owner` marks exactly one account — the owner's, set by
+`scripts/seed-admin.mjs` — as the only caller the **`manage-team`** Edge Function accepts:
+it lists, creates (email + password, pre-confirmed; public signups stay disabled), and
+removes admin accounts, refusing to remove the owner. Admins it creates hold full content
+power (`role = 'admin'`, same RLS as ever) but can never manage the team; the Settings
+tab's Team panel renders only for the owner, and the server refuses non-owners regardless
+of what is rendered.
+
 ### The delete flow (Phase 4)
 
 Deletion is the mirror of upload, behind the same two checks: the **`delete-media`** Edge

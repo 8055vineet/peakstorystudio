@@ -439,3 +439,9 @@ verify_jwt = true
 # tokenless requests.
 entrypoint = "./functions/delete-media/index.js"
 verify_jwt = true
+
+[functions.manage-team]
+# Owner-gated (profiles.is_owner), stricter than the admin gate the other
+# functions apply — see the function's module comment.
+entrypoint = "./functions/manage-team/index.js"
+verify_jwt = true

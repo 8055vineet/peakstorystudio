@@ -237,6 +237,20 @@ thirteen tables — lives in `supabase/migrations/`:
   `src/lib/queries/adminCollectionItems.js`, `adminGalleryCategories.js`,
   `adminBookingServices.js`.
 
+- `20260812120000_client_galleries_and_owner.sql` (client-portal rework, pre-deploy) creates
+  **`client_galleries`** — the delivery portal: one row per Google Drive delivery (`title`,
+  `couple_label`, `description`, `drive_url`, plaintext `access_code`, `sort_order`,
+  draft/published `status`). **Admin-only under RLS with no anon policy at all** — Drive
+  links to private weddings are never world-readable; the single public read path is the
+  `security definer` RPC **`client_galleries_for_code(p_code)`**, which returns only
+  published rows matching the presented code (case-insensitive, trimmed, nothing for codes
+  under 6 characters) and never returns the code column itself. The code is stored plaintext
+  deliberately: the admin must re-read it to tell the couple, and RLS already denies every
+  non-admin read. The same migration adds **`profiles.is_owner`** — true for exactly one
+  account (the studio owner, marked by `scripts/seed-admin.mjs`), read only by the
+  `manage-team` Edge Function (owner-only create/remove of admin accounts) and the admin's
+  Team panel; content permissions stay on `role`, enforced by RLS.
+
 `inquiries.notification_status` is a text column, defaulting to `pending`, constrained to four
 values: `pending` (the row was written but no notification attempt has happened yet), `sent` (the
 studio's notification email was accepted by Resend), `failed` (Resend rejected or errored on the

@@ -51,6 +51,14 @@ const renameGalleryCategory = vi.fn();
 const reorderGalleryCategories = vi.fn();
 const removeGalleryCategory = vi.fn();
 const listBookingServices = vi.fn();
+const clientGalleriesList = vi.fn();
+const clientGalleriesCreate = vi.fn();
+const clientGalleriesUpdate = vi.fn();
+const clientGalleriesRemove = vi.fn();
+const clientGalleriesReorder = vi.fn();
+const listTeamMock = vi.fn();
+const createAdminMock = vi.fn();
+const removeAdminMock = vi.fn();
 const addBookingService = vi.fn();
 const renameBookingService = vi.fn();
 const reorderBookingServices = vi.fn();
@@ -296,6 +304,44 @@ vi.mock('../../lib/queries/adminCollectionItems', () => ({
   reorderCollectionItems: (...args) => reorderCollectionItems(...args),
 }));
 
+// The Client Galleries tab (client delivery portal) is mocked at the same
+// two boundaries as every other resource tab: a fixture-shaped config and
+// its factory-made queries.
+vi.mock('../resources/clientGalleries.js', () => ({
+  clientGalleriesResource: {
+    key: 'clientGalleries',
+    label: 'Client Galleries',
+    table: 'client_galleries',
+    columns: ['id', 'title', 'couple_label', 'drive_url', 'access_code', 'sort_order', 'status'],
+    defaultSort: 'sort_order',
+    listColumns: [
+      { name: 'title', label: 'Title' },
+      { name: 'accessCode', label: 'Access code' },
+      { name: 'status', label: 'Status' },
+    ],
+    fields: [
+      { name: 'title', label: 'Title', type: 'text', required: true },
+      { name: 'driveUrl', label: 'Drive folder link', type: 'text', required: true },
+      { name: 'accessCode', label: 'Access code', type: 'text', required: true },
+    ],
+  },
+  clientGalleriesQueries: {
+    list: (...args) => clientGalleriesList(...args),
+    create: (...args) => clientGalleriesCreate(...args),
+    update: (...args) => clientGalleriesUpdate(...args),
+    remove: (...args) => clientGalleriesRemove(...args),
+    reorder: (...args) => clientGalleriesReorder(...args),
+  },
+}));
+
+// TeamPanel drives these through useResource; mocked at the query-module
+// boundary like everything above so the owner-gating tests stay network-free.
+vi.mock('../../lib/queries/adminTeam', () => ({
+  listTeam: (...args) => listTeamMock(...args),
+  createAdmin: (...args) => createAdminMock(...args),
+  removeAdmin: (...args) => removeAdminMock(...args),
+}));
+
 vi.mock('../../lib/queries/adminGalleryCategories', () => ({
   listGalleryCategories: (...args) => listGalleryCategories(...args),
   addGalleryCategory: (...args) => addGalleryCategory(...args),
@@ -388,6 +434,16 @@ beforeEach(() => {
   removeCollectionItem.mockReset();
   reorderCollectionItems.mockReset();
   collectionsList.mockResolvedValue([]);
+  clientGalleriesList.mockReset();
+  clientGalleriesCreate.mockReset();
+  clientGalleriesUpdate.mockReset();
+  clientGalleriesRemove.mockReset();
+  clientGalleriesReorder.mockReset();
+  clientGalleriesList.mockResolvedValue([]);
+  listTeamMock.mockReset();
+  createAdminMock.mockReset();
+  removeAdminMock.mockReset();
+  listTeamMock.mockResolvedValue([]);
   listCollectionItems.mockResolvedValue([]);
   getOverviewCounts.mockReset();
   getSettingsRow.mockReset();
@@ -1779,4 +1835,139 @@ describe('admin App shell', () => {
       await waitFor(() => expect(renameBookingService).toHaveBeenCalledWith('svc-1', 'Cinema Film'));
     });
   });
+
+  describe('Client Galleries tab', () => {
+    function signIn() {
+      useSession.mockReturnValue({
+        ...baseState,
+        status: 'authenticated',
+        session: { user: { id: 'user-2', email: 'admin@example.test' } },
+        profile: { userId: 'user-2', role: 'admin', displayName: 'Studio Director' },
+      });
+    }
+
+    const ENTRY = {
+      id: 'cg-1', title: "Pragya's Wedding", coupleLabel: 'Pragya & Family', driveUrl: 'https://drive.google.com/x', accessCode: 'PSS-4K7Q2M', sortOrder: 0, status: 'draft',
+    };
+
+    it('switches to the tab and lists deliveries via clientGalleriesQueries.list, not before', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      clientGalleriesList.mockResolvedValue([ENTRY]);
+      signIn();
+      render(<App />);
+
+      await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
+      expect(clientGalleriesList).not.toHaveBeenCalled();
+
+      const user = userEvent.setup();
+      const nav = screen.getByRole('navigation', { name: /admin sections/i });
+      await user.click(within(nav).getByRole('button', { name: /client galleries/i }));
+
+      expect(screen.getByRole('heading', { level: 1, name: /client galleries/i })).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByText("Pragya's Wedding")).toBeInTheDocument());
+      expect(clientGalleriesList).toHaveBeenCalled();
+    });
+
+    it('creates a delivery through ResourceForm with title, link, and code', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      clientGalleriesList.mockResolvedValueOnce([]);
+      clientGalleriesCreate.mockResolvedValue({ id: 'cg-9', title: 'New Delivery' });
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      const nav = screen.getByRole('navigation', { name: /admin sections/i });
+      await user.click(within(nav).getByRole('button', { name: /client galleries/i }));
+      await waitFor(() => expect(screen.getByText(/no client galleries yet/i)).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /add new/i }));
+      expect(screen.getByRole('heading', { name: /add client gallery/i })).toBeInTheDocument();
+
+      await user.type(screen.getByLabelText(/title/i), 'New Delivery');
+      await user.type(screen.getByLabelText(/drive folder link/i), 'https://drive.google.com/drive/folders/xyz');
+      await user.type(screen.getByLabelText(/access code/i), 'PSS-NEW123');
+
+      clientGalleriesList.mockResolvedValueOnce([{ ...ENTRY, id: 'cg-9', title: 'New Delivery' }]);
+      await user.click(screen.getByRole('button', { name: /create/i }));
+
+      await waitFor(() => expect(clientGalleriesCreate).toHaveBeenCalledWith(expect.objectContaining({
+        title: 'New Delivery',
+        driveUrl: 'https://drive.google.com/drive/folders/xyz',
+        accessCode: 'PSS-NEW123',
+      })));
+      expect(screen.getByRole('status')).toHaveTextContent(/saved as draft/i);
+    });
+  });
+
+  describe('Team panel (owner-only)', () => {
+    const OWNER_PROFILE = {
+      userId: 'user-2', role: 'admin', displayName: 'Studio Director', isOwner: true,
+    };
+    const MEMBERS = [
+      { userId: 'user-2', email: 'owner@studio.test', displayName: null, isOwner: true, createdAt: '2026-08-01' },
+      { userId: 'user-3', email: 'editor@studio.test', displayName: null, isOwner: false, createdAt: '2026-08-10' },
+    ];
+
+    function signInAs(profile) {
+      useSession.mockReturnValue({
+        ...baseState,
+        status: 'authenticated',
+        session: { user: { id: profile.userId, email: 'x@studio.test' } },
+        profile,
+      });
+    }
+
+    it('renders the team for the owner: badges, remove on admins only, and an add form', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      listTeamMock.mockResolvedValue(MEMBERS);
+      signInAs(OWNER_PROFILE);
+      render(<App />);
+      const user = userEvent.setup();
+      const nav = screen.getByRole('navigation', { name: /admin sections/i });
+      await user.click(within(nav).getByRole('button', { name: /settings/i }));
+
+      await waitFor(() => expect(screen.getByText('owner@studio.test')).toBeInTheDocument());
+      expect(screen.getByText('editor@studio.test')).toBeInTheDocument();
+      expect(screen.getByText('Owner')).toBeInTheDocument();
+      // Exactly one Remove: the owner row never offers one.
+      expect(screen.getAllByRole('button', { name: /^remove$/i })).toHaveLength(1);
+      expect(screen.getByLabelText(/^email$/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /add admin/i })).toBeInTheDocument();
+    });
+
+    it('creates an admin through the form and confirms with where the password should go', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      listTeamMock.mockResolvedValue(MEMBERS);
+      createAdminMock.mockResolvedValue({
+        userId: 'user-4', email: 'new@studio.test', displayName: null, isOwner: false, createdAt: '2026-08-12',
+      });
+      signInAs(OWNER_PROFILE);
+      render(<App />);
+      const user = userEvent.setup();
+      await user.click(within(screen.getByRole('navigation', { name: /admin sections/i })).getByRole('button', { name: /settings/i }));
+      await waitFor(() => expect(screen.getByText('owner@studio.test')).toBeInTheDocument());
+
+      await user.type(screen.getByLabelText(/^email$/i), 'new@studio.test');
+      await user.type(screen.getByLabelText(/^password$/i), 'a-long-enough-password');
+      await user.click(screen.getByRole('button', { name: /add admin/i }));
+
+      await waitFor(() => expect(createAdminMock).toHaveBeenCalledWith({
+        email: 'new@studio.test', password: 'a-long-enough-password',
+      }));
+      await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/share the password.*privately/i));
+    });
+
+    it('renders no Team section at all for a non-owner admin, and never calls listTeam', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      signInAs({ userId: 'user-3', role: 'admin', displayName: 'Editor', isOwner: false });
+      render(<App />);
+      const user = userEvent.setup();
+      await user.click(within(screen.getByRole('navigation', { name: /admin sections/i })).getByRole('button', { name: /settings/i }));
+
+      await waitFor(() => expect(screen.getByRole('heading', { name: /site settings/i })).toBeInTheDocument());
+      await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
+      expect(screen.queryByText(/add an admin/i)).toBeNull();
+      expect(listTeamMock).not.toHaveBeenCalled();
+    });
+  });
+
 });

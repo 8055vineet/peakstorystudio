@@ -83,7 +83,7 @@ export async function getProfile(userId) {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('user_id, role, display_name')
+    .select('user_id, role, display_name, is_owner')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -96,5 +96,8 @@ export async function getProfile(userId) {
     userId: data.user_id,
     role: data.role,
     displayName: data.display_name,
+    // Owner-only surfaces (the Team panel) key off this; content permissions
+    // never do — those stay on `role`, enforced by RLS.
+    isOwner: data.is_owner === true,
   };
 }

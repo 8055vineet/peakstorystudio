@@ -109,6 +109,15 @@ account checklist and every variable/secret involved, is
 [docs/DEPLOYMENT.md](DEPLOYMENT.md); Phase 4 still opens with its own design spec as
 every phase does.
 
+**Phase 6's scope changed (2026-08-12):** the planned client proofing portal (per-client
+galleries, magic-link auth, persisted favourites, high-res downloads) was superseded by a far
+simpler **client delivery portal** built pre-deploy at the owner's request: couples sign in on
+the public site with a studio-issued access code and see their Google Drive delivery links —
+admin-managed under a Client Galleries tab, per-couple by construction (see
+[the design](superpowers/specs/2026-08-12-client-portal-and-team-design.md)). Favourites and
+in-site downloads are dropped, not deferred. The same change added owner-only team management
+(only the owner account can create or remove admins, via the `manage-team` Edge Function).
+
 ## Phase and version table
 
 | Version | Phase | Deliverable | Definition of done | Runs on |

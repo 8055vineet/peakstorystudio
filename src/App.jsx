@@ -214,7 +214,6 @@ export default function App() {
         isOpen={clientGalleryOpen}
         onClose={() => setClientGalleryOpen(false)}
         user={user}
-        photos={photos}
       />
     </>
   );

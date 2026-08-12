@@ -95,17 +95,30 @@ describe('getProfile', () => {
     expect(result).toBeNull();
   });
 
-  it('maps user_id/display_name to userId/displayName', async () => {
+  it('maps user_id/display_name/is_owner to userId/displayName/isOwner', async () => {
     maybeSingle.mockResolvedValue({
-      data: { user_id: 'user-1', role: 'admin', display_name: 'Studio Director' },
+      data: {
+        user_id: 'user-1', role: 'admin', display_name: 'Studio Director', is_owner: true,
+      },
       error: null,
     });
 
     const result = await getProfile('user-1');
 
-    expect(result).toEqual({ userId: 'user-1', role: 'admin', displayName: 'Studio Director' });
+    expect(result).toEqual({
+      userId: 'user-1', role: 'admin', displayName: 'Studio Director', isOwner: true,
+    });
     expect(from).toHaveBeenCalledWith('profiles');
     expect(eq).toHaveBeenCalledWith('user_id', 'user-1');
+  });
+
+  it('treats a missing or false is_owner as not the owner — never truthy by accident', async () => {
+    maybeSingle.mockResolvedValue({
+      data: { user_id: 'user-2', role: 'admin', display_name: null },
+      error: null,
+    });
+    const result = await getProfile('user-2');
+    expect(result.isOwner).toBe(false);
   });
 });
 

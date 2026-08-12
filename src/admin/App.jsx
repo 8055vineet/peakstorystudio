@@ -28,6 +28,8 @@ import ResourceForm from './ResourceForm.jsx';
 import WeddingPhotos from './WeddingPhotos.jsx';
 import CollectionItems from './CollectionItems.jsx';
 import { weddingsResource, weddingsQueries } from './resources/weddings.js';
+import { clientGalleriesResource, clientGalleriesQueries } from './resources/clientGalleries.js';
+import TeamPanel from './TeamPanel.jsx';
 import { collectionsResource, collectionsQueries } from './resources/collections.js';
 import { galleryResource, galleryQueries } from './resources/gallery.js';
 import { filmsResource, filmsQueries } from './resources/films.js';
@@ -160,7 +162,7 @@ function MediaLibraryDashboard({ onAddToGallery }) {
 // Owns the settings row and its save lifecycle; SettingsForm stays fully
 // presentational. The media library is loaded here too (one useResource
 // instance) because the three Home image slots embed MediaPicker.
-function SettingsDashboard() {
+function SettingsDashboard({ isOwner = false }) {
   const mediaQueries = useMemo(() => ({ list: listMedia }), []);
   const {
     items: media, status: mediaStatus, error: mediaError, reload: reloadMedia,
@@ -282,6 +284,16 @@ function SettingsDashboard() {
           were sent with.
         </p>
       </div>
+      {/* Owner-only, and mounted only for the owner rather than merely
+          hidden: TeamPanel's mount fetch calls manage-team, which refuses
+          non-owners — rendering it for an admin would open the Settings tab
+          with a guaranteed failed request. The server refuses non-owners
+          regardless of what is rendered. */}
+      {isOwner && (
+        <div className="mt-10">
+          <TeamPanel />
+        </div>
+      )}
     </div>
   );
 }
@@ -765,6 +777,115 @@ function FilmsDashboard() {
   );
 }
 
+// The Client Galleries tab — how the studio delivers photographs (a Drive
+// link per entry, unlocked by the couple's access code; see
+// docs/superpowers/specs/2026-08-12-client-portal-and-team-design.md).
+// Same list/form/draft-first shape as FilmsDashboard above.
+function ClientGalleriesDashboard() {
+  const {
+    items, status, error, reload, mutate,
+  } = useResource(clientGalleriesQueries);
+  const [view, setView] = useState({ mode: 'list' });
+  useScrollToTop(view.mode);
+  const [formPending, setFormPending] = useState(false);
+  const [formError, setFormError] = useState(null);
+  const [listActionError, setListActionError] = useState(null);
+  const [justCreated, setJustCreated] = useState(null);
+  const [publishPending, setPublishPending] = useState(false);
+
+  async function runListAction(name, ...args) {
+    setListActionError(null);
+    try {
+      await mutate(name, ...args);
+    } catch (err) {
+      setListActionError({ message: err?.message || 'unknown error', written: Boolean(err?.written) });
+    }
+  }
+
+  async function handleSubmit(payload) {
+    setFormPending(true);
+    setFormError(null);
+    try {
+      if (view.item?.id) {
+        await mutate('update', view.item.id, payload);
+      } else {
+        const created = await mutate('create', payload);
+        setJustCreated(created);
+      }
+      setView({ mode: 'list' });
+    } catch (err) {
+      setFormError(err);
+    } finally {
+      setFormPending(false);
+    }
+  }
+
+  if (view.mode === 'form') {
+    return (
+      <div className="space-y-8">
+        <h1 className="font-cinzel text-2xl font-bold text-pitch-900">
+          {view.item ? 'Edit Client Gallery' : 'Add Client Gallery'}
+        </h1>
+        <ResourceForm
+          key={`client-gallery-form-${view.item?.id ?? 'new'}`}
+          config={clientGalleriesResource}
+          initial={view.item}
+          onSubmit={handleSubmit}
+          onCancel={() => setView({ mode: 'list' })}
+          pending={formPending}
+          error={formError}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h1 className="font-cinzel text-2xl font-bold text-pitch-900 mb-6">Client Galleries</h1>
+      <p className="text-xs text-charcoal-500 mb-6 max-w-2xl">
+        Each entry is a Google Drive delivery a couple unlocks on the public site with its
+        access code. Publish an entry to make it reachable; the couple sees every published
+        entry that carries their code.
+      </p>
+      {justCreated && (
+        <CreatedDraftBanner
+          label={justCreated.title ?? ''}
+          publishing={publishPending}
+          onPublish={async () => {
+            setPublishPending(true);
+            try {
+              await runListAction('update', justCreated.id, { status: 'published' });
+              setJustCreated(null);
+            } finally {
+              setPublishPending(false);
+            }
+          }}
+          onDismiss={() => setJustCreated(null)}
+        />
+      )}
+      {listActionError && (
+        <p role="alert" className="mb-4 text-xs font-semibold text-pitch-900">
+          {listActionError.written
+            ? `That change saved, but this screen could not refresh to confirm it (${listActionError.message}). Reload to check.`
+            : `Could not save that change: ${listActionError.message}. Please try again.`}
+        </p>
+      )}
+      <ResourceList
+        config={clientGalleriesResource}
+        items={items}
+        status={status}
+        error={error}
+        onRetry={reload}
+        onCreate={() => { setFormError(null); setView({ mode: 'form', item: null }); }}
+        onEdit={(item) => { setFormError(null); setView({ mode: 'form', item }); }}
+        onDelete={(id) => runListAction('remove', id)}
+        onToggleStatus={(id, nextStatus) => runListAction('update', id, { status: nextStatus })}
+        onReorder={(ids) => runListAction('reorder', ids)}
+      />
+    </div>
+  );
+}
+
 // Same shape as GalleryDashboard and FilmsDashboard above — see
 // GalleryDashboard's own comment for why this is not further unified into
 // one generic component.
@@ -991,6 +1112,7 @@ const DASHBOARD_TABS = [
   { key: 'films', label: 'Films' },
   { key: 'testimonials', label: 'Testimonials' },
   { key: 'pages', label: 'Pages' },
+  { key: 'deliveries', label: 'Client Galleries' },
   { key: 'settings', label: 'Settings' },
 ];
 
@@ -1009,7 +1131,7 @@ function initialTab() {
 // Library). A tab's dashboard only fetches once it's actually opened (see
 // the "not fetched until asked for" test in App.test.jsx), so switching
 // tabs, not mounting the shell, is what triggers each one's first load.
-function AdminDashboard() {
+function AdminDashboard({ isOwner = false }) {
   const [tab, setTab] = useState(initialTab);
   // Set by the Media Library's "Add to Gallery"; consumed by the Gallery
   // tab's mount; cleared whenever the admin navigates anywhere else so a
@@ -1060,7 +1182,8 @@ function AdminDashboard() {
       {tab === 'films' && <FilmsDashboard />}
       {tab === 'testimonials' && <TestimonialsDashboard />}
       {tab === 'pages' && <PagesDashboard />}
-      {tab === 'settings' && <SettingsDashboard />}
+      {tab === 'deliveries' && <ClientGalleriesDashboard />}
+      {tab === 'settings' && <SettingsDashboard isOwner={isOwner} />}
     </div>
   );
 }
@@ -1076,7 +1199,10 @@ function AdminDashboard() {
 // substitute for RLS if that policy set is ever weakened. It grants
 // nothing; it only decides what a signed-in browser is shown.
 export default function App({
-  children = <AdminDashboard />,
+  // null (the default) renders the real dashboard, with the session's
+  // profile threaded in so owner-only surfaces (the Team panel) know who is
+  // looking; tests keep injecting explicit children to isolate the gate.
+  children = null,
 }) {
   const {
     status, session, profile, error, signIn, signOut,
@@ -1186,7 +1312,7 @@ export default function App({
           </button>
         </div>
       </header>
-      <main className="p-6">{children}</main>
+      <main className="p-6">{children ?? <AdminDashboard isOwner={profile?.isOwner === true} />}</main>
     </div>
   );
 }
