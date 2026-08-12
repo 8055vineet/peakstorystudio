@@ -19,7 +19,7 @@ export const BRAND_STORY = {
 };
 
 export const HOME_IMAGES = {
-  hero: { src: '/images/home/hero.jpg', alt: 'A couple embracing beneath the arches of a Lucknow monument at golden hour' },
-  brandStory: { src: '/images/home/brand-story.jpg', alt: 'A bride in an embellished navy lehenga, framed by dark leaves' },
-  closing: { src: '/images/home/closing.jpg', alt: "A couple's hands holding their two gold wedding rings" },
+  hero: { src: '/images/home/hero.webp', alt: 'A couple embracing beneath the arches of a Lucknow monument at golden hour' },
+  brandStory: { src: '/images/home/brand-story.webp', alt: 'A bride in an embellished navy lehenga, framed by dark leaves' },
+  closing: { src: '/images/home/closing.webp', alt: "A couple's hands holding their two gold wedding rings" },
 };

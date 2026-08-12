@@ -18,9 +18,9 @@ describe('home page content', () => {
   });
 
   it('points every image slot at the owner-swappable files', () => {
-    expect(HOME_IMAGES.hero.src).toBe('/images/home/hero.jpg');
-    expect(HOME_IMAGES.brandStory.src).toBe('/images/home/brand-story.jpg');
-    expect(HOME_IMAGES.closing.src).toBe('/images/home/closing.jpg');
+    expect(HOME_IMAGES.hero.src).toBe('/images/home/hero.webp');
+    expect(HOME_IMAGES.brandStory.src).toBe('/images/home/brand-story.webp');
+    expect(HOME_IMAGES.closing.src).toBe('/images/home/closing.webp');
     for (const slot of Object.values(HOME_IMAGES)) expect(slot.alt).toBeTruthy();
   });
 });

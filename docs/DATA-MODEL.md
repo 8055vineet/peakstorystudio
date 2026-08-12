@@ -135,22 +135,25 @@ Image data mixes two origins: local files served from `public/images/` and hotli
 
 Local files present in `public/images/` (verified with `ls`):
 
-- `bridal_portrait.jpg`
-- `destination_wedding.jpg`
-- `hero_royal.jpg`
-- `luxury_camera.jpg`
+- `bridal_portrait.webp`
+- `destination_wedding.webp`
+- `hero_royal.webp`
+
+(All static images were converted from JPEG to WebP — ~75% smaller at visually identical
+quality — in the Phase 4 pre-deploy optimization pass; `luxury_camera.jpg`, unreferenced
+since Phase 3b deleted the splash screen, was removed outright in the same pass.)
 
 Only three of these four are referenced by the content modules. `INITIAL_STORIES`,
-`INITIAL_PHOTOS`, and `INITIAL_FILMS` reference `bridal_portrait.jpg`, `destination_wedding.jpg`,
-and `hero_royal.jpg` repeatedly (e.g. `/images/hero_royal.jpg` is reused as `story-1`'s cover,
+`INITIAL_PHOTOS`, and `INITIAL_FILMS` reference `bridal_portrait.webp`, `destination_wedding.webp`,
+and `hero_royal.webp` repeatedly (e.g. `/images/hero_royal.webp` is reused as `story-1`'s cover,
 `photo-1`'s image, and `film-1`'s thumbnail). `INITIAL_STORIES` and `INITIAL_PHOTOS` otherwise
 point at `https://images.unsplash.com/photo-...` URLs for every other image, but `INITIAL_FILMS`
 (`src/data/weddingData.js:131-159`) does not — all three of its `thumbnail` values are local
-`/images/...` paths, with zero Unsplash URLs. `luxury_camera.jpg` is **not**
+`/images/...` paths, with zero Unsplash URLs. `luxury_camera.jpg` was **not**
 referenced anywhere in `src/data/weddingData.js` — it was a UI asset of the splash screen,
-which Phase 3b deleted; the file may still sit in `public/images/` unreferenced. Phase 3b also
-added three content-adjacent static files of its own: `public/images/home/hero.jpg`,
-`brand-story.jpg`, and `closing.jpg`, the owner-swappable Home image slots described in
+which Phase 3b deleted; the Phase 4 optimization pass removed the file for good. Phase 3b also
+added three content-adjacent static files of its own: `public/images/home/hero.webp`,
+`brand-story.webp`, and `closing.webp`, the owner-swappable Home image slots described in
 `docs/ARCHITECTURE.md` — page furniture referenced by `src/data/homeContent.js`, deliberately
 outside both the database and this module. **Third-party dependency risk:** every hotlinked
 Unsplash URL is outside this project's control — Unsplash can rate-limit, deprecate, or 404
@@ -191,7 +194,7 @@ thirteen tables — lives in `supabase/migrations/`:
   public site reads with the anon key) and `site_settings_admin_update` (`update` gated on
   `public.is_admin()`); **no insert or delete policies exist at all.**
   `scripts/load-real-content.mjs` points the three media references at media rows for the
-  shipped `/images/home/*.jpg` files (and its deletion pass never removes media the settings
+  shipped `/images/home/*.webp` files (and its deletion pass never removes media the settings
   row references). Since Phase 3g it also carries `heading_font` and `body_font` (the
   admin-chosen public-site fonts, defaulted to `Cormorant Garamond` / `Plus Jakarta Sans`),
   applied on the public site via CSS variables `App` sets from the settings row. Since Phase 3h

@@ -44,7 +44,7 @@ const FULL_ROW = {
   surface_warmth: 0.75,
   logo: { storage_path: 'uploads/logo.webp' },
   hero: { storage_path: 'uploads/hero.webp', alt_text: 'Uploaded hero' },
-  brand_story: { storage_path: '/images/home/brand-story.jpg', alt_text: '' },
+  brand_story: { storage_path: '/images/home/brand-story.webp', alt_text: '' },
   closing: null,
 };
 
@@ -65,10 +65,10 @@ describe('getSiteSettings', () => {
       alt: 'Uploaded hero',
     });
     // static path passes through; blank alt falls back to the constant's alt
-    expect(settings.images.brandStory.src).toBe('/images/home/brand-story.jpg');
+    expect(settings.images.brandStory.src).toBe('/images/home/brand-story.webp');
     expect(settings.images.brandStory.alt).toBeTruthy();
     // null media -> the shipped static slot
-    expect(settings.images.closing.src).toBe('/images/home/closing.jpg');
+    expect(settings.images.closing.src).toBe('/images/home/closing.webp');
     expect(settings.contact).toEqual({
       address: 'An address',
       email: 'studio@example.test',
@@ -88,9 +88,9 @@ describe('getSiteSettings', () => {
     }));
     const { getSiteSettings } = await importSettings();
     const settings = await getSiteSettings();
-    expect(settings.images.hero.src).toBe('/images/home/hero.jpg');
-    expect(settings.images.brandStory.src).toBe('/images/home/brand-story.jpg');
-    expect(settings.images.closing.src).toBe('/images/home/closing.jpg');
+    expect(settings.images.hero.src).toBe('/images/home/hero.webp');
+    expect(settings.images.brandStory.src).toBe('/images/home/brand-story.webp');
+    expect(settings.images.closing.src).toBe('/images/home/closing.webp');
     expect(settings.logo).toBeNull();
   });
 

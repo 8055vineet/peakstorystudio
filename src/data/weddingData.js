@@ -8,12 +8,12 @@ export const INITIAL_STORIES = [
     couple: "Ranveer & Deepika",
     location: "Umaid Bhawan Palace, Jodhpur",
     date: "November 2024",
-    coverImage: "/images/hero_royal.jpg",
+    coverImage: "/images/hero_royal.webp",
     tags: ["Royal Wedding", "Palace", "Cinematic Film"],
     summary: "An opulent 3-day royal affair set against the golden sandstone of Jodhpur, celebrating centuries-old heritage with modern grandeur.",
     fullGallery: [
-      "/images/hero_royal.jpg",
-      "/images/bridal_portrait.jpg",
+      "/images/hero_royal.webp",
+      "/images/bridal_portrait.webp",
       "https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&q=80&w=1200",
       "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=1200",
       "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=1200"
@@ -26,11 +26,11 @@ export const INITIAL_STORIES = [
     couple: "Aria & Julian",
     location: "Amalfi Coast, Italy",
     date: "June 2025",
-    coverImage: "/images/destination_wedding.jpg",
+    coverImage: "/images/destination_wedding.webp",
     tags: ["Destination", "Beach", "Intimate"],
     summary: "A breathtaking coastal wedding overlooking cliffside sea views, wrapped in golden hour romantic hues and candlelit dining.",
     fullGallery: [
-      "/images/destination_wedding.jpg",
+      "/images/destination_wedding.webp",
       "https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&q=80&w=1200",
       "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&q=80&w=1200",
       "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?auto=format&fit=crop&q=80&w=1200"
@@ -42,12 +42,12 @@ export const INITIAL_STORIES = [
     couple: "Siddharth & Ananya",
     location: "City Palace, Udaipur",
     date: "February 2025",
-    coverImage: "/images/bridal_portrait.jpg",
+    coverImage: "/images/bridal_portrait.webp",
     tags: ["Heritage", "Bridal Portrait", "Traditional"],
     summary: "Capturing intimate moments of rituals, royal heirlooms, and emotional vows along the calm waters of Lake Pichola.",
     fullGallery: [
-      "/images/bridal_portrait.jpg",
-      "/images/hero_royal.jpg",
+      "/images/bridal_portrait.webp",
+      "/images/hero_royal.webp",
       "https://images.unsplash.com/photo-1545232979-fbf34f5ce947?auto=format&fit=crop&q=80&w=1200"
     ]
   }
@@ -57,7 +57,7 @@ export const INITIAL_PHOTOS = [
   {
     id: "photo-1",
     title: "Royal Courtyard Walk",
-    url: "/images/hero_royal.jpg",
+    url: "/images/hero_royal.webp",
     category: "Royal",
     couple: "Ranveer & Deepika",
     location: "Jodhpur Palace",
@@ -66,7 +66,7 @@ export const INITIAL_PHOTOS = [
   {
     id: "photo-2",
     title: "Bridal Elegance",
-    url: "/images/bridal_portrait.jpg",
+    url: "/images/bridal_portrait.webp",
     category: "Candid",
     couple: "Ananya",
     location: "Udaipur",
@@ -75,7 +75,7 @@ export const INITIAL_PHOTOS = [
   {
     id: "photo-3",
     title: "Oceanfront Vows",
-    url: "/images/destination_wedding.jpg",
+    url: "/images/destination_wedding.webp",
     category: "Pre-Wedding",
     couple: "Aria & Julian",
     location: "Amalfi Coast",
@@ -135,7 +135,7 @@ export const INITIAL_FILMS = [
     couple: "Ranveer & Deepika",
     location: "Umaid Bhawan, Jodhpur",
     duration: "4:32 mins",
-    thumbnail: "/images/hero_royal.jpg",
+    thumbnail: "/images/hero_royal.webp",
     videoEmbedUrl: "https://www.youtube.com/embed/ScMzIvxBSi4?autoplay=1"
   },
   {
@@ -144,7 +144,7 @@ export const INITIAL_FILMS = [
     couple: "Aria & Julian",
     location: "Amalfi Coast, Italy",
     duration: "3:45 mins",
-    thumbnail: "/images/destination_wedding.jpg",
+    thumbnail: "/images/destination_wedding.webp",
     videoEmbedUrl: "https://www.youtube.com/embed/EngW7tLk6R8?autoplay=1"
   },
   {
@@ -153,7 +153,7 @@ export const INITIAL_FILMS = [
     couple: "Siddharth & Ananya",
     location: "Udaipur",
     duration: "5:10 mins",
-    thumbnail: "/images/bridal_portrait.jpg",
+    thumbnail: "/images/bridal_portrait.webp",
     videoEmbedUrl: "https://www.youtube.com/embed/ScMzIvxBSi4?autoplay=1"
   }
 ];

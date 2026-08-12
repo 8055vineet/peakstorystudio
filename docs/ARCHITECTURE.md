@@ -115,7 +115,7 @@ Two supporting conventions arrived with routing:
 - **Owner-swappable image slots.** Home's hero, Brand Story portrait, and closing image are
   static page furniture, not database content. `src/data/homeContent.js` holds the quote, the
   Brand Story copy, and the three slot paths; the files live in `public/images/home/`
-  (`hero.jpg`, `brand-story.jpg`, `closing.jpg`). **The owner changes an image by overwriting
+  (`hero.webp`, `brand-story.webp`, `closing.webp` — WebP since the Phase 4 optimization pass). **The owner changes an image by overwriting
   the file — no code edit.**
 - **`public/_redirects`** (`/* /index.html 200`) ships now so the Phase 4 Cloudflare Pages
   deploy serves deep links like `/gallery` correctly; static assets take precedence over

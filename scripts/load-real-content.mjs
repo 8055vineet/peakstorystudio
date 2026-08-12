@@ -48,7 +48,7 @@ const STORY = {
   summary:
     'From the engagement and the haldi and mehendi celebrations to the wedding day — one story, photographed by Peak Story Studio.',
   tags: ['Engagement', 'Haldi & Mehendi', 'Wedding'],
-  cover: '/images/stories/wedding/1.jpg',
+  cover: '/images/stories/wedding/1.webp',
   chapters: [
     { dir: '/images/stories/engagement', count: 11, alt: (i) => `Engagement photograph ${i}` },
     { dir: '/images/stories/haldi-mehendi', count: 12, alt: (i) => `Haldi and mehendi photograph ${i}` },
@@ -106,7 +106,7 @@ async function main() {
   let sort = 0;
   for (const set of GALLERY_SETS) {
     for (let i = 1; i <= set.count; i++) {
-      const mediaId = await insertMedia(`${set.dir}/${i}.jpg`, set.alt(i));
+      const mediaId = await insertMedia(`${set.dir}/${i}.webp`, set.alt(i));
       n.media++;
       const { error } = await db.from('gallery_photos').insert({
         media_id: mediaId,
@@ -118,7 +118,7 @@ async function main() {
         status: 'published',
         sort_order: sort++,
       });
-      if (error) throw new Error(`gallery_photos insert failed (${set.dir}/${i}.jpg): ${error.message}`);
+      if (error) throw new Error(`gallery_photos insert failed (${set.dir}/${i}.webp): ${error.message}`);
       n.gallery_photos++;
     }
   }
@@ -149,12 +149,12 @@ async function main() {
   let photoSort = 0;
   for (const chapter of STORY.chapters) {
     for (let i = 1; i <= chapter.count; i++) {
-      const mediaId = await insertMedia(`${chapter.dir}/${i}.jpg`, chapter.alt(i));
+      const mediaId = await insertMedia(`${chapter.dir}/${i}.webp`, chapter.alt(i));
       n.media++;
       const { error } = await db
         .from('wedding_photos')
         .insert({ wedding_id: wed.id, media_id: mediaId, sort_order: photoSort++ });
-      if (error) throw new Error(`wedding_photos insert failed (${chapter.dir}/${i}.jpg): ${error.message}`);
+      if (error) throw new Error(`wedding_photos insert failed (${chapter.dir}/${i}.webp): ${error.message}`);
       n.wedding_photos++;
     }
   }
@@ -169,10 +169,10 @@ async function main() {
     n.media++;
     return id;
   }
-  const heroId = await mediaIdForPath('/images/home/hero.jpg', 'A couple embracing beneath the arches of a Lucknow monument at golden hour');
-  const brandId = await mediaIdForPath('/images/home/brand-story.jpg', 'A bride in an embellished navy lehenga, framed by dark leaves');
-  const closingId = await mediaIdForPath('/images/home/closing.jpg', "A couple's hands holding their two gold wedding rings");
-  const logoId = await mediaIdForPath('/images/home/logo.jpg', 'Peak Story Studio logo');
+  const heroId = await mediaIdForPath('/images/home/hero.webp', 'A couple embracing beneath the arches of a Lucknow monument at golden hour');
+  const brandId = await mediaIdForPath('/images/home/brand-story.webp', 'A bride in an embellished navy lehenga, framed by dark leaves');
+  const closingId = await mediaIdForPath('/images/home/closing.webp', "A couple's hands holding their two gold wedding rings");
+  const logoId = await mediaIdForPath('/images/home/logo.webp', 'Peak Story Studio logo');
   const { error: settingsErr } = await db
     .from('site_settings')
     .update({
