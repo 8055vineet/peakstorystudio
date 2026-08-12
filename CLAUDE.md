@@ -66,10 +66,9 @@ task notes) rather than silently fixing or silently working around it.
 ## Commands
 
 - `npm run dev` — Vite dev server at `http://localhost:3000`.
-- `npm run build` — production build into `dist/`. **Note:** `dist/` is both committed to git
-  and listed in `.gitignore` (`PS-019` in [docs/KNOWN-ISSUES.md](docs/KNOWN-ISSUES.md)), so this
-  leaves tracked files modified and untracked ignored files behind; clean up with
-  `git checkout -- dist/` then `git clean -fx dist/`.
+- `npm run build` — production build into `dist/`. `dist/` is untracked and gitignored as of
+  Phase 4 (`PS-019`, resolved — Cloudflare Pages builds from source), so a build leaves the
+  working tree clean and needs no cleanup afterwards.
 - `npm run check:docs` — verifies required docs exist, every component in `src/components` is
   documented in `docs/COMPONENTS.md`, every `src/...` path cited in a doc actually exists, and
   every relative markdown link resolves. Run this after any change that touches components or

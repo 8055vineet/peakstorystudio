@@ -1,0 +1,13 @@
+# Cloudflare Pages response headers.
+#
+# Phase 4 ships the site on a throwaway *.pages.dev URL. Search engines must
+# not index it: authority earned on that hostname is authority thrown away at
+# domain cutover, and a half-finished site indexed under the studio's name is
+# worse than one not indexed at all. X-Robots-Tag is the header form of
+# noindex and covers every response, including ones no HTML meta tag could
+# reach. PHASE 7 REMOVES THIS FILE at domain cutover — that is the single step
+# that makes the site indexable, so it is deliberately one file, not a setting
+# buried in a dashboard. (admin.html additionally carries its own permanent
+# noindex meta tag; that one never goes away.)
+/*
+  X-Robots-Tag: noindex

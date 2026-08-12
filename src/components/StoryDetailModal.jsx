@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, MapPin, Calendar, Sparkles, Play, ChevronLeft, ChevronRight } from 'lucide-react';
+import Photo from './Photo';
 
 export default function StoryDetailModal({ story, onClose, onSelectImage, onOpenVideo }) {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -91,7 +92,7 @@ export default function StoryDetailModal({ story, onClose, onSelectImage, onOpen
 
           {/* Active Featured Image Display */}
           <div className="relative overflow-hidden border border-pitch-900/10 max-h-[500px] flex items-center justify-center bg-offwhite-200">
-            <img
+            <Photo
               src={images[activeImageIndex]}
               alt={`${story.title} preview`}
               className="w-full h-full object-contain max-h-[500px]"
@@ -131,7 +132,7 @@ export default function StoryDetailModal({ story, onClose, onSelectImage, onOpen
                     activeImageIndex === idx ? 'border-pitch-900 shadow-md' : 'border-transparent hover:border-pitch-900/40'
                   }`}
                 >
-                  <img src={imgUrl} alt="Thumbnail" className="w-full h-full object-cover" />
+                  <Photo src={imgUrl} alt="Thumbnail" className="w-full h-full object-cover" />
                 </div>
               ))}
             </div>

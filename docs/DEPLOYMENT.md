@@ -106,10 +106,17 @@ Phase 4 owns, all small:
 
 ## Stage 2 — Hosted Supabase project (engineering, with your login)
 
-1. Create the project: name `peak-story-studio`, region **Mumbai (`ap-south-1`)** —
-   closest to the studio and its clients; Postgres **17** (matches
+1. Create the project: name `peak-story-studio`, Postgres **17** (matches
    `supabase/config.toml`). The dashboard generates a database password — store it in
    the password manager; it is rarely needed but must not be lost.
+   **As built (2026-08-12): project ref `qymhftesjzqrhwbinttx`, region `ap-northeast-2`
+   (Seoul), Postgres 17.6.1.** Mumbai (`ap-south-1`) was the intended region — the
+   dashboard's Region control reads "Asia-Pacific" and defaulted to Seoul rather than
+   prompting for a city. The owner was shown the trade-off (roughly 100 ms of extra
+   latency per page load for Indian visitors, images unaffected because they are served
+   from a CDN) while the project was still empty, and chose to keep Seoul rather than
+   recreate. Region cannot be changed after creation; revisiting it means a new project
+   and a re-push of everything in this runbook.
 2. Link and push the schema: `supabase link --project-ref <ref>` then
    `supabase db push` — replays every file in `supabase/migrations/` onto the empty
    hosted database. (The local "never `db:reset`" rule protects your real local data;

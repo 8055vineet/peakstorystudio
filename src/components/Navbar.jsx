@@ -129,10 +129,17 @@ export default function Navbar({
           {user ? (
             <div className="flex items-center gap-3">
               {user.role === 'admin' ? (
-                <span className="flex items-center gap-1.5 text-xs uppercase tracking-[0.15em] text-pitch-900 font-semibold">
+                // Closes PS-030: the badge was an inert <span>, so a signed-in
+                // admin browsing the public site had no way through to the
+                // dashboard. /admin is rewritten to /admin.html by
+                // public/_redirects on Cloudflare Pages.
+                <a
+                  href="/admin.html"
+                  className="flex items-center gap-1.5 text-xs uppercase tracking-[0.15em] text-pitch-900 font-semibold hover:text-pitch-700 transition-colors"
+                >
                   <ShieldCheck className="w-3.5 h-3.5" />
                   <span>Admin</span>
-                </span>
+                </a>
               ) : (
                 <button
                   onClick={onOpenClientGallery}

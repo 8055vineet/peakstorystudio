@@ -1,6 +1,7 @@
 import React from 'react';
 import { Play, Film, Clock } from 'lucide-react';
 import ScrollReveal from './ScrollReveal';
+import Photo from './Photo';
 
 export default function FilmsGallery({ films, onOpenVideoModal }) {
   return (
@@ -36,7 +37,7 @@ export default function FilmsGallery({ films, onOpenVideoModal }) {
               >
                 {/* Thumbnail Container */}
                 <div className="relative aspect-video img-zoom-container overflow-hidden">
-                  <img
+                  <Photo
                     src={film.thumbnail}
                     alt={film.title}
                     className="w-full h-full object-cover filter brightness-90 group-hover:brightness-100 transition-all"

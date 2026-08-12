@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MapPin, ArrowUpRight, Sparkles, BookOpen } from 'lucide-react';
 import StoryDetailModal from './StoryDetailModal';
 import ScrollReveal from './ScrollReveal';
+import Photo from './Photo';
 
 export default function FeaturedStories({ stories, onOpenLightbox, onOpenVideo }) {
   const [selectedStory, setSelectedStory] = useState(null);
@@ -37,7 +38,7 @@ export default function FeaturedStories({ stories, onOpenLightbox, onOpenVideo }
               >
                 {/* Cover Image Container */}
                 <div className="relative aspect-[4/5] img-zoom-container overflow-hidden">
-                  <img
+                  <Photo
                     src={story.coverImage}
                     alt={story.title}
                     className="w-full h-full object-cover"

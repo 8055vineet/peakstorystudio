@@ -1,5 +1,6 @@
 import React from 'react';
 import ScrollReveal from './ScrollReveal';
+import Photo from './Photo';
 import { GALLERY_CATEGORY_FALLBACK } from '../data/galleryCategories';
 
 // The gallery as ceremony sections: a quiet uppercase label per ceremony,
@@ -45,7 +46,7 @@ export default function PhotoGallery({ photos, onOpenLightbox, categoryOrder = G
                     aria-label={photo.title || 'View photo'}
                     className="block overflow-hidden group"
                   >
-                    <img
+                    <Photo
                       src={photo.url}
                       alt={photo.title || ''}
                       loading="lazy"
