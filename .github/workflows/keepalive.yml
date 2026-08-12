@@ -1,0 +1,39 @@
+# Keeps the hosted Supabase project awake.
+#
+# Supabase pauses Free-plan projects after ~1 week without database activity,
+# and unpausing is manual — on a commercial booking site that means silently
+# lost inquiries until someone notices. This ping is a real PostgREST read
+# (one row, ~50 bytes), so it registers as genuine database activity. Daily,
+# because Supabase's own guidance is "a few user database requests per day
+# over the previous week"; one request a day with wide margin beats gaming
+# the exact threshold.
+#
+# The URL and anon key are committed in plain text deliberately: both already
+# ship in every visitor's browser bundle (see docs/ARCHITECTURE.md — Row
+# Level Security is the boundary, not key secrecy), so a repo copy discloses
+# nothing new, and it keeps this workflow free of GitHub-secret setup.
+#
+# GitHub disables cron workflows after 60 days without repo activity and
+# emails a warning first — re-enable from the Actions tab if that happens.
+name: keepalive
+
+on:
+  schedule:
+    - cron: '17 3 * * *' # daily, 03:17 UTC (off the top of the hour — GitHub delays :00 crons the most)
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping hosted Supabase (counts as database activity)
+        run: |
+          set -euo pipefail
+          URL="https://qymhftesjzqrhwbinttx.supabase.co/rest/v1/site_settings?select=id&id=eq.1"
+          ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5bWhmdGVzanpxcmh3YmludHR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1MjY1NzMsImV4cCI6MjEwMjEwMjU3M30.TdJllPM8UqaDlo7ohHzp7steDa665Z4LcSd5r4x0aY0"
+          BODY=$(curl -sS --max-time 30 "$URL" -H "apikey: $ANON" -H "Authorization: Bearer $ANON")
+          echo "response: $BODY"
+          if [ "$BODY" != '[{"id":1}]' ]; then
+            echo "::error::keepalive ping returned unexpected body: $BODY"
+            exit 1
+          fi
