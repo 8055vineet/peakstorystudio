@@ -4,7 +4,9 @@
 // Not part of `npm test`: this needs a running local Supabase, and CI has none.
 // Reads credentials from the environment; `supabase status -o env` supplies them.
 
+import { randomBytes } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
+import { exitUnlessLocalTarget } from './lib/assert-local-target.mjs';
 
 const URL = process.env.SUPABASE_URL;
 const ANON = process.env.SUPABASE_ANON_KEY;
@@ -19,6 +21,10 @@ if (!URL || !ANON || !SERVICE) {
   );
   process.exit(2);
 }
+
+// Creates and removes throwaway auth accounts and content rows. Local stack
+// only unless ALLOW_REMOTE_DB=yes — see scripts/lib/assert-local-target.mjs.
+exitUnlessLocalTarget('db:verify');
 
 const anon = createClient(URL, ANON);
 const service = createClient(URL, SERVICE, { auth: { persistSession: false } });
@@ -79,6 +85,87 @@ const { error: inqInsErr } = await anon
   .from('inquiries')
   .insert({ name: 'x', email: 'x@example.com', phone: '0' });
 check('anon cannot insert inquiries', Boolean(inqInsErr));
+
+// profiles: the row that says who is an admin and who is the owner must be
+// unwritable from ANY browser session, an admin's own included. Before
+// 20260907120000_profiles_write_lockdown.sql an admin could PATCH their own
+// row to is_owner = true and pass manage-team's owner-only gate. The two
+// probe accounts are created with the service-role key — the only way to
+// mint one — and removed again below. Passwords are random per run, so a
+// leftover from a crashed run is never a known admin login.
+const PROBE_ADMIN_EMAIL = 'rls-probe-admin@example.test';
+const PROBE_CLIENT_EMAIL = 'rls-probe-client@example.test';
+
+async function removeProbeUsers() {
+  const { data, error } = await service.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (error) throw new Error(`listUsers failed: ${error.message}`);
+  for (const user of data.users) {
+    if ([PROBE_ADMIN_EMAIL, PROBE_CLIENT_EMAIL].includes(user.email)) {
+      // Cascades the profiles row (on delete cascade in the schema).
+      await service.auth.admin.deleteUser(user.id);
+    }
+  }
+}
+
+// Creates the auth user and its profiles row, then signs in with the anon
+// key, so the returned client carries exactly the session a browser would.
+async function signInProbeUser(email, role) {
+  const password = randomBytes(24).toString('base64url');
+  const { data: created, error: createErr } = await service.auth.admin.createUser({
+    email, password, email_confirm: true,
+  });
+  if (createErr) throw new Error(`createUser ${email} failed: ${createErr.message}`);
+  const { error: profileErr } = await service
+    .from('profiles')
+    .upsert({ user_id: created.user.id, role }, { onConflict: 'user_id' });
+  if (profileErr) throw new Error(`profiles upsert for ${email} failed: ${profileErr.message}`);
+  const client = createClient(URL, ANON, { auth: { persistSession: false } });
+  const { error: signInErr } = await client.auth.signInWithPassword({ email, password });
+  if (signInErr) throw new Error(`sign-in as ${email} failed: ${signInErr.message}`);
+  return { client, userId: created.user.id };
+}
+
+await removeProbeUsers();
+const probeAdmin = await signInProbeUser(PROBE_ADMIN_EMAIL, 'admin');
+const probeClient = await signInProbeUser(PROBE_CLIENT_EMAIL, 'client');
+
+const { error: anonProfileErr } = await anon
+  .from('profiles').update({ display_name: 'hacked' }).eq('user_id', probeAdmin.userId);
+check('anon cannot update profiles', Boolean(anonProfileErr));
+
+const { error: ownerErr } = await probeAdmin.client
+  .from('profiles').update({ is_owner: true }).eq('user_id', probeAdmin.userId);
+const { data: adminRow } = await service
+  .from('profiles').select('is_owner').eq('user_id', probeAdmin.userId).single();
+check(
+  'an admin cannot make themselves owner',
+  Boolean(ownerErr) && adminRow?.is_owner === false,
+  ownerErr ? '' : `is_owner=${adminRow?.is_owner}`,
+);
+
+const { error: adminDeleteErr } = await probeAdmin.client
+  .from('profiles').delete().eq('user_id', probeClient.userId);
+const { count: clientRowCount } = await service
+  .from('profiles').select('user_id', { count: 'exact', head: true }).eq('user_id', probeClient.userId);
+check('an admin cannot delete another profile', Boolean(adminDeleteErr) && clientRowCount === 1);
+
+const { data: adminReads } = await probeAdmin.client
+  .from('profiles').select('user_id').in('user_id', [probeAdmin.userId, probeClient.userId]);
+check('an admin still reads every profile', Array.isArray(adminReads) && adminReads.length === 2);
+
+const { error: escalateErr } = await probeClient.client
+  .from('profiles').update({ role: 'admin' }).eq('user_id', probeClient.userId);
+const { data: clientRow } = await service
+  .from('profiles').select('role').eq('user_id', probeClient.userId).single();
+check('a client cannot promote themselves to admin', Boolean(escalateErr) && clientRow?.role === 'client');
+
+const { data: clientReads } = await probeClient.client.from('profiles').select('user_id');
+check(
+  'a client reads only their own profile',
+  Array.isArray(clientReads) && clientReads.length === 1 && clientReads[0].user_id === probeClient.userId,
+);
+
+await removeProbeUsers();
 
 await service.from('weddings').delete().in('slug', [slugPub, slugDraft, 'rls-probe-anon-write']);
 await service.from('inquiries').delete().eq('email', inqProbeEmail);

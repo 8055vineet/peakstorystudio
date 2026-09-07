@@ -14,8 +14,12 @@
 // correct or extend via the admin at any time.
 //
 // Run: node scripts/load-real-content.mjs   (same env vars as db:seed)
+// Against the hosted project (docs/DEPLOYMENT.md, Stage 7) it additionally
+// needs ALLOW_REMOTE_DB=yes — the guard below refuses any non-local target
+// without it.
 
 import { createClient } from '@supabase/supabase-js';
+import { exitUnlessLocalTarget } from './lib/assert-local-target.mjs';
 
 const URL = process.env.SUPABASE_URL;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -26,6 +30,10 @@ if (!URL || !SERVICE) {
   console.error('  export SUPABASE_URL="$API_URL" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"');
   process.exit(2);
 }
+// Destructive: deletes the wedding-story and gallery rows, and their media,
+// before rebuilding them. Local stack only unless ALLOW_REMOTE_DB=yes — see
+// scripts/lib/assert-local-target.mjs.
+exitUnlessLocalTarget('load-real-content');
 const db = createClient(URL, SERVICE, { auth: { persistSession: false } });
 
 const GALLERY_SETS = [

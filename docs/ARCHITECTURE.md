@@ -117,10 +117,12 @@ Two supporting conventions arrived with routing:
   Brand Story copy, and the three slot paths; the files live in `public/images/home/`
   (`hero.webp`, `brand-story.webp`, `closing.webp` — WebP since the Phase 4 optimization pass). **The owner changes an image by overwriting
   the file — no code edit.**
-- **`public/_redirects`** (`/* /index.html 200`) ships now so the Phase 4 Cloudflare Pages
-  deploy serves deep links like `/gallery` correctly; static assets take precedence over
-  redirects on Pages, so `/admin.html` is unaffected. The Vite dev server already falls back
-  to `index.html` for unknown paths.
+- **`public/_redirects`** (`/admin` and `/admin/` → `/admin.html`, then `/* /index.html 200`)
+  ships now so the Phase 4 Cloudflare Pages deploy serves deep links like `/gallery` correctly;
+  static assets take precedence over redirects on Pages, so `/admin.html` is unaffected. The
+  Vite dev server falls back to `index.html` for unknown paths, and the `adminEntryRewrite`
+  plugin in `vite.config.js` gives `npm run dev`/`vite preview` the same two admin rewrites, so
+  the URL an owner naturally types works locally exactly as it does on Pages.
 
 ## Styling approach
 
@@ -317,7 +319,12 @@ not just by reading the policies: a signed-in `client`-role user got `[]` readin
 where an admin got the real row; every write to `weddings`, `testimonials`, `media`,
 `gallery_photos`, `films`, and `inquiries` was refused (`42501` on insert, a no-op on update or
 delete); and role escalation was blocked (`PATCH profiles role=admin` returned `[]`, and
-`rpc/is_admin` stayed `false`). A signed-in non-admin who defeats the `useSession` check entirely
+`rpc/is_admin` stayed `false`). Since `20260907120000_profiles_write_lockdown.sql` that last check
+is stronger still: `profiles` is read-only for `anon` and `authenticated` at the grant level, so
+even an admin's own session gets `42501` on any `PATCH`/`POST`/`DELETE` of `profiles` — a
+non-owner admin cannot mark themselves `is_owner` and reach `manage-team`'s owner gate. `role` and
+`is_owner` are written only with the service-role key (`scripts/seed-admin.mjs`, `manage-team`).
+A signed-in non-admin who defeats the `useSession` check entirely
 — for instance by editing the client bundle — still sees an empty dashboard and still cannot write
 anything, because Postgres refuses it regardless of what any component renders. Do not "simplify"
 this gate later on the theory that RLS makes it redundant: it is redundant by design, and that is
@@ -382,7 +389,8 @@ is now a plain link to `/admin.html` — the old fake email/password form is gon
 Separately, `profiles.is_owner` marks exactly one account — the owner's, set by
 `scripts/seed-admin.mjs` — as the only caller the **`manage-team`** Edge Function accepts:
 it lists, creates (email + password, pre-confirmed; public signups stay disabled), and
-removes admin accounts, refusing to remove the owner. Admins it creates hold full content
+removes admin accounts — only rows with `role = 'admin'`; any other account is answered as
+not found — refusing to remove the owner. Admins it creates hold full content
 power (`role = 'admin'`, same RLS as ever) but can never manage the team; the Settings
 tab's Team panel renders only for the owner, and the server refuses non-owners regardless
 of what is rendered.

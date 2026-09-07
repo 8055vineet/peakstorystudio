@@ -20,8 +20,6 @@ import { getBookingServices } from '../lib/queries/bookingServices';
 // longer a `VITE_DATA_SOURCE` switch to read from the static module
 // instead — see src/data/weddingData.js).
 //
-// `staticData` is kept, but only as an error fallback, not as configuration:
-// it is what this hook returns synchronously on the first render (before the
 // query has had a chance to resolve) and again from the `catch` below if the
 // query fails outright. That is resilience, not a second data source — a
 // stale site beats a blank one when the database is briefly unreachable.
@@ -30,9 +28,12 @@ import { getBookingServices } from '../lib/queries/bookingServices';
 // real married couple), because that module is exactly what a visitor sees
 // during an outage, not dead code that can be ignored.
 //
+// Module-level so its identity is stable (see NO_COLLECTIONS below).
+const NOTHING_YET = [];
+
 // One implementation, four thin wrappers.
-function useContent(staticData, query) {
-  const [remote, setRemote] = useState({ data: staticData, loading: true, error: null });
+function useContent(staticData, query, loadingData = staticData) {
+  const [remote, setRemote] = useState({ data: loadingData, loading: true, error: null });
 
   useEffect(() => {
     let cancelled = false;
@@ -48,18 +49,18 @@ function useContent(staticData, query) {
       });
 
     return () => { cancelled = true; };
-  }, [query, staticData]);
+  }, [query, staticData, loadingData]);
 
   return remote;
 }
 
-export const useWeddings = () => useContent(INITIAL_STORIES, getPublishedWeddings);
+export const useWeddings = () => useContent(INITIAL_STORIES, getPublishedWeddings, NOTHING_YET);
 
-export const useGalleryPhotos = () => useContent(INITIAL_PHOTOS, getGalleryPhotos);
+export const useGalleryPhotos = () => useContent(INITIAL_PHOTOS, getGalleryPhotos, NOTHING_YET);
 
-export const useFilms = () => useContent(INITIAL_FILMS, getFilms);
+export const useFilms = () => useContent(INITIAL_FILMS, getFilms, NOTHING_YET);
 
-export const useTestimonials = () => useContent(TESTIMONIALS, getTestimonials);
+export const useTestimonials = () => useContent(TESTIMONIALS, getTestimonials, NOTHING_YET);
 
 // The site's singular content (Phase 3c): quote, Brand Story, Home images,
 // contact, socials — one settings row, same stale-beats-blank fallback as

@@ -1000,6 +1000,28 @@ describe('admin App shell', () => {
       expect(weddingsReorder).toHaveBeenCalledWith(['wedding-2', 'wedding-1']);
     });
 
+    it('disables the list controls while a reorder is in flight, and re-enables them once it lands', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      weddingsList.mockResolvedValue([WEDDING_A, WEDDING_B]);
+      let release;
+      weddingsReorder.mockReturnValue(new Promise((resolve) => { release = resolve; }));
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await user.click(screen.getByRole('button', { name: /weddings/i }));
+      await waitFor(() => expect(screen.getByText('A Palace Wedding')).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /move down: a palace wedding/i }));
+
+      // A second click here would race two reorders against the same rows.
+      await waitFor(() => expect(screen.getByRole('button', { name: /move up: a garden wedding/i })).toBeDisabled());
+      expect(screen.getByRole('button', { name: /move down: a palace wedding/i })).toBeDisabled();
+      expect(screen.getAllByRole('button', { name: /^delete$/i })[0]).toBeDisabled();
+
+      await act(async () => { release({ ok: true }); });
+      await waitFor(() => expect(screen.getByRole('button', { name: /move down: a palace wedding/i })).not.toBeDisabled());
+    });
+
     it('shows a distinct load-error state with retry, different from the empty state', async () => {
       const { default: userEvent } = await import('@testing-library/user-event');
       weddingsList.mockRejectedValueOnce(new Error('network down'));
@@ -1785,6 +1807,95 @@ describe('admin App shell', () => {
       await user.click(screen.getByRole('button', { name: /publish all 2/i }));
       await waitFor(() => expect(galleryUpdate).toHaveBeenCalledWith('g-1', { status: 'published' }));
       expect(galleryUpdate).toHaveBeenCalledWith('g-2', { status: 'published' });
+    });
+
+    it('reports a Publish all that failed partway, keeps the rest as drafts, and retries only those', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      galleryList.mockResolvedValue([]);
+      let created = 0;
+      galleryCreate.mockImplementation(async (payload) => {
+        created += 1;
+        return { id: `g-${created}`, ...payload, status: 'draft' };
+      });
+      // The first row publishes; the second hits a network failure.
+      galleryUpdate.mockImplementation(async (id) => {
+        if (id === 'g-2') throw new Error('network down');
+        return { status: 'published' };
+      });
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await openGallery(user);
+
+      await user.selectOptions(screen.getByLabelText('Category'), 'Wedding');
+      await user.upload(screen.getByLabelText(/choose images/i), [
+        new File(['a'], 'haldi-1.jpg', { type: 'image/jpeg' }),
+        new File(['b'], 'haldi-2.jpg', { type: 'image/jpeg' }),
+      ]);
+      await waitFor(() => expect(screen.getByText(/2 draft photos created in Wedding/i)).toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: /publish all 2/i }));
+
+      // Half the run is live and half is not — the summary must say so
+      // rather than still reading as two untouched drafts, and the button
+      // must now offer only what is left.
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/published 1 of 2/i));
+      expect(screen.getByRole('alert')).toHaveTextContent(/still drafts/i);
+      expect(screen.getByRole('button', { name: /publish all 1/i })).toBeInTheDocument();
+      expect(galleryUpdate).toHaveBeenCalledTimes(2);
+
+      galleryUpdate.mockResolvedValue({ status: 'published' });
+      await user.click(screen.getByRole('button', { name: /publish all 1/i }));
+
+      // Retry publishes g-2 only — never g-1 a second time.
+      await waitFor(() => expect(galleryUpdate).toHaveBeenCalledTimes(3));
+      expect(galleryUpdate).toHaveBeenLastCalledWith('g-2', { status: 'published' });
+      await waitFor(() => expect(screen.queryByText(/draft photos created/i)).not.toBeInTheDocument());
+    });
+
+    it('refreshes the gallery list once per bulk run, not once per uploaded file', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      galleryList.mockResolvedValue([]);
+      let created = 0;
+      galleryCreate.mockImplementation(async (payload) => {
+        created += 1;
+        return { id: `g-${created}`, ...payload, status: 'draft' };
+      });
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await openGallery(user);
+      await waitFor(() => expect(galleryList).toHaveBeenCalledTimes(1));
+
+      await user.selectOptions(screen.getByLabelText('Category'), 'Wedding');
+      await user.upload(screen.getByLabelText(/choose images/i), [
+        new File(['a'], 'haldi-1.jpg', { type: 'image/jpeg' }),
+        new File(['b'], 'haldi-2.jpg', { type: 'image/jpeg' }),
+        new File(['c'], 'haldi-3.jpg', { type: 'image/jpeg' }),
+      ]);
+      await waitFor(() => expect(screen.getByText(/3 draft photos created in Wedding/i)).toBeInTheDocument());
+
+      // One trailing refresh for the whole run (the mount fetch was the
+      // first call) — a 300-file folder must not mean 300 list fetches.
+      await waitFor(() => expect(galleryList).toHaveBeenCalledTimes(2), { timeout: 2000 });
+      await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 700); }); });
+      expect(galleryList).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the typed category name when adding it fails, so it can be retried', async () => {
+      const { default: userEvent } = await import('@testing-library/user-event');
+      galleryList.mockResolvedValue([]);
+      addGalleryCategory.mockRejectedValue(new Error('duplicate category'));
+      signIn();
+      render(<App />);
+      const user = userEvent.setup();
+      await openGallery(user);
+
+      await user.type(screen.getByLabelText(/new category/i), 'Travel Diaries');
+      await user.click(screen.getByRole('button', { name: /^add$/i }));
+
+      await waitFor(() => expect(screen.getByText(/duplicate category/i)).toBeInTheDocument());
+      expect(screen.getByLabelText(/new category/i)).toHaveValue('Travel Diaries');
     });
   });
 

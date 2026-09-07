@@ -46,3 +46,10 @@ describe('PhotoGallery', () => {
     expect(screen.getByText('Reception')).toBeInTheDocument();
   });
 });
+
+describe('PhotoGallery while loading', () => {
+  it('does not announce missing photographs while the list is still loading', () => {
+    render(<PhotoGallery photos={[]} loading onOpenLightbox={vi.fn()} />);
+    expect(screen.queryByText('Photographs are on their way.')).not.toBeInTheDocument();
+  });
+});

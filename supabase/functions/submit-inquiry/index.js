@@ -12,6 +12,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.111.0';
 import { validateInquiry, HONEYPOT_FIELD } from '../_shared/inquiry-validation.js';
 import { verifyTurnstile } from '../_shared/turnstile.js';
 import { sendInquiryEmails } from '../_shared/email.js';
+import { clientIp } from '../_shared/client-ip.js';
 
 const allowedOrigins = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
   .split(',')
@@ -163,36 +164,6 @@ function isHoneypotTripped(value) {
     return value.trim() !== '';
   }
   return true;
-}
-
-function clientIp(req) {
-  // cf-connecting-ip is the one header Cloudflare itself sets on every request
-  // that reaches it, overwriting whatever the client sent — so it is the only
-  // entry here a visitor cannot forge. x-real-ip is the equivalent set by some
-  // reverse proxies (not Cloudflare) under the same assumption: it names a
-  // header the proxy controls, not the client.
-  //
-  // x-forwarded-for is last, and read from the END of the chain rather than
-  // the start, because Cloudflare (and most proxies) APPEND the peer address
-  // to whatever x-forwarded-for the client already sent instead of replacing
-  // it — so element [0] is attacker-controlled and only the last element is
-  // the one the nearest trusted hop actually appended. Trusting [0] (the
-  // "naive" reading of "the first entry is the client") is exactly what let a
-  // spoofed x-forwarded-for defeat the rate limit: three requests carrying
-  // three different first-entries landed in three different buckets.
-  const cfConnecting = req.headers.get('cf-connecting-ip');
-  if (cfConnecting) return cfConnecting.trim();
-
-  const realIp = req.headers.get('x-real-ip');
-  if (realIp) return realIp.trim();
-
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) {
-    const parts = forwarded.split(',').map((part) => part.trim()).filter(Boolean);
-    if (parts.length > 0) return parts[parts.length - 1];
-  }
-
-  return '';
 }
 
 async function hashIp(ip) {

@@ -147,6 +147,38 @@ describe('CollectionItems', () => {
     }));
   });
 
+  it('closes and clears the video form once the add succeeds', async () => {
+    const user = userEvent.setup();
+    addCollectionVideo.mockResolvedValue(VIDEO_ITEM);
+    await renderItems();
+    await waitFor(() => expect(screen.getByText(/no items on this page yet/i)).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: /add video/i }));
+    await user.type(screen.getByLabelText(/video link/i), 'https://www.youtube.com/embed/x');
+    listCollectionItems.mockResolvedValueOnce([VIDEO_ITEM]);
+    await user.click(screen.getByRole('button', { name: /^add$/i }));
+
+    await waitFor(() => expect(screen.queryByLabelText(/video link/i)).not.toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /add video/i }));
+    expect(screen.getByLabelText(/video link/i)).toHaveValue('');
+  });
+
+  it('keeps the typed video details on screen when the add fails, so a retry needs no retyping', async () => {
+    const user = userEvent.setup();
+    addCollectionVideo.mockRejectedValue(new Error('permission denied'));
+    await renderItems();
+    await waitFor(() => expect(screen.getByText(/no items on this page yet/i)).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: /add video/i }));
+    await user.type(screen.getByLabelText(/video link/i), 'https://www.youtube.com/embed/x');
+    await user.type(screen.getByLabelText(/caption/i), 'Teaser');
+    await user.click(screen.getByRole('button', { name: /^add$/i }));
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/permission denied/i));
+    expect(screen.getByLabelText(/video link/i)).toHaveValue('https://www.youtube.com/embed/x');
+    expect(screen.getByLabelText(/caption/i)).toHaveValue('Teaser');
+  });
+
   it('normalizes a pasted YouTube share link to an embed URL', async () => {
     const user = userEvent.setup();
     addCollectionVideo.mockResolvedValue(VIDEO_ITEM);

@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback, useEffect, useMemo, useRef, useState,
+} from 'react';
 import { useSession } from '../hooks/useSession';
 import { useResource } from '../hooks/useResource';
 import { useScrollToTop } from './useScrollToTop.js';
@@ -34,6 +36,11 @@ import { collectionsResource, collectionsQueries } from './resources/collections
 import { galleryResource, galleryQueries } from './resources/gallery.js';
 import { filmsResource, filmsQueries } from './resources/films.js';
 import { testimonialsResource, testimonialsQueries } from './resources/testimonials.js';
+
+// How long after the last bulk-uploaded photograph the Gallery list waits
+// before refreshing once for the whole run — see GalleryDashboard's
+// scheduleBulkReload.
+const BULK_RELOAD_DEBOUNCE_MS = 500;
 
 // Owns the leads dashboard's data (via useResource, the generic hook Tasks
 // 7-9 will also use) and which inquiry is selected. Kept private to this
@@ -184,12 +191,18 @@ function SettingsDashboard({ isOwner = false }) {
   } = useResource(servicesQueries);
   const [servicesActionError, setServicesActionError] = useState(null);
 
+  // Resolves false only when the write did not happen — ManagedList keeps
+  // the typed name in its Add box on that answer, so a failed add is a
+  // retry, not a retype. A `written` error (the write landed, only the
+  // refresh failed) still counts as done.
   async function runServicesAction(name, ...args) {
     setServicesActionError(null);
     try {
       await mutateServices(name, ...args);
+      return true;
     } catch (err) {
       setServicesActionError({ message: err?.message || 'unknown error' });
+      return Boolean(err?.written);
     }
   }
 
@@ -329,15 +342,22 @@ function WeddingsDashboard() {
   // the database from one that never did — see useResource.mutate's own
   // module comment.
   const [listActionError, setListActionError] = useState(null);
+  // Handed to ResourceList as `pending` so its move/publish/delete controls
+  // are disabled while a write is in flight — a second arrow click mid-
+  // reorder would race two reorders against the same rows.
+  const [listActionPending, setListActionPending] = useState(false);
   const [justCreated, setJustCreated] = useState(null);
   const [publishPending, setPublishPending] = useState(false);
 
   async function runListAction(name, ...args) {
     setListActionError(null);
+    setListActionPending(true);
     try {
       await mutate(name, ...args);
     } catch (err) {
       setListActionError({ message: err?.message || 'unknown error', written: Boolean(err?.written) });
+    } finally {
+      setListActionPending(false);
     }
   }
 
@@ -430,6 +450,7 @@ function WeddingsDashboard() {
         onDelete={(id) => runListAction('remove', id)}
         onToggleStatus={(id, nextStatus) => runListAction('update', id, { status: nextStatus })}
         onReorder={(ids) => runListAction('reorder', ids)}
+        pending={listActionPending}
       />
     </div>
   );
@@ -467,17 +488,22 @@ function GalleryDashboard({ prefillMediaId = null }) {
   } = useResource(categoriesQueries);
   const [categoriesActionError, setCategoriesActionError] = useState(null);
 
+  // Same contract as SettingsDashboard's runServicesAction: false means
+  // the write did not happen, so ManagedList keeps the typed name.
   async function runCategoriesAction(name, ...args) {
     setCategoriesActionError(null);
     try {
       await mutateCategories(name, ...args);
+      return true;
     } catch (err) {
       setCategoriesActionError({ message: err?.message || 'unknown error' });
+      return Boolean(err?.written);
     }
   }
 
   // Bulk add to Gallery: each uploaded photograph becomes a draft gallery
-  // row. The run's created ids (for Publish all) and the upload-succeeded-
+  // row. The run's created ids (for Publish all — after a partial publish
+  // failure, exactly the ids still unpublished) and the upload-succeeded-
   // but-row-failed split are tracked in a ref so per-file callbacks don't
   // each need the latest state; the summary is the rendered mirror.
   const bulkRunRef = useRef({
@@ -485,6 +511,26 @@ function GalleryDashboard({ prefillMediaId = null }) {
   });
   const [bulkSummary, setBulkSummary] = useState(null);
   const [bulkPublishing, setBulkPublishing] = useState(false);
+
+  // One trailing list refresh per run rather than one per file: UploadField
+  // fires onUploaded per photograph and exposes no end-of-run signal, so a
+  // 300-file folder would otherwise issue 300 list fetches. The summary
+  // itself is state, updated per file, so the count still ticks up live.
+  // Cancelled on unmount so a pending refresh cannot fire into a tab that
+  // has already been left.
+  const bulkReloadTimerRef = useRef(null);
+  const cancelBulkReload = useCallback(() => {
+    clearTimeout(bulkReloadTimerRef.current);
+    bulkReloadTimerRef.current = null;
+  }, []);
+  useEffect(() => cancelBulkReload, [cancelBulkReload]);
+  function scheduleBulkReload() {
+    cancelBulkReload();
+    bulkReloadTimerRef.current = setTimeout(() => {
+      bulkReloadTimerRef.current = null;
+      reload();
+    }, BULK_RELOAD_DEBOUNCE_MS);
+  }
 
   async function handleBulkUpload(media, file, category) {
     if (bulkRunRef.current.category !== category) {
@@ -504,28 +550,54 @@ function GalleryDashboard({ prefillMediaId = null }) {
     } catch {
       bulkRunRef.current.notAdded += 1;
     }
+    // A fresh summary per file: an earlier partial-publish notice (see
+    // handleBulkPublishAll) is dropped here, and `created` then counts the
+    // drafts still awaiting publish plus the new ones — which is what
+    // "Publish all N" must offer.
     setBulkSummary({
       category,
       created: bulkRunRef.current.createdIds.length,
       notAdded: bulkRunRef.current.notAdded,
     });
-    reload();
+    scheduleBulkReload();
   }
 
   async function handleBulkPublishAll() {
     setBulkPublishing(true);
+    const ids = [...bulkRunRef.current.createdIds];
+    let published = 0;
     try {
-      const ids = [...bulkRunRef.current.createdIds];
       for (let i = 0; i < ids.length; i += 1) {
         await galleryQueries.update(ids[i], { status: 'published' });
+        published += 1;
       }
       bulkRunRef.current = {
         createdIds: [], nextSort: 0, notAdded: 0, category: '',
       };
       setBulkSummary(null);
-      reload();
+    } catch (err) {
+      // Some rows are now live and the rest are not. Keep exactly the
+      // unpublished ids, so Publish all again touches only those, and say
+      // so in the summary rather than leaving it reading as N untouched
+      // drafts under an unhandled rejection.
+      bulkRunRef.current.createdIds = ids.slice(published);
+      setBulkSummary((prev) => (prev ? {
+        ...prev,
+        publishFailure: {
+          published,
+          attempted: ids.length,
+          remaining: ids.length - published,
+          message: err?.message || 'unknown error',
+        },
+      } : prev));
     } finally {
       setBulkPublishing(false);
+      // Anything that published changed the list; a failure on the very
+      // first row changed nothing and needs no refetch.
+      if (published > 0) {
+        cancelBulkReload();
+        reload();
+      }
     }
   }
 
@@ -561,15 +633,22 @@ function GalleryDashboard({ prefillMediaId = null }) {
   const [formPending, setFormPending] = useState(false);
   const [formError, setFormError] = useState(null);
   const [listActionError, setListActionError] = useState(null);
+  // Handed to ResourceList as `pending` so its move/publish/delete controls
+  // are disabled while a write is in flight — a second arrow click mid-
+  // reorder would race two reorders against the same rows.
+  const [listActionPending, setListActionPending] = useState(false);
   const [justCreated, setJustCreated] = useState(null);
   const [publishPending, setPublishPending] = useState(false);
 
   async function runListAction(name, ...args) {
     setListActionError(null);
+    setListActionPending(true);
     try {
       await mutate(name, ...args);
     } catch (err) {
       setListActionError({ message: err?.message || 'unknown error', written: Boolean(err?.written) });
+    } finally {
+      setListActionPending(false);
     }
   }
 
@@ -670,6 +749,7 @@ function GalleryDashboard({ prefillMediaId = null }) {
         onDelete={(id) => runListAction('remove', id)}
         onToggleStatus={(id, nextStatus) => runListAction('update', id, { status: nextStatus })}
         onReorder={(ids) => runListAction('reorder', ids)}
+        pending={listActionPending}
       />
     </div>
   );
@@ -686,15 +766,22 @@ function FilmsDashboard() {
   const [formPending, setFormPending] = useState(false);
   const [formError, setFormError] = useState(null);
   const [listActionError, setListActionError] = useState(null);
+  // Handed to ResourceList as `pending` so its move/publish/delete controls
+  // are disabled while a write is in flight — a second arrow click mid-
+  // reorder would race two reorders against the same rows.
+  const [listActionPending, setListActionPending] = useState(false);
   const [justCreated, setJustCreated] = useState(null);
   const [publishPending, setPublishPending] = useState(false);
 
   async function runListAction(name, ...args) {
     setListActionError(null);
+    setListActionPending(true);
     try {
       await mutate(name, ...args);
     } catch (err) {
       setListActionError({ message: err?.message || 'unknown error', written: Boolean(err?.written) });
+    } finally {
+      setListActionPending(false);
     }
   }
 
@@ -772,6 +859,7 @@ function FilmsDashboard() {
         onDelete={(id) => runListAction('remove', id)}
         onToggleStatus={(id, nextStatus) => runListAction('update', id, { status: nextStatus })}
         onReorder={(ids) => runListAction('reorder', ids)}
+        pending={listActionPending}
       />
     </div>
   );
@@ -790,15 +878,22 @@ function ClientGalleriesDashboard() {
   const [formPending, setFormPending] = useState(false);
   const [formError, setFormError] = useState(null);
   const [listActionError, setListActionError] = useState(null);
+  // Handed to ResourceList as `pending` so its move/publish/delete controls
+  // are disabled while a write is in flight — a second arrow click mid-
+  // reorder would race two reorders against the same rows.
+  const [listActionPending, setListActionPending] = useState(false);
   const [justCreated, setJustCreated] = useState(null);
   const [publishPending, setPublishPending] = useState(false);
 
   async function runListAction(name, ...args) {
     setListActionError(null);
+    setListActionPending(true);
     try {
       await mutate(name, ...args);
     } catch (err) {
       setListActionError({ message: err?.message || 'unknown error', written: Boolean(err?.written) });
+    } finally {
+      setListActionPending(false);
     }
   }
 
@@ -881,6 +976,7 @@ function ClientGalleriesDashboard() {
         onDelete={(id) => runListAction('remove', id)}
         onToggleStatus={(id, nextStatus) => runListAction('update', id, { status: nextStatus })}
         onReorder={(ids) => runListAction('reorder', ids)}
+        pending={listActionPending}
       />
     </div>
   );
@@ -898,15 +994,22 @@ function TestimonialsDashboard() {
   const [formPending, setFormPending] = useState(false);
   const [formError, setFormError] = useState(null);
   const [listActionError, setListActionError] = useState(null);
+  // Handed to ResourceList as `pending` so its move/publish/delete controls
+  // are disabled while a write is in flight — a second arrow click mid-
+  // reorder would race two reorders against the same rows.
+  const [listActionPending, setListActionPending] = useState(false);
   const [justCreated, setJustCreated] = useState(null);
   const [publishPending, setPublishPending] = useState(false);
 
   async function runListAction(name, ...args) {
     setListActionError(null);
+    setListActionPending(true);
     try {
       await mutate(name, ...args);
     } catch (err) {
       setListActionError({ message: err?.message || 'unknown error', written: Boolean(err?.written) });
+    } finally {
+      setListActionPending(false);
     }
   }
 
@@ -984,6 +1087,7 @@ function TestimonialsDashboard() {
         onDelete={(id) => runListAction('remove', id)}
         onToggleStatus={(id, nextStatus) => runListAction('update', id, { status: nextStatus })}
         onReorder={(ids) => runListAction('reorder', ids)}
+        pending={listActionPending}
       />
     </div>
   );
@@ -1002,15 +1106,22 @@ function PagesDashboard() {
   const [formPending, setFormPending] = useState(false);
   const [formError, setFormError] = useState(null);
   const [listActionError, setListActionError] = useState(null);
+  // Handed to ResourceList as `pending` so its move/publish/delete controls
+  // are disabled while a write is in flight — a second arrow click mid-
+  // reorder would race two reorders against the same rows.
+  const [listActionPending, setListActionPending] = useState(false);
   const [justCreated, setJustCreated] = useState(null);
   const [publishPending, setPublishPending] = useState(false);
 
   async function runListAction(name, ...args) {
     setListActionError(null);
+    setListActionPending(true);
     try {
       await mutate(name, ...args);
     } catch (err) {
       setListActionError({ message: err?.message || 'unknown error', written: Boolean(err?.written) });
+    } finally {
+      setListActionPending(false);
     }
   }
 
@@ -1094,6 +1205,7 @@ function PagesDashboard() {
         onDelete={(id) => runListAction('remove', id)}
         onToggleStatus={(id, nextStatus) => runListAction('update', id, { status: nextStatus })}
         onReorder={(ids) => runListAction('reorder', ids)}
+        pending={listActionPending}
       />
     </div>
   );

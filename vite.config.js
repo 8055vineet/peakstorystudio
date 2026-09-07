@@ -2,9 +2,33 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// The admin is a second entry, admin.html, and the URL the studio types is
+// /admin (or /admin/). Cloudflare Pages maps both to the file through
+// public/_redirects; this is the same mapping for `vite` (dev) and `vite
+// preview`, so the URL that works on the host also works locally instead
+// of falling through to the public site's 404 page. Exactly /admin and
+// /admin/ — with or without a query string, which is kept — and nothing
+// else: /admin.html, /administrator, and /admin/anything pass through.
+export function rewriteAdminUrl(url) {
+  const match = /^\/admin\/?(\?.*)?$/.exec(url ?? '');
+  return match ? `/admin.html${match[1] ?? ''}` : url;
+}
+
+export function adminEntryRewrite() {
+  const middleware = (req, _res, next) => {
+    req.url = rewriteAdminUrl(req.url);
+    next();
+  };
+  return {
+    name: 'peak-story-admin-entry-rewrite',
+    configureServer(server) { server.middlewares.use(middleware); },
+    configurePreviewServer(server) { server.middlewares.use(middleware); },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), adminEntryRewrite()],
   resolve: {
     alias: {
       // Validation rules are shared with the submit-inquiry Edge Function.

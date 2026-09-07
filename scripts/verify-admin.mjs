@@ -24,7 +24,9 @@
 // Requires the local stack (npm run db:start) and its Edge Functions
 // serving. Locally `supabase start` already serves them; CI's admin-e2e job
 // also runs `npm run db:functions` explicitly, same as inquiry-e2e does.
+import { randomBytes } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
+import { exitUnlessLocalTarget } from './lib/assert-local-target.mjs';
 
 // src/lib/supabase.js only ever reads the VITE_-prefixed names. Map them
 // from the plain names this script (like verify-inquiry.mjs and
@@ -48,6 +50,10 @@ if (!url || !anonKey || !serviceKey) {
   process.exit(1);
 }
 
+// Creates an admin account and edits site_settings. Local stack only unless
+// ALLOW_REMOTE_DB=yes — see scripts/lib/assert-local-target.mjs.
+exitUnlessLocalTarget('verify:admin');
+
 // Imported for real, not reimplemented — see the module comment above.
 const { getWeddingBySlug } = await import('../src/lib/queries/weddings.js');
 const { getCollections } = await import('../src/lib/queries/collections.js');
@@ -70,8 +76,16 @@ function expectedMediaUrl(storagePath) {
 const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 const signUploadEndpoint = `${url}/functions/v1/sign-upload`;
 
-const PROBE_EMAIL = 'verify-admin-probe@example.test';
-const PROBE_PASSWORD = 'Verify-Admin-Probe-Pw!2026';
+// Per-run credentials. The address carries a random suffix and the password
+// is generated fresh each run, so nothing that can sign in as an admin is
+// ever a fixed value committed to the repo — a probe account left behind by
+// a crashed run would otherwise be an admin login anyone with the source
+// could use. clean() removes every account matching the prefix, not only
+// this run's, so a crashed run's leftovers are still tidied.
+const PROBE_EMAIL_PREFIX = 'verify-admin-probe-';
+const PROBE_EMAIL_DOMAIN = 'example.test';
+const PROBE_EMAIL = `${PROBE_EMAIL_PREFIX}${randomBytes(6).toString('hex')}@${PROBE_EMAIL_DOMAIN}`;
+const PROBE_PASSWORD = randomBytes(24).toString('base64url');
 const PROBE_TITLE = 'Verify Admin E2E Probe';
 const PROBE_ALT_TEXT = 'verify-admin-probe photograph';
 const PROBE_COUPLE = 'Verify & Admin';
@@ -123,10 +137,14 @@ async function readFunctionErrorBody(error) {
   }
 }
 
-async function findUserIdByEmail(email) {
+// Every probe account — this run's or a crashed earlier run's — matched by
+// the fixed prefix and domain, since the suffix differs per run.
+async function findProbeUserIds() {
   const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   if (error) throw new Error(`listUsers failed: ${error.message}`);
-  return data.users.find((u) => u.email === email)?.id ?? null;
+  return data.users
+    .filter((u) => u.email?.startsWith(PROBE_EMAIL_PREFIX) && u.email.endsWith(`@${PROBE_EMAIL_DOMAIN}`))
+    .map((u) => u.id);
 }
 
 // Cleans up every row and object this script can create, run before AND
@@ -175,8 +193,7 @@ async function clean() {
   await admin.from('gallery_categories').delete().in('name', [PROBE_CATEGORY_NAME, PROBE_CATEGORY_RENAMED]);
   await admin.from('booking_services').delete().eq('name', PROBE_SERVICE_NAME);
 
-  const userId = await findUserIdByEmail(PROBE_EMAIL);
-  if (userId) {
+  for (const userId of await findProbeUserIds()) {
     // Cascades the profiles row (on delete cascade in the schema).
     await admin.auth.admin.deleteUser(userId);
   }

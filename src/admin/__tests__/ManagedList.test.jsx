@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const { default: ManagedList } = await import('../ManagedList.jsx');
@@ -45,6 +45,17 @@ describe('ManagedList', () => {
     expect(input).toHaveValue('');
     await user.click(screen.getByRole('button', { name: /^add$/i }));
     expect(props.onAdd).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the typed name when onAdd resolves false — the dashboard reporting the write failed', async () => {
+    const user = userEvent.setup();
+    const props = baseProps({ onAdd: vi.fn().mockResolvedValue(false) });
+    render(<ManagedList {...props} />);
+    const input = screen.getByLabelText(/new category/i);
+    await user.type(input, 'Travel Diaries');
+    await user.click(screen.getByRole('button', { name: /^add$/i }));
+    await waitFor(() => expect(props.onAdd).toHaveBeenCalledWith('Travel Diaries'));
+    expect(input).toHaveValue('Travel Diaries');
   });
 
   it('renames inline: Rename → edit → Save calls onRename with the item and new name', async () => {

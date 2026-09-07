@@ -6,6 +6,7 @@
 // Requires the local stack (npm run db:start) and the function server
 // (npm run db:functions) to be running.
 import { createClient } from '@supabase/supabase-js';
+import { exitUnlessLocalTarget } from './lib/assert-local-target.mjs';
 
 const url = process.env.SUPABASE_URL;
 const anonKey = process.env.SUPABASE_ANON_KEY;
@@ -20,6 +21,10 @@ if (!url || !anonKey || !serviceKey) {
   );
   process.exit(1);
 }
+
+// Wipes inquiry_rate_limits and posts a dozen probe inquiries. Local stack
+// only unless ALLOW_REMOTE_DB=yes — see scripts/lib/assert-local-target.mjs.
+exitUnlessLocalTarget('verify:inquiry');
 
 const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
 const endpoint = `${url}/functions/v1/submit-inquiry`;

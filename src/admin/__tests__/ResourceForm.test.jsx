@@ -270,6 +270,102 @@ describe('ResourceForm', () => {
     });
   });
 
+  // The sign-in lookup (client_galleries_for_code) compares the STORED
+  // access code untrimmed and ignores anything under 6 characters, so an
+  // admin who saved "PSS-4K7Q2M " or "abc" locked the couple out with no
+  // error anywhere. Both guards are generic: every text/textarea value is
+  // trimmed on the way out, and any field may declare a minLength.
+  describe('text trimming and minLength', () => {
+    const CONFIG_WITH_CODE = {
+      ...CONFIG_NO_MEDIA,
+      fields: [
+        ...CONFIG_NO_MEDIA.fields,
+        {
+          name: 'code', label: 'Access code', type: 'text', required: true, minLength: 6,
+        },
+      ],
+    };
+
+    async function fillRequired(user) {
+      await user.type(screen.getByLabelText(/^name/i), 'Widget One');
+      await user.selectOptions(screen.getByLabelText(/category/i), 'a');
+    }
+
+    it('trims text and textarea values before submitting them', async () => {
+      const onSubmit = vi.fn();
+      const user = userEvent.setup();
+      render(<ResourceForm {...baseProps({ config: CONFIG_NO_MEDIA, onSubmit })} />);
+
+      await user.type(screen.getByLabelText(/^name/i), '  Widget One  ');
+      await user.selectOptions(screen.getByLabelText(/category/i), 'a');
+      await user.type(screen.getByLabelText(/description/i), '  A line under the title.  ');
+      await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
+
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+        name: 'Widget One',
+        description: 'A line under the title.',
+      }));
+    });
+
+    it('still maps a whitespace-only optional text field to its emptyValue, never to ""', async () => {
+      // The PS-034 contract: blank means the field's own declared
+      // emptyValue. Trimming must not turn "   " into "" on the wire.
+      const onSubmit = vi.fn();
+      const user = userEvent.setup();
+      render(<ResourceForm {...baseProps({ config: CONFIG_NO_MEDIA, onSubmit })} />);
+
+      await fillRequired(user);
+      await user.type(screen.getByLabelText(/description/i), '   ');
+      await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
+
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ description: null }));
+    });
+
+    it("refuses a value shorter than the field's minLength, measured after trimming", async () => {
+      const onSubmit = vi.fn();
+      const user = userEvent.setup();
+      render(<ResourceForm {...baseProps({ config: CONFIG_WITH_CODE, onSubmit })} />);
+
+      await fillRequired(user);
+      // Eight characters typed, four that count.
+      await user.type(screen.getByLabelText(/access code/i), '  abcd  ');
+      await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
+
+      expect(onSubmit).not.toHaveBeenCalled();
+      const codeField = screen.getByLabelText(/access code/i);
+      expect(codeField).toHaveAttribute('aria-invalid', 'true');
+      expect(screen.getByText('Access code must be at least 6 characters.')).toBeInTheDocument();
+      expect(codeField.getAttribute('aria-describedby')).toBe(
+        screen.getByText('Access code must be at least 6 characters.').id,
+      );
+    });
+
+    it('reports a blank required field as required, not as too short', async () => {
+      const onSubmit = vi.fn();
+      const user = userEvent.setup();
+      render(<ResourceForm {...baseProps({ config: CONFIG_WITH_CODE, onSubmit })} />);
+
+      await fillRequired(user);
+      await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
+
+      expect(onSubmit).not.toHaveBeenCalled();
+      expect(screen.getByText('Access code is required.')).toBeInTheDocument();
+      expect(screen.queryByText(/at least 6 characters/i)).not.toBeInTheDocument();
+    });
+
+    it('accepts a value that meets minLength once trimmed, and submits it trimmed', async () => {
+      const onSubmit = vi.fn();
+      const user = userEvent.setup();
+      render(<ResourceForm {...baseProps({ config: CONFIG_WITH_CODE, onSubmit })} />);
+
+      await fillRequired(user);
+      await user.type(screen.getByLabelText(/access code/i), 'PSS-4K7Q2M ');
+      await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
+
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ code: 'PSS-4K7Q2M' }));
+    });
+  });
+
   describe('a resource config with a misconfigured optional field', () => {
     // Every optional field (other than `tags`) must declare its own
     // `emptyValue` — see ResourceForm.jsx's own module comment. A config
@@ -466,6 +562,32 @@ describe('ResourceForm', () => {
       await user.click(screen.getByRole('button', { name: /^(save|create)/i }));
 
       expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ coverMediaId: 'media-new' }));
+    });
+  });
+
+  describe('submit label', () => {
+    it('reads "Save Changes" only for a record that already has an id', async () => {
+      render(<ResourceForm {...baseProps({
+        initial: {
+          id: 'record-a', name: 'Existing', category: 'a', description: '', launchDate: '', weight: null, coverMediaId: '', tags: [],
+        },
+      })}
+      />);
+
+      expect(screen.getByRole('button', { name: 'Save Changes' })).toBeInTheDocument();
+      await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
+    });
+
+    it('reads "Create" for a prefilled create — an id-less `initial`, as the Media Library\'s "Add to Gallery" passes', async () => {
+      // GalleryDashboard opens its create form with `initial: { mediaId }`
+      // so the chosen photograph is already selected. That is still a
+      // create: the row does not exist yet, and a button reading "Save
+      // Changes" under the heading "Add Gallery Photo" is a lie.
+      render(<ResourceForm {...baseProps({ initial: { coverMediaId: 'media-1' } })} />);
+
+      expect(screen.getByRole('button', { name: 'Create' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Save Changes' })).not.toBeInTheDocument();
+      await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
     });
   });
 

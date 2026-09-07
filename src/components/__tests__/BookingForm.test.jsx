@@ -15,15 +15,22 @@ vi.mock('../../hooks/useInquirySubmission', () => ({
 // Mutable so a test can put the widget in the state it occupies on first
 // load and after every reset: mounted, but no token issued yet.
 let turnstileToken = 'test-token';
+let turnstileError = null;
+// Every call's arguments, so a test can see the form ask the hook for a
+// fresh widget mount after "Submit Another Inquiry".
+const turnstileCalls = [];
 
 vi.mock('../../hooks/useTurnstile', () => ({
-  useTurnstile: () => ({
-    containerRef: { current: null },
-    token: turnstileToken,
-    ready: true,
-    error: null,
-    reset: vi.fn(),
-  }),
+  useTurnstile: (...args) => {
+    turnstileCalls.push(args);
+    return {
+      containerRef: { current: null },
+      token: turnstileToken,
+      ready: true,
+      error: turnstileError,
+      reset: vi.fn(),
+    };
+  },
 }));
 
 vi.mock('../../lib/queries/inquiries', () => ({
@@ -266,5 +273,48 @@ describe('BookingForm', () => {
     render(<BookingForm services={['Cinematic Film', 'Skywriting']} />);
     expect(screen.getByRole('button', { name: /skywriting/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /drone aerials/i })).toBeNull();
+  });
+});
+
+describe('BookingForm after the first inquiry', () => {
+  beforeEach(() => {
+    turnstileToken = 'test-token';
+    turnstileError = null;
+    turnstileCalls.length = 0;
+  });
+
+  it('asks for a fresh Turnstile mount when a couple starts another inquiry', async () => {
+    hookState = { status: 'success', errorCode: null, fieldErrors: {} };
+    const user = userEvent.setup();
+    render(<BookingForm />);
+    const before = turnstileCalls[turnstileCalls.length - 1][1];
+    await user.click(screen.getByRole('button', { name: /submit another inquiry/i }));
+    const after = turnstileCalls[turnstileCalls.length - 1][1];
+    expect(after).toBeDefined();
+    expect(after).not.toBe(before);
+  });
+
+  it('offers the direct contact details when the verification widget could not load', () => {
+    hookState = { status: 'idle', errorCode: null, fieldErrors: {} };
+    turnstileToken = '';
+    turnstileError = 'Verification could not load.';
+    render(<BookingForm />);
+    const panel = screen.getByTestId('inquiry-direct-contact');
+    expect(within(panel).getByRole('link', { name: /peakstorystudio@gmail.com/i })).toHaveAttribute('href', 'mailto:peakstorystudio@gmail.com');
+    expect(screen.queryByText(/just a moment/i)).not.toBeInTheDocument();
+  });
+
+  it('never submits the hardcoded flagship services when the studio does not offer them', async () => {
+    hookState = { status: 'idle', errorCode: null, fieldErrors: {} };
+    const user = userEvent.setup();
+    render(<BookingForm services={['Drone Aerials', 'Pre-Wedding Shoot']} />);
+    await fillValidForm(user);
+    await user.click(screen.getByRole('button', { name: /drone aerials/i }));
+    await user.click(screen.getByRole('button', { name: /send booking inquiry/i }));
+    await waitFor(() => expect(submit).toHaveBeenCalled());
+    const sent = submit.mock.calls[submit.mock.calls.length - 1][0];
+    expect(sent.services).toContain('Drone Aerials');
+    expect(sent.services).not.toContain('Cinematic Film');
+    expect(sent.services).not.toContain('Fine Art Photography');
   });
 });

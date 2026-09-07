@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import FilmsGallery from '../FilmsGallery';
 
@@ -28,5 +28,14 @@ describe('FilmsGallery', () => {
     render(<FilmsGallery films={[]} onOpenVideoModal={vi.fn()} />);
     expect(screen.getByText(/CINEMATIC/)).toBeInTheDocument();
     expect(screen.queryByText('A Cinematic Showreel')).not.toBeInTheDocument();
+  });
+});
+
+describe('FilmsGallery keyboard access', () => {
+  it('exposes each film as a button that plays on Enter', () => {
+    const onOpenVideoModal = vi.fn();
+    render(<FilmsGallery films={SAMPLE} onOpenVideoModal={onOpenVideoModal} />);
+    fireEvent.keyDown(screen.getByRole('button', { name: /A Cinematic Showreel/ }), { key: 'Enter' });
+    expect(onOpenVideoModal).toHaveBeenCalledWith('https://www.youtube.com/embed/example');
   });
 });

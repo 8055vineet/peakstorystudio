@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, MapPin, Calendar, Sparkles, Play, ChevronLeft, ChevronRight } from 'lucide-react';
 import Photo from './Photo';
+import { activateOnKey } from '../lib/keyboardActivate';
 
 export default function StoryDetailModal({ story, onClose, onSelectImage, onOpenVideo }) {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -8,6 +9,14 @@ export default function StoryDetailModal({ story, onClose, onSelectImage, onOpen
   if (!story) return null;
 
   const images = story.fullGallery || [story.coverImage];
+
+  // The lightbox gets the chosen photograph, its index, and the whole album
+  // (as the `{ url }` objects it expects) so it opens on that photograph and
+  // pages through this album — not through the site-wide gallery.
+  const selectImage = (idx) => {
+    setActiveImageIndex(idx);
+    onSelectImage(images[idx], idx, images.map((url) => ({ url })));
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg:p-10 bg-pitch-950/80 backdrop-blur-xl animate-fade-in overflow-y-auto">
@@ -124,11 +133,12 @@ export default function StoryDetailModal({ story, onClose, onSelectImage, onOpen
               {images.map((imgUrl, idx) => (
                 <div
                   key={idx}
-                  onClick={() => {
-                    setActiveImageIndex(idx);
-                    onSelectImage(imgUrl);
-                  }}
-                  className={`relative aspect-square overflow-hidden cursor-pointer border-2 transition-all duration-300 img-zoom-container ${
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Photograph ${idx + 1} of ${images.length}`}
+                  onClick={() => selectImage(idx)}
+                  onKeyDown={activateOnKey(() => selectImage(idx))}
+                  className={`relative aspect-square overflow-hidden cursor-pointer border-2 transition-all duration-300 img-zoom-container focus:outline-none focus-visible:ring-2 focus-visible:ring-pitch-900 ${
                     activeImageIndex === idx ? 'border-pitch-900 shadow-md' : 'border-transparent hover:border-pitch-900/40'
                   }`}
                 >

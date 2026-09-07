@@ -90,6 +90,20 @@ describe('resizeImage', () => {
     expect(failure.code).toBe('NOT_AN_IMAGE');
   });
 
+  it('decodes with EXIF orientation applied, so a phone photograph is upright after the canvas re-encode', async () => {
+    // The canvas re-encode strips EXIF entirely, so unless the decoder
+    // bakes the orientation tag into the pixels first, every portrait
+    // phone photograph comes out lying on its side — commit d9ccb53 had to
+    // hand-rotate 26 of them after exactly this. `from-image` is the
+    // createImageBitmap option that applies the tag before drawing.
+    createImageBitmap.mockResolvedValue(stubBitmap(3000, 4000));
+    const file = makeImageFile();
+
+    await resizeImage(file);
+
+    expect(createImageBitmap).toHaveBeenCalledWith(file, { imageOrientation: 'from-image' });
+  });
+
   it('scales a 4000x3000 source down to 2000x1500 by default', async () => {
     createImageBitmap.mockResolvedValue(stubBitmap(4000, 3000));
 

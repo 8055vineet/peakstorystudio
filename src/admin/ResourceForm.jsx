@@ -15,7 +15,7 @@ import MediaSlot from './MediaSlot.jsx';
 //     columns: [...snake_case Postgres columns...],
 //     defaultSort: 'sort_order',
 //     listColumns: [{ name, label }],   // consumed by ResourceList, not here
-//     fields: [{ name, label, type, required, emptyValue?, help?, options? }],
+//     fields: [{ name, label, type, required, emptyValue?, minLength?, help?, options? }],
 //   }
 //
 // `status` is deliberately never one of `fields` — every resource has it,
@@ -30,6 +30,10 @@ import MediaSlot from './MediaSlot.jsx';
 // input reading and writing a real string[], for a Postgres text[] column
 // such as weddings.tags), or 'media' (renders MediaPicker + UploadField
 // from Task 6 and stores a media id).
+//
+// `minLength` is optional on any field: validate() refuses a non-blank
+// value shorter than it, measured after trimming. Every `text`/`textarea`
+// value is trimmed before it is sent (see buildPayload).
 //
 // Every field with `required: false` (other than `tags`, which needs no
 // choice — see parseTags below) MUST also carry `emptyValue`: the value
@@ -117,10 +121,19 @@ function parseTags(raw) {
 function validate(config, values) {
   const fieldErrors = {};
   config.fields.forEach((field) => {
-    if (!field.required) return;
     const value = values[field.name];
-    const isEmpty = value === undefined || value === null || String(value).trim() === '';
-    if (isEmpty) fieldErrors[field.name] = `${field.label} is required.`;
+    const trimmed = value === undefined || value === null ? '' : String(value).trim();
+    if (field.required && trimmed === '') {
+      fieldErrors[field.name] = `${field.label} is required.`;
+      return;
+    }
+    // Measured on the trimmed value, because that is what buildPayload
+    // sends — "  abcd  " is four characters on the wire, not eight. A blank
+    // optional field is not "too short"; it is blank, and maps to its
+    // emptyValue below.
+    if (field.minLength && trimmed !== '' && trimmed.length < field.minLength) {
+      fieldErrors[field.name] = `${field.label} must be at least ${field.minLength} characters.`;
+    }
   });
   return fieldErrors;
 }
@@ -172,7 +185,20 @@ function buildPayload(config, values) {
       return;
     }
 
-    payload[field.name] = field.type === 'number' ? Number(raw) : raw;
+    if (field.type === 'number') {
+      payload[field.name] = Number(raw);
+      return;
+    }
+    // Typed text is trimmed on the way out. The value an admin sees in a
+    // box and the value Postgres stores must be the same string: a client
+    // gallery's access code is compared verbatim at sign-in
+    // (client_galleries_for_code), so a stray trailing space saved here was
+    // a delivery the couple could never unlock, with no error anywhere.
+    if (field.type === 'text' || field.type === 'textarea') {
+      payload[field.name] = String(raw).trim();
+      return;
+    }
+    payload[field.name] = raw;
   });
   return payload;
 }
@@ -343,7 +369,10 @@ export default function ResourceForm({
   );
   const mediaResource = useResource(mediaQueries);
 
-  const isEditing = Boolean(initial);
+  // Keyed on the id, not the object: GalleryDashboard's "Add to Gallery"
+  // prefill passes an id-less `{ mediaId }` as `initial`, and that is still
+  // a create — the same rule initialKey() above already applies.
+  const isEditing = Boolean(initial?.id);
 
   function handleFieldChange(name, next) {
     setFormState((prev) => ({ ...prev, values: { ...prev.values, [name]: next } }));

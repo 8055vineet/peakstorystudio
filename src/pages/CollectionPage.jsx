@@ -1,5 +1,6 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
+import Photo from '../components/Photo';
 import { Play } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import NotFoundPage from './NotFoundPage';
@@ -70,7 +71,7 @@ export default function CollectionPage({ collections, loading, onOpenLightbox, o
                   aria-label={item.caption ? `View photo: ${item.caption}` : 'View photo'}
                   className="block overflow-hidden group"
                 >
-                  <img
+                  <Photo
                     src={item.url}
                     alt={item.caption || ''}
                     loading="lazy"

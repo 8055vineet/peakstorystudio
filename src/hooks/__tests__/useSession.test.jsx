@@ -189,6 +189,84 @@ describe('useSession', () => {
     expect(result.current.profile).toBeNull();
   });
 
+  // Supabase re-emits onAuthStateChange for every TOKEN_REFRESHED (hourly)
+  // and SIGNED_IN (tab focus), and each one re-runs the profile lookup. A
+  // transient network failure on one of those used to be treated as "not
+  // an admin": the dashboard unmounted mid-edit and showed "does not have
+  // admin access" to someone whose role had not changed. The distinction
+  // that matters is between a lookup that FAILED and a lookup that ANSWERED
+  // — only the answer may demote. The first resolve, and a failure for a
+  // different user, still fail closed.
+  describe('a transient profile-lookup failure after authentication', () => {
+    function captureAuthCallback() {
+      let authCallback = null;
+      onAuthStateChange.mockImplementation((callback) => {
+        authCallback = callback;
+        return () => {};
+      });
+      return () => authCallback;
+    }
+
+    it('keeps an authenticated admin authenticated, with the fresh session, when the lookup rejects for the same user', async () => {
+      const getAuthCallback = captureAuthCallback();
+      const initialProfile = { userId: 'user-1', role: 'admin', displayName: 'Studio Director' };
+      getSession.mockResolvedValue(SESSION);
+      getProfile.mockResolvedValueOnce(initialProfile);
+      const { result } = renderHook(() => useSession());
+      await waitFor(() => expect(result.current.status).toBe('authenticated'));
+
+      const refreshed = { user: { id: 'user-1' }, access_token: 'fresh-tok' };
+      getProfile.mockRejectedValueOnce(new Error('network blip'));
+      await act(async () => { await getAuthCallback()(refreshed); });
+
+      expect(result.current.status).toBe('authenticated');
+      // The refreshed token is what later requests must carry, so the
+      // session object is replaced even though the profile could not be
+      // re-read; the profile itself is the one already trusted.
+      expect(result.current.session).toEqual(refreshed);
+      expect(result.current.profile).toEqual(initialProfile);
+    });
+
+    it('still lands on forbidden when the very first lookup rejects — nothing was ever trusted', async () => {
+      getSession.mockResolvedValue(SESSION);
+      getProfile.mockRejectedValue(new Error('network blip'));
+      const { result } = renderHook(() => useSession());
+
+      await waitFor(() => expect(result.current.status).toBe('forbidden'));
+      expect(result.current.profile).toBeNull();
+    });
+
+    it('lands on forbidden when the lookup rejects for a DIFFERENT user than the one authenticated', async () => {
+      const getAuthCallback = captureAuthCallback();
+      getSession.mockResolvedValue(SESSION);
+      getProfile.mockResolvedValueOnce({ userId: 'user-1', role: 'admin', displayName: 'Studio Director' });
+      const { result } = renderHook(() => useSession());
+      await waitFor(() => expect(result.current.status).toBe('authenticated'));
+
+      const someoneElse = { user: { id: 'user-2' }, access_token: 'other-tok' };
+      getProfile.mockRejectedValueOnce(new Error('network blip'));
+      await act(async () => { await getAuthCallback()(someoneElse); });
+
+      expect(result.current.status).toBe('forbidden');
+      expect(result.current.session).toEqual(someoneElse);
+      expect(result.current.profile).toBeNull();
+    });
+
+    it('still demotes to forbidden when the lookup ANSWERS with a non-admin role', async () => {
+      const getAuthCallback = captureAuthCallback();
+      getSession.mockResolvedValue(SESSION);
+      getProfile.mockResolvedValueOnce({ userId: 'user-1', role: 'admin', displayName: 'Studio Director' });
+      const { result } = renderHook(() => useSession());
+      await waitFor(() => expect(result.current.status).toBe('authenticated'));
+
+      getProfile.mockResolvedValueOnce({ userId: 'user-1', role: 'client', displayName: 'Demoted' });
+      await act(async () => { await getAuthCallback()(SESSION); });
+
+      expect(result.current.status).toBe('forbidden');
+      expect(result.current.profile).toEqual({ userId: 'user-1', role: 'client', displayName: 'Demoted' });
+    });
+  });
+
   it('does not let a slow profile lookup reinstate a session that was signed out', async () => {
     // The admin clicks sign out while a profile lookup started earlier is
     // still in flight. Without generation sequencing the older resolve()

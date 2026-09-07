@@ -3,6 +3,7 @@ import { MapPin, ArrowUpRight, Sparkles, BookOpen } from 'lucide-react';
 import StoryDetailModal from './StoryDetailModal';
 import ScrollReveal from './ScrollReveal';
 import Photo from './Photo';
+import { activateOnKey } from '../lib/keyboardActivate';
 
 export default function FeaturedStories({ stories, onOpenLightbox, onOpenVideo }) {
   const [selectedStory, setSelectedStory] = useState(null);
@@ -32,9 +33,12 @@ export default function FeaturedStories({ stories, onOpenLightbox, onOpenVideo }
           {stories.map((story, index) => (
             <ScrollReveal key={story.id} delay={index * 150} className="h-full">
               <div
+                role="button"
+                tabIndex={0}
                 onClick={() => setSelectedStory(story)}
+                onKeyDown={activateOnKey(() => setSelectedStory(story))}
                 data-cursor="EXPLORE ALBUM"
-                className="group relative bg-offwhite-50 overflow-hidden minimal-card cursor-pointer flex flex-col transition-all duration-500 h-full"
+                className="group relative bg-offwhite-50 overflow-hidden minimal-card cursor-pointer flex flex-col transition-all duration-500 h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-pitch-900 focus-visible:ring-offset-2"
               >
                 {/* Cover Image Container */}
                 <div className="relative aspect-[4/5] img-zoom-container overflow-hidden">
@@ -92,7 +96,7 @@ export default function FeaturedStories({ stories, onOpenLightbox, onOpenVideo }
         <StoryDetailModal
           story={selectedStory}
           onClose={() => setSelectedStory(null)}
-          onSelectImage={(url) => onOpenLightbox(url)}
+          onSelectImage={onOpenLightbox}
           onOpenVideo={(url) => onOpenVideo(url)}
         />
       )}

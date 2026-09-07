@@ -104,3 +104,19 @@ describe('logo badge', () => {
     expect(document.querySelector('header img')).toBeNull();
   });
 });
+
+describe('Navbar between tablet and desktop widths', () => {
+  it('keeps the hamburger and drawer until the corner controls appear at lg', () => {
+    // The Sign In / Book Date corner controls are `hidden lg:flex`. If the
+    // hamburger and drawer vanish at md, an iPad-portrait visitor has neither
+    // way to reach the client sign-in or the booking shortcut.
+    renderAt('/');
+    const toggle = screen.getByRole('button', { name: 'Toggle Navigation Menu' });
+    expect(toggle.className).toMatch(/\blg:hidden\b/);
+    expect(toggle.className).not.toMatch(/\bmd:hidden\b/);
+    fireEvent.click(toggle);
+    const drawer = screen.getByTestId('mobile-drawer');
+    expect(drawer.className).toMatch(/\blg:hidden\b/);
+    expect(drawer.className).not.toMatch(/\bmd:hidden\b/);
+  });
+});

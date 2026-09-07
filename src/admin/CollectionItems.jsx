@@ -50,13 +50,19 @@ export default function CollectionItems({ collectionId }) {
   );
   const attachedPhotoMediaIds = sorted.filter((item) => !item.videoEmbedUrl).map((item) => item.mediaId);
 
+  // Resolves true when the write reached the database — including the
+  // `written` case, where only the follow-up refresh failed (see
+  // useResource.mutate) — so a caller can clear an input for exactly what
+  // landed and keep it for what did not.
   async function runAction(name, ...args) {
     setActionPending(true);
     setActionError(null);
     try {
       await mutate(name, ...args);
+      return true;
     } catch (err) {
       setActionError(err);
+      return Boolean(err?.written);
     } finally {
       setActionPending(false);
     }
@@ -75,7 +81,7 @@ export default function CollectionItems({ collectionId }) {
     runAction('reorder', reordered.map((item) => item.id));
   }
 
-  function handleAddVideo() {
+  async function handleAddVideo() {
     const url = videoUrl.trim();
     // Accept any YouTube link (watch, share, youtu.be, shorts — with or
     // without a scheme) or a full http(s) embed URL from another provider,
@@ -85,11 +91,15 @@ export default function CollectionItems({ collectionId }) {
       return;
     }
     setVideoUrlError(null);
-    runAction('addVideo', {
+    const added = await runAction('addVideo', {
       videoEmbedUrl: youtubeEmbedUrl(url),
       posterMediaId: videoPosterId,
       caption: videoCaption.trim() || null,
     });
+    // A failed add keeps the typed link, caption, and poster on screen —
+    // the fix is usually "try again", not "type it all again". runAction
+    // has already shown the error.
+    if (!added) return;
     setVideoUrl('');
     setVideoCaption('');
     setVideoPosterId(null);

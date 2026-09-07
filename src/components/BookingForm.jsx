@@ -64,10 +64,19 @@ const EMPTY_FORM = {
   phone: '',
   weddingDate: '',
   venue: '',
-  services: ['Cinematic Film', 'Fine Art Photography'],
+  services: [],
   message: '',
   [HONEYPOT_FIELD]: '',
 };
+
+// Preselected for the couple only when the studio actually offers them: the
+// service list is admin-editable, and a preselection that names a service no
+// button shows would be submitted invisibly.
+const FLAGSHIP_SERVICES = ['Cinematic Film', 'Fine Art Photography'];
+const initialFormFor = (services) => ({
+  ...EMPTY_FORM,
+  services: FLAGSHIP_SERVICES.filter((service) => services.includes(service)),
+});
 
 function FieldError({ id, message }) {
   if (!message) return null;
@@ -79,8 +88,11 @@ function FieldError({ id, message }) {
 }
 
 export default function BookingForm({ contact = SITE_SETTINGS_FALLBACK.contact, services = SERVICES }) {
-  const [formData, setFormData] = useState(EMPTY_FORM);
+  const [formData, setFormData] = useState(() => initialFormFor(services));
   const [clientErrors, setClientErrors] = useState({});
+  // Bumped by startOver: see useTurnstile for why the widget needs to know
+  // that the form (and its container) was replaced.
+  const [formSession, setFormSession] = useState(0);
   const {
     status, errorCode, fieldErrors, retryAfterSeconds, submit, reset,
   } = useInquirySubmission();
@@ -95,7 +107,7 @@ export default function BookingForm({ contact = SITE_SETTINGS_FALLBACK.contact, 
     token: turnstileToken,
     error: turnstileError,
     reset: resetTurnstile,
-  } = useTurnstile(TURNSTILE_SITE_KEY);
+  } = useTurnstile(TURNSTILE_SITE_KEY, formSession);
 
   const errors = { ...clientErrors, ...fieldErrors };
   const isSending = status === 'pending';
@@ -108,6 +120,10 @@ export default function BookingForm({ contact = SITE_SETTINGS_FALLBACK.contact, 
   // the client-side twin of the misattribution the server side already fixed
   // by separating "could not run the check" from "failed the check".
   const awaitingVerification = isInquiryBackendConfigured && !turnstileToken;
+  // The widget reported that it cannot run at all (script blocked, network
+  // down). "Just a moment…" would then be a lie that never resolves, so the
+  // form says so and offers the direct contact details instead.
+  const verificationBlocked = awaitingVerification && Boolean(turnstileError);
 
   const handleServiceToggle = (service) => {
     setFormData((prev) => ({
@@ -145,8 +161,9 @@ export default function BookingForm({ contact = SITE_SETTINGS_FALLBACK.contact, 
   };
 
   const startOver = () => {
-    setFormData(EMPTY_FORM);
+    setFormData(initialFormFor(services));
     setClientErrors({});
+    setFormSession((session) => session + 1);
     reset();
   };
 
@@ -446,6 +463,11 @@ export default function BookingForm({ contact = SITE_SETTINGS_FALLBACK.contact, 
                           <Loader2 className="w-4 h-4 animate-spin" />
                           <span>Sending…</span>
                         </>
+                      ) : verificationBlocked ? (
+                        <>
+                          <AlertTriangle className="w-4 h-4" />
+                          <span>Verification unavailable</span>
+                        </>
                       ) : awaitingVerification ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
@@ -459,12 +481,14 @@ export default function BookingForm({ contact = SITE_SETTINGS_FALLBACK.contact, 
                       )}
                     </button>
 
-                    {status === 'error' && (
-                      <div role="alert" className="rounded-xl border border-pitch-900/20 bg-offwhite-100 p-5 space-y-4">
+                    {(status === 'error' || verificationBlocked) && (
+                      <div role="alert" data-testid="inquiry-direct-contact" className="rounded-xl border border-pitch-900/20 bg-offwhite-100 p-5 space-y-4">
                         <div className="flex items-start space-x-3">
                           <AlertTriangle className="w-5 h-5 text-pitch-900 shrink-0 mt-0.5" />
                           <p className="text-sm text-pitch-900">
-                            {errorMessage(errorCode, retryAfterSeconds)}
+                            {status === 'error'
+                              ? errorMessage(errorCode, retryAfterSeconds)
+                              : 'The verification step could not load, so this form cannot send right now.'}
                           </p>
                         </div>
                         <p className="text-sm text-charcoal-700">

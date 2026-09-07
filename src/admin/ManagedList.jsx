@@ -10,7 +10,10 @@ import { useMemo, useState } from 'react';
 // Callback contract: onAdd(name), onRename(item, nextName),
 // onReorder(orderedIds), onDelete(item) — the ITEM, not just its id,
 // because the two consumers key their mutations differently (categories
-// rename by name through an RPC; services rename by id).
+// rename by name through an RPC; services rename by id). onAdd may resolve
+// `false` to say the write did not happen (both dashboards' action runners
+// do); the typed name then stays in the box for a retry instead of being
+// cleared under an error message.
 const SMALL_BUTTON_CLASS = 'px-3 py-1.5 rounded-lg border border-pitch-900/20 text-pitch-900 text-[10px] uppercase tracking-widest font-semibold hover:bg-offwhite-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed';
 const ARROW_BUTTON_CLASS = 'px-2 py-1.5 rounded-lg border border-pitch-900/20 text-pitch-900 text-xs hover:bg-offwhite-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed';
 const INPUT_CLASS = 'px-3 py-2 rounded-lg bg-offwhite-100 border border-pitch-900/15 text-pitch-900 text-sm focus:outline-none focus:border-pitch-900';
@@ -31,10 +34,11 @@ export default function ManagedList({
     [items],
   );
 
-  function handleAdd() {
+  async function handleAdd() {
     const name = newName.trim();
     if (!name) return;
-    onAdd(name);
+    const outcome = await onAdd(name);
+    if (outcome === false) return;
     setNewName('');
   }
 

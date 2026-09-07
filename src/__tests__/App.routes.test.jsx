@@ -14,10 +14,15 @@ const MOCK_COLLECTIONS = [{
   ],
 }];
 
+// Mutable so individual tests can hand a route real content.
+let weddingsData = [];
+let photosData = [];
+let settingsLoading = false;
+
 // Pages fetch through these hooks; route tests need no network and no Supabase.
 vi.mock('../hooks/useContent', () => ({
-  useWeddings: () => ({ data: [], loading: false, error: null }),
-  useGalleryPhotos: () => ({ data: [], loading: false, error: null }),
+  useWeddings: () => ({ data: weddingsData, loading: false, error: null }),
+  useGalleryPhotos: () => ({ data: photosData, loading: false, error: null }),
   useFilms: () => ({ data: [], loading: false, error: null }),
   useTestimonials: () => ({ data: [], loading: false, error: null }),
   useGalleryCategories: () => ({ data: ['Pre-Wedding', 'Wedding', 'Engagement', 'Haldi & Mehendi'], loading: false, error: null }),
@@ -40,7 +45,7 @@ vi.mock('../hooks/useContent', () => ({
       appearance: { warmth: 1 },
       logo: '/images/home/logo.jpg',
     },
-    loading: false,
+    loading: settingsLoading,
     error: null,
   }),
 }));
@@ -48,7 +53,7 @@ vi.mock('../hooks/useContent', () => ({
 const renderAt = (path) =>
   render(<MemoryRouter initialEntries={[path]}><App /></MemoryRouter>);
 
-beforeEach(() => { window.sessionStorage.clear(); });
+beforeEach(() => { window.sessionStorage.clear(); weddingsData = []; photosData = []; settingsLoading = false; });
 
 describe('routing', () => {
   it.each([
@@ -140,5 +145,28 @@ describe('/more/:slug', () => {
   it('shows the More menu in the navbar when pages exist', () => {
     renderAt('/');
     expect(screen.getByRole('button', { name: 'More' })).toBeInTheDocument();
+  });
+});
+
+describe('stories lightbox', () => {
+  it('/stories opens the lightbox on the clicked album photograph, not on the first gallery photo', () => {
+    weddingsData = [{
+      id: 'w-1', title: 'A Royal Affair', couple: 'Sam & Alex', location: 'Jaipur', date: 'November 2024',
+      coverImage: '/images/w/cover.jpg', fullGallery: ['/images/w/one.jpg', '/images/w/two.jpg'], tags: [],
+    }];
+    photosData = [{ id: 'g-1', title: 'Unrelated gallery photo', url: '/images/g/first.jpg', category: 'Wedding', couple: '', location: '' }];
+    renderAt('/stories');
+    fireEvent.click(screen.getByText('A Royal Affair'));
+    fireEvent.click(screen.getAllByAltText('Thumbnail')[1]);
+    expect(screen.getByRole('img', { name: 'Wedding Photograph' })).toHaveAttribute('src', '/images/w/two.jpg');
+  });
+});
+
+describe('home while settings load', () => {
+  it('holds the Home page until the site settings resolve, so the intro never covers an already-painted page', () => {
+    settingsLoading = true;
+    renderAt('/');
+    expect(screen.queryByTestId('home-page')).toBeNull();
+    expect(screen.queryByTestId('intro-splash')).toBeNull();
   });
 });

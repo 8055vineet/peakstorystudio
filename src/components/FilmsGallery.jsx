@@ -2,6 +2,7 @@ import React from 'react';
 import { Play, Film, Clock } from 'lucide-react';
 import ScrollReveal from './ScrollReveal';
 import Photo from './Photo';
+import { activateOnKey } from '../lib/keyboardActivate';
 
 export default function FilmsGallery({ films, onOpenVideoModal }) {
   return (
@@ -31,9 +32,12 @@ export default function FilmsGallery({ films, onOpenVideoModal }) {
           {films.map((film, index) => (
             <ScrollReveal key={film.id} delay={index * 150} className="h-full">
               <div
+                role="button"
+                tabIndex={0}
                 onClick={() => onOpenVideoModal(film.videoEmbedUrl)}
+                onKeyDown={activateOnKey(() => onOpenVideoModal(film.videoEmbedUrl))}
                 data-cursor="PLAY FILM"
-                className="group relative bg-white rounded-3xl overflow-hidden minimal-card cursor-pointer transition-all duration-500 h-full flex flex-col"
+                className="group relative bg-white rounded-3xl overflow-hidden minimal-card cursor-pointer transition-all duration-500 h-full flex flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-pitch-900 focus-visible:ring-offset-2"
               >
                 {/* Thumbnail Container */}
                 <div className="relative aspect-video img-zoom-container overflow-hidden">

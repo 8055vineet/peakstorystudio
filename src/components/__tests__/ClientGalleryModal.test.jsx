@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import {
+  render, screen, waitFor, act,
+} from '@testing-library/react';
 
 const getClientGalleries = vi.fn();
 vi.mock('../../lib/queries/clientGalleries', () => ({
@@ -52,6 +54,39 @@ describe('ClientGalleryModal', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/could not load/i));
     screen.getByRole('button', { name: /retry/i }).click();
     await waitFor(() => expect(screen.getByText("Pragya's Wedding")).toBeInTheDocument());
+  });
+
+  it('does not leak an unhandled rejection when Retry fails again — the error state simply stays', async () => {
+    getClientGalleries.mockRejectedValue(new Error('still down'));
+    render(<ClientGalleryModal isOpen user={USER} onClose={vi.fn()} />);
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/could not load/i));
+
+    // useClientAccess.lookup rethrows after recording the error (AuthModal
+    // needs the throw), so a Retry click that does not catch it surfaces as
+    // an unhandled rejection. Node only reports one of those to whoever is
+    // listening on `process` — vitest normally — so the runner's listeners
+    // are parked for the duration of this test and a capturing one put in
+    // their place, the same way ResourceForm.test.jsx captures a
+    // window 'error' event to observe an uncaught throw directly.
+    const runnerListeners = process.listeners('unhandledRejection');
+    runnerListeners.forEach((listener) => process.off('unhandledRejection', listener));
+    const leaked = [];
+    const capture = (reason) => { leaked.push(reason); };
+    process.on('unhandledRejection', capture);
+    try {
+      screen.getByRole('button', { name: /retry/i }).click();
+      await waitFor(() => expect(getClientGalleries).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/could not load/i));
+      // 'unhandledRejection' fires once the microtask queue drains — give
+      // it a macrotask so a leak has actually had the chance to surface.
+      await act(async () => { await new Promise((resolve) => { setTimeout(resolve, 0); }); });
+    } finally {
+      process.off('unhandledRejection', capture);
+      runnerListeners.forEach((listener) => process.on('unhandledRejection', listener));
+    }
+
+    expect(leaked).toEqual([]);
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
 
   it('renders nothing when closed or with no user', () => {
