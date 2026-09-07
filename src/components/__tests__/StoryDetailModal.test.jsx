@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import StoryDetailModal from '../StoryDetailModal';
 
@@ -45,5 +45,31 @@ describe('StoryDetailModal', () => {
 
     rerender(<StoryDetailModal story={null} {...props} />);
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe('StoryDetailModal album thumbnails', () => {
+  it('hands the lightbox the clicked image, its index, and the whole album so it opens on that photograph', () => {
+    const onSelectImage = vi.fn();
+    render(
+      <StoryDetailModal story={story} onClose={vi.fn()} onSelectImage={onSelectImage} onOpenVideo={vi.fn()} />
+    );
+    fireEvent.click(screen.getAllByAltText('Thumbnail')[1]);
+    expect(onSelectImage).toHaveBeenCalledWith(
+      '/images/second.jpg',
+      1,
+      [{ url: '/images/cover.jpg' }, { url: '/images/second.jpg' }],
+    );
+  });
+});
+
+describe('StoryDetailModal keyboard access', () => {
+  it('exposes each thumbnail as a named button that opens on Enter', () => {
+    const onSelectImage = vi.fn();
+    render(
+      <StoryDetailModal story={story} onClose={vi.fn()} onSelectImage={onSelectImage} onOpenVideo={vi.fn()} />
+    );
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Photograph 2 of 2' }), { key: 'Enter' });
+    expect(onSelectImage).toHaveBeenCalledWith('/images/second.jpg', 1, expect.any(Array));
   });
 });

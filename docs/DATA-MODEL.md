@@ -176,7 +176,9 @@ thirteen tables — lives in `supabase/migrations/`:
   Phase 2).
 - `20260730204126_row_level_security.sql` enables Row Level Security on all eight and defines the
   read/write policies (published content is world-readable; only an admin profile can write; the
-  anon key gets no access at all to `inquiries`). One exception: `media` has no `status` column of
+  anon key gets no access at all to `inquiries`). Its `profiles_admin_all` policy is gone since
+  `20260907120000_profiles_write_lockdown.sql` (below) — `profiles` is now read-only for every
+  browser-reachable role. One exception: `media` has no `status` column of
   its own and its `media_read_all` policy has no predicate, so a `media` row is world-readable
   regardless of whether the wedding or gallery photo that references it is published or draft —
   tracked as `PS-025` in [KNOWN-ISSUES.md](KNOWN-ISSUES.md).
@@ -250,6 +252,22 @@ thirteen tables — lives in `supabase/migrations/`:
   account (the studio owner, marked by `scripts/seed-admin.mjs`), read only by the
   `manage-team` Edge Function (owner-only create/remove of admin accounts) and the admin's
   Team panel; content permissions stay on `role`, enforced by RLS.
+- `20260907120000_profiles_write_lockdown.sql` (Phase 6 flow-review fixes) makes **`profiles`
+  read-only for every browser-reachable role**. It drops the Phase 1b `profiles_admin_all`
+  (`for all` on `is_admin()`) in favour of `profiles_admin_read` (`for select` on
+  `is_admin()`), keeps `profiles_read_own`, and — as the grant-level backstop RLS never had on
+  this table — `revoke`s `insert, update, delete` from `anon` and `authenticated`, so a future
+  policy mistake cannot silently reopen writes. **Policy summary for `profiles`:** a signed-in
+  user reads their own row; an admin reads every row; nobody writes through PostgREST — a
+  session `PATCH`/`POST`/`DELETE` fails with `42501`, not a silent no-op. `role` and `is_owner`
+  are written only with the service-role key, by `scripts/seed-admin.mjs` and the `manage-team`
+  Edge Function. Before this, a non-owner admin could `PATCH` their own row to `is_owner = true`
+  and pass `manage-team`'s owner gate (or demote or delete the owner's row); `npm run db:verify`
+  now proves both an admin session and a client session are refused. The same migration adds
+  `client_galleries_access_code_check` (`access_code = btrim(access_code) and
+  length(access_code) >= 6`): `client_galleries_for_code()` already refuses shorter codes and
+  compares the trimmed input against the stored value as-is, so a code stored with a stray
+  space or under six characters could never be entered successfully by the couple.
 
 `inquiries.notification_status` is a text column, defaulting to `pending`, constrained to four
 values: `pending` (the row was written but no notification attempt has happened yet), `sent` (the

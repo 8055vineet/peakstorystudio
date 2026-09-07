@@ -23,14 +23,15 @@ function primaryLabel(item, config) {
   return value || item.id;
 }
 
-function StatusToggle({ item, onToggleStatus }) {
+function StatusToggle({ item, onToggleStatus, disabled = false }) {
   const isPublished = item.status === 'published';
   return (
     <button
       type="button"
       onClick={() => onToggleStatus?.(item.id, isPublished ? 'draft' : 'published')}
       aria-pressed={isPublished}
-      className={`px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-bold transition-colors ${
+      disabled={disabled}
+      className={`px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
         isPublished
           ? 'bg-pitch-900 text-offwhite-50'
           : 'border-2 border-gold-500 text-pitch-900'
@@ -62,8 +63,14 @@ function renderCell(item, column, config) {
 // whether) the write it asked for actually happened — that is
 // useResource's job, one level up, in whatever screen wires
 // onToggleStatus/onDelete/onReorder to mutate().
+//
+// `pending` is that screen's "a write is in flight" flag: while it is set,
+// the move/publish/delete controls are disabled so a second arrow click
+// cannot race two reorders against the same rows — the guard
+// WeddingPhotos already applies from its own actionPending.
 export default function ResourceList({
   config, items, status, error, onEdit, onCreate, onDelete, onToggleStatus, onReorder, onRetry,
+  pending = false,
 }) {
   const label = config.label ?? 'Items';
   const singularLabel = label.toLowerCase();
@@ -181,7 +188,7 @@ export default function ResourceList({
                   {config.listColumns.map((column) => (
                     <td key={column.name} className="py-3 pr-4 text-charcoal-700">
                       {column.name === 'status'
-                        ? <StatusToggle item={item} onToggleStatus={onToggleStatus} />
+                        ? <StatusToggle item={item} onToggleStatus={onToggleStatus} disabled={pending} />
                         : renderCell(item, column, config)}
                     </td>
                   ))}
@@ -190,7 +197,7 @@ export default function ResourceList({
                       <button
                         type="button"
                         onClick={() => handleMove(index, 'up')}
-                        disabled={index === 0}
+                        disabled={index === 0 || pending}
                         aria-label={`Move up: ${name}`}
                         className="px-2 py-1.5 rounded-lg border border-pitch-900/20 text-pitch-900 text-xs hover:bg-offwhite-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                       >
@@ -199,7 +206,7 @@ export default function ResourceList({
                       <button
                         type="button"
                         onClick={() => handleMove(index, 'down')}
-                        disabled={index === sorted.length - 1}
+                        disabled={index === sorted.length - 1 || pending}
                         aria-label={`Move down: ${name}`}
                         className="px-2 py-1.5 rounded-lg border border-pitch-900/20 text-pitch-900 text-xs hover:bg-offwhite-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                       >
@@ -215,7 +222,8 @@ export default function ResourceList({
                       <button
                         type="button"
                         onClick={() => handleDelete(item)}
-                        className="px-3 py-1.5 rounded-lg border border-pitch-900/20 text-pitch-900 text-[10px] uppercase tracking-widest font-semibold hover:bg-offwhite-200 transition-colors"
+                        disabled={pending}
+                        className="px-3 py-1.5 rounded-lg border border-pitch-900/20 text-pitch-900 text-[10px] uppercase tracking-widest font-semibold hover:bg-offwhite-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         Delete
                       </button>

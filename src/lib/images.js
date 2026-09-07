@@ -33,7 +33,12 @@ export async function resizeImage(file, { maxEdge = 2000, type = 'image/webp', q
 
   let bitmap;
   try {
-    bitmap = await createImageBitmap(file);
+    // `from-image` bakes the EXIF orientation tag into the decoded pixels.
+    // Without it the tag is honoured by the decoder only as metadata, and
+    // the canvas re-encode below strips all metadata — so every portrait
+    // phone photograph came out on its side (commit d9ccb53 had to
+    // hand-rotate 26 of them after exactly this).
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   } catch {
     // A file can claim image/png in its type and still be undecodable.
     throw new ImageError('DECODE_FAILED');

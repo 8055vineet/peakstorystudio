@@ -26,10 +26,10 @@ import { youtubeEmbedUrl } from './lib/youtube';
 
 export default function App() {
   const { data: stories } = useWeddings();
-  const { data: photos } = useGalleryPhotos();
+  const { data: photos, loading: photosLoading } = useGalleryPhotos();
   const { data: films } = useFilms();
   const { data: testimonials } = useTestimonials();
-  const { data: settings } = useSiteSettings();
+  const { data: settings, loading: settingsLoading } = useSiteSettings();
   const { data: galleryCategories } = useGalleryCategories();
   const { data: bookingServices } = useBookingServices();
   const { data: collections, loading: collectionsLoading } = useCollections();
@@ -132,27 +132,34 @@ export default function App() {
           <Route
             index
             element={
-              <>
-                {settings.logo ? <IntroSplash logoUrl={settings.logo} /> : null}
-                <HomePage
-                  films={films}
-                  photos={photos}
-                  onOpenLightbox={handleOpenLightbox}
-                  quote={settings.quote}
-                  brandStory={settings.brandStory}
-                  images={settings.images}
-                />
-              </>
+              /* Home waits for the settings row: its hero, quote, and the
+                 intro logo all come from it, and painting the fallback first
+                 meant the intro splash mounted late — over a page the visitor
+                 was already looking at — on every first visit. */
+              settingsLoading ? null : (
+                <>
+                  {settings.logo ? <IntroSplash logoUrl={settings.logo} /> : null}
+                  <HomePage
+                    films={films}
+                    photos={photos}
+                    photosLoading={photosLoading}
+                    onOpenLightbox={handleOpenLightbox}
+                    quote={settings.quote}
+                    brandStory={settings.brandStory}
+                    images={settings.images}
+                  />
+                </>
+              )
             }
           />
-          <Route path="gallery" element={<GalleryPage photos={photos} onOpenLightbox={handleOpenLightbox} categoryOrder={galleryCategories} />} />
+          <Route path="gallery" element={<GalleryPage photos={photos} loading={photosLoading} onOpenLightbox={handleOpenLightbox} categoryOrder={galleryCategories} />} />
           <Route path="films" element={<FilmsPage films={films} onOpenVideoModal={(url) => setVideoModalUrl(url)} />} />
           <Route
             path="stories"
             element={
               <StoriesPage
                 stories={stories}
-                onOpenLightbox={(url) => handleOpenLightbox(url)}
+                onOpenLightbox={handleOpenLightbox}
                 onOpenVideo={(url) => setVideoModalUrl(url)}
               />
             }

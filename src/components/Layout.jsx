@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import ScrollToTop from './ScrollToTop';
+import DocumentTitle from './DocumentTitle';
 import PetalsBackground from './PetalsBackground';
 import Navbar from './Navbar';
 import Footer from './Footer';
@@ -15,6 +16,7 @@ export default function Layout({ user, onOpenAuthModal, onOpenClientGallery, onL
       <PetalsBackground />
       <div className="relative z-10">
         <ScrollToTop />
+        <DocumentTitle morePages={morePages} />
         <Navbar
           morePages={morePages}
           logo={logo}

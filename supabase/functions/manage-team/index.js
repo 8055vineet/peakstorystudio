@@ -258,14 +258,17 @@ Deno.serve(async (req) => {
 
     const { data: target, error: targetError } = await db
       .from('profiles')
-      .select('user_id, is_owner')
+      .select('user_id, role, is_owner')
       .eq('user_id', userId)
       .maybeSingle();
     if (targetError) {
       console.error('manage-team: target lookup failed', targetError.message);
       return json(500, { ok: false, error: 'SERVER_ERROR' }, origin);
     }
-    if (!target) {
+    // A row that is not an admin's — a future client account, say — is not
+    // a team member. It is answered exactly like an unknown id, so this
+    // endpoint can neither remove such an account nor confirm it exists.
+    if (!target || target.role !== 'admin') {
       return json(404, { ok: false, error: 'NOT_FOUND' }, origin);
     }
     // Refusing the owner also refuses self-removal — the caller IS the

@@ -79,7 +79,7 @@ export default function Footer({ contact = SITE_SETTINGS_FALLBACK.contact }) {
             <Youtube className="w-4 h-4" />
           </SocialIcon>
           <SocialIcon
-            href={`https://wa.me/${contact.whatsappNumber}`}
+            href={contact.whatsappNumber ? `https://wa.me/${contact.whatsappNumber}` : ''}
             label="WhatsApp"
           >
             <MessageCircle className="w-4 h-4" />

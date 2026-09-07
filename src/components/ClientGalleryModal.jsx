@@ -53,9 +53,13 @@ export default function ClientGalleryModal({ isOpen, onClose, user }) {
               <p className="text-sm font-semibold text-pitch-900 mb-4">
                 We could not load your galleries just now.
               </p>
+              {/* lookup rethrows after recording the error (AuthModal
+                  needs the throw to fail its sign-in); here the error
+                  state is the whole response, so the rejection is
+                  swallowed rather than left unhandled. */}
               <button
                 type="button"
-                onClick={() => lookup(user.code)}
+                onClick={() => lookup(user.code).catch(() => {})}
                 className="px-6 py-2.5 rounded-lg bg-pitch-900 text-offwhite-50 text-xs uppercase tracking-widest font-semibold hover:bg-pitch-800 transition-colors"
               >
                 Retry

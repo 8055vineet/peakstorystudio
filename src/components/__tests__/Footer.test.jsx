@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Footer from '../Footer';
+import { SITE_SETTINGS_FALLBACK } from '../../data/siteSettingsFallback';
 
 const renderFooter = () => render(<MemoryRouter><Footer /></MemoryRouter>);
 
@@ -27,5 +28,16 @@ describe('Footer', () => {
     expect(screen.getByText(/wedding films/i)).toBeInTheDocument();
     expect(screen.getByText(/professional photography/i)).toBeInTheDocument();
     expect(screen.getByText(/online delivery/i)).toBeInTheDocument();
+  });
+});
+
+describe('Footer WhatsApp when the number is unset', () => {
+  it('renders the WhatsApp icon unlinked rather than a dead wa.me link', () => {
+    render(
+      <MemoryRouter>
+        <Footer contact={{ ...SITE_SETTINGS_FALLBACK.contact, whatsappNumber: '' }} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole('link', { name: /whatsapp/i })).toBeNull();
   });
 });

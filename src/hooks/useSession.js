@@ -22,6 +22,12 @@ export function useSession() {
   const [state, setState] = useState({ status: 'loading', session: null, profile: null });
   const [error, setError] = useState(null);
   const aliveRef = useRef(true);
+  // Mirrors `state` for resolve(), which is memoised with no deps and so
+  // cannot see the current render's `state`. Written in the same breath as
+  // every setState below — never synced from an effect, which would lag a
+  // render behind and let a resolve() read the state a sign-out just
+  // replaced.
+  const stateRef = useRef(state);
   // Every resolve() takes a ticket. Only the newest may write state.
   //
   // Without this, a sign-out arriving while a slow profile lookup is still in
@@ -38,21 +44,45 @@ export function useSession() {
     const isCurrent = () => aliveRef.current && generation === generationRef.current;
 
     if (!session) {
-      if (isCurrent()) setState({ status: 'anonymous', session: null, profile: null });
+      if (isCurrent()) {
+        const next = { status: 'anonymous', session: null, profile: null };
+        stateRef.current = next;
+        setState(next);
+      }
       return 'anonymous';
     }
     let profile = null;
+    let lookupFailed = false;
     try {
       profile = await getProfile(session.user.id);
     } catch {
-      // A profile lookup that fails is indistinguishable, from here, from a
-      // profile that says 'client'. Both must land on forbidden: assuming
-      // admin on an error would hand the dashboard to a failed check. This
-      // also covers a session with no `.user` — reading `.id` off it throws
-      // synchronously into this same catch.
+      // The lookup did not ANSWER — it failed. That is a different thing
+      // from a profile that says 'client', and only one of them may demote
+      // an admin who is already in: Supabase re-emits onAuthStateChange on
+      // every hourly TOKEN_REFRESHED and every tab-focus SIGNED_IN, and a
+      // network blip on one of those used to unmount the dashboard over a
+      // half-filled form with "does not have admin access". This branch
+      // also covers a session with no `.user` — reading `.id` off it
+      // throws synchronously into this same catch.
+      lookupFailed = true;
       profile = null;
     }
-    const status = profile?.role === 'admin' ? 'authenticated' : 'forbidden';
+    let status = profile?.role === 'admin' ? 'authenticated' : 'forbidden';
+    // Only an already-trusted admin, for the SAME user, survives a failed
+    // lookup — and keeps the profile that was already trusted while taking
+    // the fresh session so the refreshed token is what later requests
+    // carry. The first resolve (nothing trusted yet) and a failure for a
+    // different user still fail closed: assuming admin on an error would
+    // hand the dashboard to a failed check.
+    const trusted = stateRef.current;
+    if (
+      lookupFailed
+      && trusted.status === 'authenticated'
+      && trusted.session?.user?.id === session.user?.id
+    ) {
+      status = 'authenticated';
+      profile = trusted.profile;
+    }
     // Retained defensively. It stops a resolve() that started before
     // unmount from writing state after it — but as of React 18.3, which
     // dropped the unmounted-setState warning, an ignored update to an
@@ -63,7 +93,9 @@ export function useSession() {
     // (a stale async response outliving the component that started it) is
     // real regardless.
     if (!isCurrent()) return status;
-    setState({ status, session, profile });
+    const next = { status, session, profile };
+    stateRef.current = next;
+    setState(next);
     return status;
   }, []);
 
@@ -116,7 +148,9 @@ export function useSession() {
       // contrast, is observable — a stale resolve() overwriting this is a
       // real bug with a real test.
       if (aliveRef.current && generation === generationRef.current) {
-        setState({ status: 'anonymous', session: null, profile: null });
+        const next = { status: 'anonymous', session: null, profile: null };
+        stateRef.current = next;
+        setState(next);
       }
     }
   }, []);

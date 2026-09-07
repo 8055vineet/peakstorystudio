@@ -73,3 +73,28 @@ describe('HomePage', () => {
     expect(onOpenLightbox).toHaveBeenCalledWith('/images/2.jpg', 2, many);
   });
 });
+
+describe('HomePage while content is loading or unresolvable', () => {
+  it('does not announce missing photographs while the gallery is still loading', () => {
+    renderPage({ photos: [], photosLoading: true });
+    expect(screen.queryByText('Photographs are on their way.')).not.toBeInTheDocument();
+  });
+
+  it('shows a quiet placeholder rather than a broken image for an unresolvable grid photo', () => {
+    renderPage({ photos: [{ id: 'p-empty', title: 'Unresolvable', url: '', category: 'Wedding' }] });
+    expect(screen.getByTestId('photo-placeholder')).toBeInTheDocument();
+    expect(document.querySelector('img[src=""]')).toBeNull();
+  });
+
+  it('shows a quiet placeholder for an unresolvable hero image', () => {
+    renderPage({
+      images: {
+        hero: { src: '', alt: '' },
+        brandStory: { src: '/images/b.jpg', alt: '' },
+        closing: { src: '/images/c.jpg', alt: '' },
+      },
+    });
+    expect(screen.getAllByTestId('photo-placeholder').length).toBeGreaterThan(0);
+    expect(document.querySelector('img[src=""]')).toBeNull();
+  });
+});

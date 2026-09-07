@@ -57,6 +57,28 @@ describe('BulkGalleryAdd', () => {
     expect(onUpload).toHaveBeenCalledWith(expect.objectContaining({ id: 'm-9' }), expect.any(File), 'Wedding');
   });
 
+  it('after a partial publish failure, says how many went live and offers Publish all for only the rest', async () => {
+    const user = userEvent.setup();
+    const props = baseProps({
+      summary: {
+        category: 'Wedding',
+        created: 24,
+        notAdded: 0,
+        publishFailure: {
+          published: 9, attempted: 24, remaining: 15, message: 'network down',
+        },
+      },
+    });
+    render(<BulkGalleryAdd {...props} />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/published 9 of 24/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/still drafts/i);
+    expect(screen.getByRole('alert')).toHaveTextContent(/network down/i);
+    expect(screen.queryByRole('button', { name: /publish all 24/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /publish all 15/i }));
+    expect(props.onPublishAll).toHaveBeenCalledTimes(1);
+  });
+
   it('shows the created-count banner with Publish all, and the not-added split', async () => {
     const user = userEvent.setup();
     const props = baseProps({ summary: { category: 'Wedding', created: 24, notAdded: 2 } });

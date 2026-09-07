@@ -174,19 +174,21 @@ export default function Navbar({
           </button>
         </div>
 
-        {/* Mobile hamburger */}
+        {/* Hamburger — mobile and tablet. Shown until lg, where the corner
+            controls (Sign In / Book Date) take over; between md and lg the
+            page links are visible but only the drawer offers those two. */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden absolute top-9 right-4 p-2 text-pitch-900 hover:text-charcoal-700 focus:outline-none"
+          className="lg:hidden absolute top-9 right-4 p-2 text-pitch-900 hover:text-charcoal-700 focus:outline-none"
           aria-label="Toggle Navigation Menu"
         >
           {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
       </nav>
 
-      {/* Mobile drawer */}
+      {/* Drawer — same breakpoint as the hamburger that opens it */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-offwhite-50 border-t border-pitch-900/10 px-6 py-6 space-y-4 shadow-xl animate-fade-in">
+        <div data-testid="mobile-drawer" className="lg:hidden bg-offwhite-50 border-t border-pitch-900/10 px-6 py-6 space-y-4 shadow-xl animate-fade-in">
           {navLinks.map((link) => (
             <NavLink
               key={link.name}

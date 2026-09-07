@@ -10,6 +10,7 @@ import {
   INITIAL_FILMS,
   TESTIMONIALS,
 } from '../src/data/weddingData.js';
+import { exitUnlessLocalTarget } from './lib/assert-local-target.mjs';
 
 const URL = process.env.SUPABASE_URL;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -20,6 +21,9 @@ if (!URL || !SERVICE) {
   console.error('  export SUPABASE_URL="$API_URL" SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"');
   process.exit(2);
 }
+// Destructive: clears every content and media row first. Local stack only
+// unless ALLOW_REMOTE_DB=yes — see scripts/lib/assert-local-target.mjs.
+exitUnlessLocalTarget('seed-db');
 const db = createClient(URL, SERVICE, { auth: { persistSession: false } });
 
 const slugify = (s) =>

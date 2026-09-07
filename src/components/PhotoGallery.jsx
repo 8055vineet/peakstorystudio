@@ -14,7 +14,7 @@ import { GALLERY_CATEGORY_FALLBACK } from '../data/galleryCategories';
 // (`categoryOrder`, defaulting to the shipped fallback when the database is
 // unreachable); categories the order list doesn't know append after the
 // known ones rather than disappearing.
-export default function PhotoGallery({ photos, onOpenLightbox, categoryOrder = GALLERY_CATEGORY_FALLBACK }) {
+export default function PhotoGallery({ photos, loading = false, onOpenLightbox, categoryOrder = GALLERY_CATEGORY_FALLBACK }) {
   const categories = [...new Set(photos.map((p) => p.category))].sort((a, b) => {
     const ia = categoryOrder.indexOf(a);
     const ib = categoryOrder.indexOf(b);
@@ -24,7 +24,7 @@ export default function PhotoGallery({ photos, onOpenLightbox, categoryOrder = G
   return (
     <section id="gallery" className="py-10 relative border-t border-pitch-900/10">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {photos.length === 0 && (
+        {photos.length === 0 && !loading && (
           <p className="text-center text-charcoal-500 py-16">Photographs are on their way.</p>
         )}
 

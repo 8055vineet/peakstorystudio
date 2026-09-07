@@ -42,6 +42,14 @@ describe('clientGalleriesResource config', () => {
     expect(clientGalleriesResource.listColumns.some((c) => c.name === 'accessCode')).toBe(true);
   });
 
+  it('refuses an access code shorter than the 6 characters the sign-in lookup requires', () => {
+    // client_galleries_for_code ignores any code under 6 characters, so a
+    // shorter one saved here is a delivery the couple can never unlock.
+    const code = clientGalleriesResource.fields.find((f) => f.name === 'accessCode');
+    expect(code.minLength).toBe(6);
+    expect(code.help).toMatch(/at least 6 characters/);
+  });
+
   it('tells the admin the truth about Drive: this page controls discovery, Google controls admission', () => {
     const drive = clientGalleriesResource.fields.find((f) => f.name === 'driveUrl');
     expect(drive.help).toMatch(/Google controls who the folder admits/);

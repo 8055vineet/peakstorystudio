@@ -14,11 +14,13 @@ export function youtubeId(url) {
 
 // autoplay implies mute — the only autoplay a browser will honour. `background`
 // is the ambient hero mode: muted, looping, chromeless (loop needs playlist=id).
+// enablejsapi=1 lets the page talk to the player over postMessage — how
+// HomeVideo mutes and unmutes in place without reloading (and restarting) it.
 export function youtubeEmbedUrl(url, { autoplay = false, background = false } = {}) {
   const id = youtubeId(url);
   if (!id) return url ?? '';
   if (background) {
-    const p = `autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&modestbranding=1&playsinline=1&rel=0`;
+    const p = `autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&modestbranding=1&playsinline=1&rel=0&enablejsapi=1`;
     return `https://www.youtube.com/embed/${id}?${p}`;
   }
   const params = ['rel=0', 'playsinline=1'];

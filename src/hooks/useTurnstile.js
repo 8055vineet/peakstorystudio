@@ -66,7 +66,15 @@ function loadScript() {
 // Renders the Turnstile widget into containerRef and hands back the token it
 // produces. The token is single-use: Cloudflare rejects a replay, so the form
 // resets the widget after every submission attempt.
-export function useTurnstile(siteKey) {
+//
+// `generation` is a mount counter owned by the form. The widget is bound to
+// one DOM container; when the form replaces that container (the success
+// panel swaps the <form> out, then "Submit Another Inquiry" mounts a fresh
+// one) the caller bumps `generation` and the widget is removed and rendered
+// again into the new container. Without it the second form never receives
+// a token and its submit button stays disabled forever. A bump also retries
+// a script load that failed the first time.
+export function useTurnstile(siteKey, generation = 0) {
   const containerRef = useRef(null);
   const widgetIdRef = useRef(null);
   const [token, setToken] = useState('');
@@ -90,6 +98,7 @@ export function useTurnstile(siteKey) {
             setError('Verification is unavailable right now.');
           },
         });
+        setError(null);
         setReady(true);
       })
       .catch(() => {
@@ -103,7 +112,7 @@ export function useTurnstile(siteKey) {
         widgetIdRef.current = null;
       }
     };
-  }, [siteKey]);
+  }, [siteKey, generation]);
 
   const reset = useCallback(() => {
     setToken('');

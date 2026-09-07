@@ -36,12 +36,12 @@ landed in 20.11. CI runs Node 22.
 | `npm run db:start` | `supabase start` | Starts the local Supabase stack in Docker. First run pulls several images and takes a few minutes. |
 | `npm run db:stop` | `supabase stop` | Stops the local stack. |
 | `npm run db:reset` | `supabase db reset` | Drops the local database and replays every migration from empty. This is how a migration is proven complete. |
-| `npm run db:seed` | `node scripts/seed-db.mjs` | Copies `src/data/weddingData.js` into Postgres. Idempotent — clears content tables first, so re-running does not duplicate. |
+| `npm run db:seed` | `node scripts/seed-db.mjs` | Copies `src/data/weddingData.js` into Postgres. Idempotent — clears content tables first, so re-running does not duplicate. Refuses any `SUPABASE_URL` that is not `127.0.0.1`/`localhost` unless `ALLOW_REMOTE_DB=yes` is set (`scripts/lib/assert-local-target.mjs`). |
 | `npm run db:seed-admin` | `node scripts/seed-admin.mjs` | Creates (or repairs) the local studio admin account: an `auth.users` row and a `public.profiles` row with `role = 'admin'`, from `ADMIN_EMAIL`/`ADMIN_PASSWORD`. Idempotent and safe to re-run after `npm run db:reset` — see [Running the admin locally](#running-the-admin-locally) below. |
-| `npm run db:verify` | `node scripts/verify-db.mjs` | Asserts the Row Level Security policies actually behave. **Not part of `npm test`**, because CI has no Postgres. |
+| `npm run db:verify` | `node scripts/verify-db.mjs` | Asserts the Row Level Security policies actually behave — including that an admin session cannot write `profiles` (so cannot make itself owner) and a client session cannot promote itself. **Not part of `npm test`**, because CI has no Postgres. Same local-only guard as `db:seed`. |
 | `npm run db:functions` | `supabase functions serve --env-file supabase/functions/.env.local` | Serves Edge Functions locally, loading secrets from the git-ignored `supabase/functions/.env.local` (copy it from `supabase/functions/.env.example` first). The process never exits on its own — background it and poll, don't run it in the foreground. Restart it after editing a function or its `.env.local`; neither reliably hot-reloads. |
-| `npm run verify:inquiry` | `node scripts/verify-inquiry.mjs` | End-to-end gate for the booking pipeline: posts real requests at the running `submit-inquiry` function and asserts against Postgres directly, because a 200 response is not evidence a row landed. Requires the database and the function server both running — see [Running the inquiry pipeline locally](#running-the-inquiry-pipeline-locally) below. |
-| `npm run verify:admin` | `vite-node scripts/verify-admin.mjs` | End-to-end gate for the admin publishing pipeline: signs in, uploads a real file through `sign-upload`, creates and publishes a wedding, then reads it back through `src/lib/queries/weddings.js` — the exact module the public site calls — and asserts every field against Postgres directly. Requires the database, the Edge Functions, and the `media` storage bucket — see [Running the admin locally](#running-the-admin-locally) below. Runs under `vite-node`, not plain `node`, because it imports a module that reads `import.meta.env`. |
+| `npm run verify:inquiry` | `node scripts/verify-inquiry.mjs` | End-to-end gate for the booking pipeline: posts real requests at the running `submit-inquiry` function and asserts against Postgres directly, because a 200 response is not evidence a row landed. Requires the database and the function server both running — see [Running the inquiry pipeline locally](#running-the-inquiry-pipeline-locally) below. Same local-only guard as `db:seed` (it wipes `inquiry_rate_limits`). |
+| `npm run verify:admin` | `vite-node scripts/verify-admin.mjs` | End-to-end gate for the admin publishing pipeline: signs in, uploads a real file through `sign-upload`, creates and publishes a wedding, then reads it back through `src/lib/queries/weddings.js` — the exact module the public site calls — and asserts every field against Postgres directly. Requires the database, the Edge Functions, and the `media` storage bucket — see [Running the admin locally](#running-the-admin-locally) below. Runs under `vite-node`, not plain `node`, because it imports a module that reads `import.meta.env`. The throwaway admin it creates gets a random per-run email suffix and password and is removed again afterwards. Same local-only guard as `db:seed`. |
 
 ## Local database
 
@@ -68,6 +68,14 @@ See [.env.example](.env.example).
 The anon key is meant to be public — it ships in the browser bundle. What constrains it is
 Row Level Security in Postgres, which `npm run db:verify` exists to prove. The service-role
 key is different: it bypasses RLS entirely and must never reach the browser or a committed file.
+
+`SUPABASE_URL` plus that key is also exactly how [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) points
+`seed-admin.mjs` at the **hosted** project — in the same shell where `npm run db:seed` is a habit.
+So every script that rewrites or deletes real rows (`db:seed`, `load-real-content.mjs`,
+`db:verify`, `verify:inquiry`, `verify:admin`) refuses a `SUPABASE_URL` that is not
+`127.0.0.1`/`localhost` unless `ALLOW_REMOTE_DB=yes` is exported alongside
+(`scripts/lib/assert-local-target.mjs`, covered by `npm test`). `seed-admin.mjs` has no such
+guard: the runbook runs it against hosted on purpose, and it is non-destructive.
 
 ## Running the inquiry pipeline locally
 
@@ -241,8 +249,12 @@ only the resolution logic is under test here.
 ├── docs/                # Architecture, component, data-model, design-system, roadmap,
 │                         # known-issues docs, ADRs, and specs (see Documentation below)
 └── scripts/
+    ├── lib/
+    │   └── assert-local-target.mjs  # Refuses a non-local SUPABASE_URL unless ALLOW_REMOTE_DB=yes
+    ├── __tests__/          # Vitest coverage for scripts/lib (runs under `npm test`)
     ├── check-docs.mjs      # Documentation consistency checker (see Scripts above)
     ├── seed-db.mjs         # Copies src/data/weddingData.js into Postgres
+    ├── load-real-content.mjs  # Replaces the seeded placeholders with the real photographs
     ├── seed-admin.mjs      # Creates/repairs the local admin account (see Scripts above)
     ├── verify-db.mjs       # Asserts the RLS policies actually behave
     ├── verify-inquiry.mjs  # End-to-end gate for the booking pipeline (see Scripts above)

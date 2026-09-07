@@ -5,12 +5,18 @@ import UploadField from './UploadField.jsx';
 // uploaded photograph becomes a draft gallery row (the dashboard's onUpload
 // does the create). Presentational: the category list and the last run's
 // summary arrive as props; the only state here is which category is picked.
+//
+// summary: { category, created, notAdded, publishFailure? } where
+// publishFailure is { published, attempted, remaining, message } after a
+// Publish all that stopped partway — the button then offers only what is
+// still a draft.
 const LABEL_CLASS = 'block text-xs uppercase tracking-widest text-pitch-900 mb-2 font-semibold';
 
 export default function BulkGalleryAdd({
   categories, onUpload, pending, summary, onPublishAll, onDismiss,
 }) {
   const [category, setCategory] = useState('');
+  const toPublish = summary?.publishFailure ? summary.publishFailure.remaining : summary?.created ?? 0;
 
   return (
     <section className="border border-pitch-900/10 rounded-2xl bg-offwhite-50 p-5 mb-6 max-w-2xl">
@@ -62,15 +68,21 @@ export default function BulkGalleryAdd({
               {summary.notAdded} uploaded but not added — find them in the Media Library.
             </p>
           )}
+          {summary.publishFailure && (
+            <p role="alert" className="text-xs font-semibold text-pitch-900">
+              Published {summary.publishFailure.published} of {summary.publishFailure.attempted} — the
+              rest are still drafts; try Publish all again ({summary.publishFailure.message}).
+            </p>
+          )}
           <div className="flex gap-3">
-            {summary.created > 0 && (
+            {toPublish > 0 && (
               <button
                 type="button"
                 onClick={onPublishAll}
                 disabled={pending}
                 className="px-5 py-2 rounded-lg bg-pitch-900 text-offwhite-50 text-[10px] uppercase tracking-widest font-semibold hover:bg-pitch-800 transition-colors disabled:opacity-60"
               >
-                {pending ? 'Publishing…' : `Publish all ${summary.created}`}
+                {pending ? 'Publishing…' : `Publish all ${toPublish}`}
               </button>
             )}
             <button

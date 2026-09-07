@@ -204,6 +204,12 @@ here, not the security control — Turnstile and auth are).
    rebuilds them from the real-photo file list), which is harmless on a fresh database
    and dangerous later. It gives the hosted site the same 64 real photographs, the
    Pragya wedding, and the Home image slots the local site has.
+   Because it is destructive, it refuses a non-local `SUPABASE_URL` unless
+   `ALLOW_REMOTE_DB=yes` is exported in the same shell — type that deliberately, for this
+   one run, and `unset ALLOW_REMOTE_DB` afterwards. (`seed-db.mjs`, `verify-db.mjs`,
+   `verify-inquiry.mjs`, and `verify-admin.mjs` carry the same guard, via
+   `scripts/lib/assert-local-target.mjs`; `seed-admin.mjs` does not, since Stage 2 runs it
+   against hosted by design and it refuses to create a second admin on its own.)
 2. You then work only in the live admin (`<project>.pages.dev/admin.html`, your Stage
    0.3 login): add films and testimonials (remember: the live DB starts with none — no
    fabricated content exists to remove), fix "Pragya's Wedding" names/dates/venues,
@@ -261,6 +267,7 @@ functions by the platform itself — never set manually.)
 | Variable | Purpose |
 | --- | --- |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Point `seed-admin.mjs` / `load-real-content.mjs` at the hosted project |
+| `ALLOW_REMOTE_DB=yes` | Lets `load-real-content.mjs` (and the other destructive scripts) accept a non-local `SUPABASE_URL` — Stage 7 only, unset afterwards; `seed-admin.mjs` never needs it |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Your Stage 0.3 choice — becomes a bcrypt hash, then discarded |
 
 ### The four true secrets — dashboards and password manager only

@@ -149,6 +149,35 @@ describe('ResourceList', () => {
     });
   });
 
+  describe('pending', () => {
+    // A second arrow click while the first reorder is still in flight
+    // races two writes against the same rows — WeddingPhotos already
+    // disables on its own actionPending; this is the same guard for the
+    // shared list.
+    it('disables the move, publish, and delete controls while an action is in flight', () => {
+      render(<ResourceList {...baseProps({ pending: true })} />);
+
+      const table = screen.getByRole('table');
+      // The middle row: neither arrow is disabled by position alone.
+      const betaRow = within(table).getByText('Beta').closest('tr');
+      expect(within(betaRow).getByRole('button', { name: /move up/i })).toBeDisabled();
+      expect(within(betaRow).getByRole('button', { name: /move down/i })).toBeDisabled();
+      expect(within(betaRow).getByRole('button', { name: /published/i })).toBeDisabled();
+      expect(within(betaRow).getByRole('button', { name: /delete/i })).toBeDisabled();
+    });
+
+    it('leaves every control enabled when nothing is pending', () => {
+      render(<ResourceList {...baseProps({ pending: false })} />);
+
+      const table = screen.getByRole('table');
+      const betaRow = within(table).getByText('Beta').closest('tr');
+      expect(within(betaRow).getByRole('button', { name: /move up/i })).not.toBeDisabled();
+      expect(within(betaRow).getByRole('button', { name: /move down/i })).not.toBeDisabled();
+      expect(within(betaRow).getByRole('button', { name: /published/i })).not.toBeDisabled();
+      expect(within(betaRow).getByRole('button', { name: /delete/i })).not.toBeDisabled();
+    });
+  });
+
   describe('delete', () => {
     let confirmSpy;
 

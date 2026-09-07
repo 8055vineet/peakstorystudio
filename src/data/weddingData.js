@@ -18,7 +18,7 @@ export const INITIAL_STORIES = [
       "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=1200",
       "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=1200"
     ],
-    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ" // Example teaser video
+    videoUrl: "https://www.youtube.com/embed/4KEZRGlwJU4" // The studio's own published film, not a placeholder
   },
   {
     id: "story-2",

@@ -44,3 +44,10 @@ describe('youtubeEmbedUrl — background mode', () => {
     expect(url).toContain('controls=0');
   });
 });
+
+describe('youtubeEmbedUrl — background mode is script-controllable', () => {
+  it('enables the IFrame API so the page can mute/unmute the player in place', () => {
+    const url = youtubeEmbedUrl('https://youtu.be/4KEZRGlwJU4', { background: true });
+    expect(url).toContain('enablejsapi=1');
+  });
+});

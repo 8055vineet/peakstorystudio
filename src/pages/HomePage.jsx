@@ -1,12 +1,13 @@
 import React from 'react';
 import HomeVideo from '../components/HomeVideo';
+import Photo from '../components/Photo';
 import { HOME_QUOTE, BRAND_STORY, HOME_IMAGES } from '../data/homeContent';
 
 // The Home page, section for section from the owner's approved screenshot:
 // hero image → script quote → video block → images grid → Brand Story →
 // closing image. The header and footer come from Layout.
 export default function HomePage({
-  films = [], photos = [], onOpenLightbox,
+  films = [], photos = [], photosLoading = false, onOpenLightbox,
   quote = HOME_QUOTE, brandStory = BRAND_STORY, images = HOME_IMAGES,
 }) {
   const featuredFilm = films.length > 0 ? films[0] : null;
@@ -16,7 +17,7 @@ export default function HomePage({
     <div data-testid="home-page">
 
       {/* Hero */}
-      <img
+      <Photo
         src={images.hero.src}
         alt={images.hero.alt}
         className="w-full max-h-[85vh] object-cover"
@@ -54,7 +55,7 @@ export default function HomePage({
                   aria-label={photo.title || 'View photo'}
                   className="block overflow-hidden"
                 >
-                  <img
+                  <Photo
                     src={photo.url}
                     alt={photo.title || ''}
                     loading="lazy"
@@ -63,7 +64,7 @@ export default function HomePage({
                 </button>
               ))}
             </div>
-          ) : (
+          ) : photosLoading ? null : (
             <p className="text-center text-charcoal-500">Photographs are on their way.</p>
           )}
         </div>
@@ -72,7 +73,7 @@ export default function HomePage({
       {/* The Brand Story */}
       <section className="px-4 sm:px-6 pb-20">
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-          <img
+          <Photo
             src={images.brandStory.src}
             alt={images.brandStory.alt}
             className="w-full max-h-[560px] object-cover"
@@ -91,7 +92,7 @@ export default function HomePage({
       </section>
 
       {/* Closing image */}
-      <img
+      <Photo
         src={images.closing.src}
         alt={images.closing.alt}
         className="w-full max-h-[70vh] object-cover"

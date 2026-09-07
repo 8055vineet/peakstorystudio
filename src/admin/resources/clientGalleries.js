@@ -51,6 +51,9 @@ export const clientGalleriesResource = {
       label: 'Access code',
       type: 'text',
       required: true,
+      // client_galleries_for_code ignores any code under 6 characters, so
+      // a shorter one saved here is a delivery the couple can never unlock.
+      minLength: 6,
       help: 'What the couple types to sign in — at least 6 characters, 8+ random letters and numbers recommended. Give the same code to several entries and the couple sees them together.',
     },
     {
