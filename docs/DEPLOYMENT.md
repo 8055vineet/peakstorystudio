@@ -189,9 +189,15 @@ described above — a deliberate, recorded trade, not an oversight.
 ## Stage 6 — Cloudflare Pages (engineering)
 
 Connect the GitHub repo to a new Pages project: production branch `main`, build command
-`npm run build`, output directory `dist`, Node 22. Set the five build-time variables
+`npm run build`, output directory `dist`, Node 22. Set the build-time variables
 (reference table below). From then on: **every merge to `main` deploys automatically**,
-and every PR gets its own preview URL. One known nuance: the Edge Functions' CORS
+and every PR gets its own preview URL. Nothing else is needed for the react-router deep
+links: with no `404.html` in `dist/`, Pages serves `index.html` for any path that matches no
+asset. Do **not** add a `/* /index.html 200` catch-all to `public/_redirects` — Pages applies
+`_redirects` rules *before* the static-asset lookup
+([developers.cloudflare.com/pages/configuration/redirects](https://developers.cloudflare.com/pages/configuration/redirects/)),
+so that rule would proxy every JS/CSS chunk and image to `index.html`; the file holds only the
+two `/admin` rewrites. One known nuance: the Edge Functions' CORS
 allowlist (`ALLOWED_ORIGINS`) matches origins exactly, so the booking form is pinned to
 the production URL — on per-PR preview URLs it will be browser-blocked, which is
 acceptable (previews are for reviewing pages, not taking bookings; CORS is a courtesy
@@ -244,6 +250,7 @@ deploys on merge, preview deploys per PR — plus, from the issues register: `PS
 | `VITE_TURNSTILE_SITE_KEY` | real site key (Stage 4) | Replaces the published test key |
 | `VITE_MEDIA_BASE_URL` | public media base (Stage 3) | What makes uploads display |
 | `VITE_WHATSAPP_NUMBER` | leave blank | Superseded by the admin Settings value |
+| `VITE_SITE_URL` | `https://peakstorystudio.in` | Read by the SEO build step for the sitemap, canonical URLs, and JSON-LD; blank locally (paths stay relative) |
 
 ### Supabase Edge Function secrets (dashboard/CLI only — never in git)
 
