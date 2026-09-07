@@ -6,3 +6,6 @@ dist/
 
 # Brainstorming/SDD scratch (session artifacts, never content)
 .superpowers/
+
+# Agent worktrees (created by orchestration tooling; never part of the project)
+.claude/worktrees/
