@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { Link } from 'react-router-dom';
 import { MapPin, ArrowUpRight, Sparkles, BookOpen } from 'lucide-react';
-import StoryDetailModal from './StoryDetailModal';
 import ScrollReveal from './ScrollReveal';
 import Photo from './Photo';
-import { activateOnKey } from '../lib/keyboardActivate';
 
-export default function FeaturedStories({ stories, onOpenLightbox, onOpenVideo }) {
-  const [selectedStory, setSelectedStory] = useState(null);
-
+// Every card is a real link to the wedding's own page (`/stories/<slug>`,
+// Phase 5): natively focusable and activated by Enter, so it needs none of
+// the role/tabIndex/onKeyDown scaffolding a clickable <div> would. The album,
+// lightbox, and film all live on that page now, so this grid holds no state.
+export default function FeaturedStories({ stories }) {
   return (
     <section id="stories" className="py-24 relative bg-offwhite-100 overflow-hidden border-t border-pitch-900/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        
+
         {/* Section Header */}
         <ScrollReveal>
           <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
@@ -32,11 +33,8 @@ export default function FeaturedStories({ stories, onOpenLightbox, onOpenVideo }
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {stories.map((story, index) => (
             <ScrollReveal key={story.id} delay={index * 150} className="h-full">
-              <div
-                role="button"
-                tabIndex={0}
-                onClick={() => setSelectedStory(story)}
-                onKeyDown={activateOnKey(() => setSelectedStory(story))}
+              <Link
+                to={`/stories/${story.slug}`}
                 data-cursor="EXPLORE ALBUM"
                 className="group relative bg-offwhite-50 overflow-hidden minimal-card cursor-pointer flex flex-col transition-all duration-500 h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-pitch-900 focus-visible:ring-offset-2"
               >
@@ -47,7 +45,7 @@ export default function FeaturedStories({ stories, onOpenLightbox, onOpenVideo }
                     alt={story.title}
                     className="w-full h-full object-cover"
                   />
-                  
+
                   {/* Legibility gradient — bottom third only, so the
                       photograph itself stays clean and sharp */}
                   <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-pitch-950/85 to-transparent" />
@@ -84,22 +82,12 @@ export default function FeaturedStories({ stories, onOpenLightbox, onOpenVideo }
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             </ScrollReveal>
           ))}
         </div>
 
       </div>
-
-      {/* Story Detail Modal */}
-      {selectedStory && (
-        <StoryDetailModal
-          story={selectedStory}
-          onClose={() => setSelectedStory(null)}
-          onSelectImage={onOpenLightbox}
-          onOpenVideo={(url) => onOpenVideo(url)}
-        />
-      )}
     </section>
   );
 }

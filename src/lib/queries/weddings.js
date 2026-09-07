@@ -29,7 +29,7 @@ function formatEventDate(value) {
 // path pointing nowhere — when neither applies. '' is also what this
 // function already returns for a wedding/photo with no cover at all, and
 // every consumer already has to tolerate that (FeaturedStories,
-// PhotoGallery, StoryDetailModal, FilmsGallery all render straight from
+// PhotoGallery, StoryAlbum, FilmsGallery all render straight from
 // this data with no guard), so it stays the one "nothing to show" value
 // here — and in gallery.js and films.js — instead of adding a second,
 // broken-request one.

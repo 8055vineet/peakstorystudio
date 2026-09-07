@@ -68,7 +68,7 @@ export const weddingsResource = {
       help: "Shown as the story's cover image on the public site.",
     },
     // weddings.tags is text[] and is read directly by
-    // src/components/StoryDetailModal.jsx on the public site — losing it
+    // src/components/StoryAlbum.jsx on the public site — losing it
     // here means the public site loses it too.
     {
       name: 'tags',

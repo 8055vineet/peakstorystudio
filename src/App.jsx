@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage';
 import GalleryPage from './pages/GalleryPage';
 import FilmsPage from './pages/FilmsPage';
 import StoriesPage from './pages/StoriesPage';
+import StoryPage from './pages/StoryPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
 import CollectionPage from './pages/CollectionPage';
@@ -25,7 +26,7 @@ import { surfaceRamp } from './data/surfaceTint';
 import { youtubeEmbedUrl } from './lib/youtube';
 
 export default function App() {
-  const { data: stories } = useWeddings();
+  const { data: stories, loading: storiesLoading } = useWeddings();
   const { data: photos, loading: photosLoading } = useGalleryPhotos();
   const { data: films } = useFilms();
   const { data: testimonials } = useTestimonials();
@@ -126,6 +127,7 @@ export default function App() {
               contact={settings.contact}
               logo={settings.logo}
               morePages={collections.map(({ title, slug }) => ({ title, slug }))}
+              stories={stories}
             />
           }
         >
@@ -154,11 +156,13 @@ export default function App() {
           />
           <Route path="gallery" element={<GalleryPage photos={photos} loading={photosLoading} onOpenLightbox={handleOpenLightbox} categoryOrder={galleryCategories} />} />
           <Route path="films" element={<FilmsPage films={films} onOpenVideoModal={(url) => setVideoModalUrl(url)} />} />
+          <Route path="stories" element={<StoriesPage stories={stories} />} />
           <Route
-            path="stories"
+            path="stories/:slug"
             element={
-              <StoriesPage
+              <StoryPage
                 stories={stories}
+                loading={storiesLoading}
                 onOpenLightbox={handleOpenLightbox}
                 onOpenVideo={(url) => setVideoModalUrl(url)}
               />

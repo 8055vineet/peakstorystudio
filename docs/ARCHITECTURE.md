@@ -9,7 +9,8 @@ Peak Story Studio is a Vite + React 18 single-page application styled with Tailw
 routed with **react-router-dom v6** since Phase 3b (`v0.4b`): each navbar option is its own
 page at its own URL — `/`, `/gallery`, `/films`, `/stories`, `/about`, `/contact`, plus
 `/more/:slug` since Phase 3e for the admin-created collection pages (`CollectionPage`, listed
-in the navbar's **More** dropdown; the menu hides entirely while no page is published) —
+in the navbar's **More** dropdown; the menu hides entirely while no page is published) and
+`/stories/:slug` since Phase 5 for each published wedding's own page (`StoryPage`) —
 sharing one header/footer frame (`src/components/Layout.jsx`), with an unknown URL rendering
 `NotFoundPage`. Before 3b the entire site was one scrolling page navigated by anchor links;
 documents and commits that describe it that way predate `v0.4b`. The visual design is the
@@ -87,8 +88,8 @@ that wrote them was deleted in the same change.
 | State | Holds | Persists to localStorage? | Consumed by |
 | --- | --- | --- | --- |
 | `user` | `null`, or an object such as `{ role, name, ... }` set by a successful login | Yes — key `peak_story_user` (the key is removed with `localStorage.removeItem` when the user logs out) | `Navbar` (renders the admin/client badge and sign-out control); `ClientGalleryModal` (gates its content on `user` being present); set via `handleLoginSuccess` from `AuthModal`, cleared via `handleLogout` |
-| `lightboxState` | `{ isOpen, activeUrl, activeIndex, imagesList }` for the fullscreen image viewer | No | `LightboxModal`; opened via `handleOpenLightbox` from `HomePage`'s images grid, `PhotoGallery` (Gallery page), and `FeaturedStories` (Stories page) |
-| `videoModalUrl` | A video embed URL, or `null` when no video modal is open | No | Renders the inline video-iframe modal defined directly in `App.jsx`; set via `onOpenVideo` (`HomePage`, `FeaturedStories`) and `onOpenVideoModal` (`FilmsGallery`) callbacks |
+| `lightboxState` | `{ isOpen, activeUrl, activeIndex, imagesList }` for the fullscreen image viewer | No | `LightboxModal`; opened via `handleOpenLightbox` from `HomePage`'s images grid, `PhotoGallery` (Gallery page), `StoryAlbum` (a wedding's page), and `CollectionPage` |
+| `videoModalUrl` | A video embed URL, or `null` when no video modal is open | No | Renders the inline video-iframe modal defined directly in `App.jsx`; set via `onOpenVideo` (`HomePage`, `StoryPage`, `CollectionPage`) and `onOpenVideoModal` (`FilmsGallery`) callbacks |
 | `authModalOpen` | Boolean visibility flag for the sign-in modal | No | `AuthModal`; opened from `Navbar` |
 | `clientGalleryOpen` | Boolean visibility flag for the private client proofing modal | No | `ClientGalleryModal`; opened from `Navbar`, and set to `true` automatically inside `handleLoginSuccess` when a client (as opposed to admin) logs in |
 
@@ -104,7 +105,8 @@ work identically from every page.
 
 ## Routes and pages
 
-`src/App.jsx` renders one layout route wrapping seven child routes. Each page in `src/pages/`
+`src/App.jsx` renders one layout route wrapping nine child routes (the six navbar pages,
+`/more/:slug`, `/stories/:slug`, and the `*` not-found route). Each page in `src/pages/`
 is a thin composition over the section components (see `docs/COMPONENTS.md` for the page
 table): `HomePage` is the owner's approved design section-for-section; the other pages open
 with the shared `PageHeader` and mount their section component. `ScrollToTop` (inside
@@ -457,10 +459,11 @@ that gate today and by R2 for real once Phase 4 configures it, closes that gap e
 
 ## Known architectural limits
 
-- **Pages, but not per-wedding pages.** Phase 3b gave every navbar option its own URL, but an
-  individual wedding story still opens in `StoryDetailModal` rather than at a shareable,
-  indexable address of its own. Per-wedding URLs, prerendering, sitemap, and OG images are
-  Phase 5 scope (`PS-008`).
+- **Per-wedding pages, but client-rendered.** Phase 3b gave every navbar option its own URL
+  and Phase 5 gave every published wedding one too (`/stories/:slug`, `StoryPage`, replacing
+  the old `StoryDetailModal`). The story is found in the already-loaded weddings list, so a
+  crawler that does not execute JavaScript still sees the empty shell; prerendering, the
+  sitemap, OG images, and structured data are the rest of `PS-008`'s Phase 5 scope.
 - **One top-level error boundary, not per-page.** `src/components/ErrorBoundary.jsx` (added
   in Phase 1a, `v0.2a`) implements `getDerivedStateFromError` and `componentDidCatch`, and
   wraps the entire tree in `src/main.jsx` (outside `BrowserRouter`), so an unhandled render
