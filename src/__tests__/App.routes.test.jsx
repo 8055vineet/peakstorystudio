@@ -148,16 +148,48 @@ describe('/more/:slug', () => {
   });
 });
 
-describe('stories lightbox', () => {
-  it('/stories opens the lightbox on the clicked album photograph, not on the first gallery photo', () => {
-    weddingsData = [{
-      id: 'w-1', title: 'A Royal Affair', couple: 'Sam & Alex', location: 'Jaipur', date: 'November 2024',
-      coverImage: '/images/w/cover.jpg', fullGallery: ['/images/w/one.jpg', '/images/w/two.jpg'], tags: [],
-    }];
-    photosData = [{ id: 'g-1', title: 'Unrelated gallery photo', url: '/images/g/first.jpg', category: 'Wedding', couple: '', location: '' }];
+const ROYAL_AFFAIR = {
+  id: 'w-1', slug: 'a-royal-affair', title: 'A Royal Affair', couple: 'Sam & Alex', location: 'Jaipur',
+  date: 'November 2024', summary: 'Three days under the desert sky.', coverImage: '/images/w/cover.jpg',
+  fullGallery: ['/images/w/one.jpg', '/images/w/two.jpg'], videoUrl: null, tags: [],
+};
+
+describe('/stories/:slug', () => {
+  it('renders the wedding at its own URL, under the shared frame', () => {
+    weddingsData = [ROYAL_AFFAIR];
+    renderAt('/stories/a-royal-affair');
+    expect(screen.getByTestId('story-page')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'A Royal Affair' })).toBeInTheDocument();
+    expect(screen.getByText(/Three days under the desert sky\./)).toBeInTheDocument();
+    expect(screen.getByRole('navigation')).toBeInTheDocument();
+    expect(screen.getByRole('contentinfo')).toBeInTheDocument();
+  });
+
+  it('names the tab after the wedding', () => {
+    weddingsData = [ROYAL_AFFAIR];
+    renderAt('/stories/a-royal-affair');
+    expect(document.title).toBe('A Royal Affair | Peak Story Studio');
+  });
+
+  it('the card on /stories links to that page', () => {
+    weddingsData = [ROYAL_AFFAIR];
     renderAt('/stories');
-    fireEvent.click(screen.getByText('A Royal Affair'));
-    fireEvent.click(screen.getAllByAltText('Thumbnail')[1]);
+    expect(screen.getByRole('link', { name: /A Royal Affair/ })).toHaveAttribute('href', '/stories/a-royal-affair');
+  });
+
+  it('shows the not-found content for an unknown slug once loaded', () => {
+    weddingsData = [ROYAL_AFFAIR];
+    renderAt('/stories/no-such-wedding');
+    expect(screen.getByTestId('not-found-page')).toBeInTheDocument();
+  });
+});
+
+describe('stories lightbox', () => {
+  it('a story page opens the lightbox on the clicked album photograph, not on the first gallery photo', () => {
+    weddingsData = [ROYAL_AFFAIR];
+    photosData = [{ id: 'g-1', title: 'Unrelated gallery photo', url: '/images/g/first.jpg', category: 'Wedding', couple: '', location: '' }];
+    renderAt('/stories/a-royal-affair');
+    fireEvent.click(screen.getByRole('button', { name: 'Photograph 2 of 2' }));
     expect(screen.getByRole('img', { name: 'Wedding Photograph' })).toHaveAttribute('src', '/images/w/two.jpg');
   });
 });
