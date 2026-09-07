@@ -30,6 +30,16 @@ const renderPage = (props = {}) =>
   );
 
 describe('HomePage', () => {
+  // The one <h1> on Home names the studio, what it does, and where — the
+  // page's single top-level heading for search engines and screen readers.
+  it('has a level-1 heading naming the studio and Lucknow', () => {
+    renderPage();
+    const h1 = screen.getByRole('heading', { level: 1 });
+    expect(h1).toHaveTextContent(/Peak Story Studio/);
+    expect(h1).toHaveTextContent(/Lucknow/);
+    expect(h1).toHaveTextContent(/Wedding Photography/);
+  });
+
   it('renders the quote and credit verbatim', () => {
     renderPage();
     expect(screen.getByText(new RegExp(HOME_QUOTE.text.slice(0, 40)))).toBeInTheDocument();

@@ -24,6 +24,7 @@ import {
 } from './hooks/useContent';
 import { surfaceRamp } from './data/surfaceTint';
 import { youtubeEmbedUrl } from './lib/youtube';
+import { googleFontsHref, nonDefaultFamilies } from './lib/googleFonts';
 
 export default function App() {
   const { data: stories, loading: storiesLoading } = useWeddings();
@@ -56,12 +57,32 @@ export default function App() {
   // font-garamond/font-sans roles read these variables, falling back to the
   // shipped families when unset. Guarded so an outage/fallback with no fonts
   // key leaves the Tailwind default in place.
+  //
+  // index.html loads only the three default families (Phase 5), so whatever
+  // else the settings resolve to is fetched through exactly one
+  // <link id="site-fonts"> kept in step here — added, re-pointed, or removed
+  // as the choice changes.
+  const { heading: headingFont, body: bodyFont, quote: quoteFont } = settings.fonts ?? {};
   useEffect(() => {
     const root = document.documentElement;
-    if (settings.fonts?.heading) root.style.setProperty('--font-heading', `"${settings.fonts.heading}"`);
-    if (settings.fonts?.body) root.style.setProperty('--font-body', `"${settings.fonts.body}"`);
-    if (settings.fonts?.quote) root.style.setProperty('--font-quote', `"${settings.fonts.quote}"`);
-  }, [settings.fonts?.heading, settings.fonts?.body, settings.fonts?.quote]);
+    if (headingFont) root.style.setProperty('--font-heading', `"${headingFont}"`);
+    if (bodyFont) root.style.setProperty('--font-body', `"${bodyFont}"`);
+    if (quoteFont) root.style.setProperty('--font-quote', `"${quoteFont}"`);
+
+    const href = googleFontsHref(nonDefaultFamilies({ heading: headingFont, body: bodyFont, quote: quoteFont }));
+    let link = document.getElementById('site-fonts');
+    if (!href) {
+      link?.remove();
+      return;
+    }
+    if (!link) {
+      link = document.createElement('link');
+      link.id = 'site-fonts';
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
+    if (link.getAttribute('href') !== href) link.setAttribute('href', href);
+  }, [headingFont, bodyFont, quoteFont]);
 
   // Apply the admin-chosen surface warmth site-wide (Phase 3i). Tailwind's
   // offwhite-* tokens read these variables; surfaceRamp(0.5) reproduces the

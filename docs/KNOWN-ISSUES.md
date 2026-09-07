@@ -325,3 +325,17 @@ failing test first:
 - **Inputs were cleared before the write was confirmed** in the collection video form and the
   category/service managers, losing what the admin typed when the add failed. They now clear only on
   success.
+
+### Phase 5 (SEO) — resolved on `phase-5/seo`
+
+- **`public/_redirects` carried a `/* /index.html 200` catch-all that would have broken the
+  first Cloudflare Pages deploy.** The line was written on the belief that static assets take
+  precedence over `_redirects` on Pages; Cloudflare's rule is the reverse
+  ([developers.cloudflare.com/pages/configuration/redirects](https://developers.cloudflare.com/pages/configuration/redirects/)):
+  a matching rule is applied *before* the asset lookup, so every hashed JS/CSS chunk, every
+  image, and `robots.txt` itself would have been answered with `index.html`'s bytes — a blank
+  page with console errors. The catch-all was never needed: with no `404.html` in the build,
+  Pages already serves `index.html` for any unknown path, which is the SPA fallback the
+  react-router deep links rely on. The file now holds only the two `/admin` rewrites, and
+  `src/test/hostingFiles.test.js` fails if a `/*` rule ever returns. Latent until the first
+  deploy, so no visitor was affected.

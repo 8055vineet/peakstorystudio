@@ -18,6 +18,8 @@ const MOCK_COLLECTIONS = [{
 let weddingsData = [];
 let photosData = [];
 let settingsLoading = false;
+const NON_DEFAULT_FONTS = { heading: 'Playfair Display', body: 'Inter', quote: 'Marcellus' };
+let fontsData = NON_DEFAULT_FONTS;
 
 // Pages fetch through these hooks; route tests need no network and no Supabase.
 vi.mock('../hooks/useContent', () => ({
@@ -41,7 +43,7 @@ vi.mock('../hooks/useContent', () => ({
         address: 'Settings Street 1', email: 'settings@example.test', phone: '+91 11111 11111',
         whatsappNumber: '911111111111', instagramUrl: '', youtubeUrl: '',
       },
-      fonts: { heading: 'Playfair Display', body: 'Inter', quote: 'Marcellus' },
+      fonts: fontsData,
       appearance: { warmth: 1 },
       logo: '/images/home/logo.jpg',
     },
@@ -53,7 +55,16 @@ vi.mock('../hooks/useContent', () => ({
 const renderAt = (path) =>
   render(<MemoryRouter initialEntries={[path]}><App /></MemoryRouter>);
 
-beforeEach(() => { window.sessionStorage.clear(); weddingsData = []; photosData = []; settingsLoading = false; });
+beforeEach(() => {
+  window.sessionStorage.clear();
+  weddingsData = [];
+  photosData = [];
+  settingsLoading = false;
+  fontsData = NON_DEFAULT_FONTS;
+  // The document persists across tests in this file; the fonts effect
+  // leaves its <link> in document.head, so each test starts without one.
+  document.getElementById('site-fonts')?.remove();
+});
 
 describe('routing', () => {
   it.each([
@@ -73,6 +84,31 @@ describe('routing', () => {
     expect(document.documentElement.style.getPropertyValue('--font-heading')).toContain('Playfair Display');
     expect(document.documentElement.style.getPropertyValue('--font-body')).toContain('Inter');
     expect(document.documentElement.style.getPropertyValue('--font-quote')).toContain('Marcellus');
+  });
+
+  // index.html loads only the three default families; anything else the
+  // admin chose is fetched by exactly one <link id="site-fonts">.
+  it('adds one site-fonts stylesheet link for the non-default families the settings chose', () => {
+    renderAt('/');
+    const links = document.querySelectorAll('link#site-fonts');
+    expect(links).toHaveLength(1);
+    const href = links[0].getAttribute('href');
+    expect(links[0].getAttribute('rel')).toBe('stylesheet');
+    expect(href).toMatch(/^https:\/\/fonts\.googleapis\.com\/css2\?/);
+    expect(href).toContain('family=Playfair+Display');
+    expect(href).toContain('family=Inter');
+    expect(href).toContain('family=Marcellus');
+  });
+
+  it('adds no site-fonts link when the settings resolve to the three defaults, and removes a stale one', () => {
+    fontsData = { heading: 'Cormorant Garamond', body: 'Plus Jakarta Sans', quote: 'Quicksand' };
+    const stale = document.createElement('link');
+    stale.id = 'site-fonts';
+    stale.rel = 'stylesheet';
+    stale.href = 'https://fonts.googleapis.com/css2?family=Inter&display=swap';
+    document.head.appendChild(stale);
+    renderAt('/');
+    expect(document.querySelector('link#site-fonts')).toBeNull();
   });
 
   it('applies the admin-chosen surface warmth as CSS variables on the document', () => {

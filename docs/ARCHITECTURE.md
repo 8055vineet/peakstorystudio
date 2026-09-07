@@ -119,9 +119,15 @@ Two supporting conventions arrived with routing:
   Brand Story copy, and the three slot paths; the files live in `public/images/home/`
   (`hero.webp`, `brand-story.webp`, `closing.webp` — WebP since the Phase 4 optimization pass). **The owner changes an image by overwriting
   the file — no code edit.**
-- **`public/_redirects`** (`/admin` and `/admin/` → `/admin.html`, then `/* /index.html 200`)
-  ships now so the Phase 4 Cloudflare Pages deploy serves deep links like `/gallery` correctly;
-  static assets take precedence over redirects on Pages, so `/admin.html` is unaffected. The
+- **`public/_redirects`** holds only the two admin rewrites (`/admin` and `/admin/` →
+  `/admin.html`). Cloudflare's actual rule
+  ([developers.cloudflare.com/pages/configuration/redirects](https://developers.cloudflare.com/pages/configuration/redirects/))
+  is that `_redirects` is evaluated *before* the static-asset lookup — a matching rule wins even
+  when a file exists at that path — so the `/* /index.html 200` catch-all the file carried until
+  Phase 5 would have proxied every hashed JS/CSS chunk and image to `index.html` on first deploy.
+  It was never needed: with no `404.html` in `dist/`, Pages serves `index.html` for any path that
+  matches no asset, which is exactly the SPA fallback the react-router deep links (`/gallery`,
+  `/stories/<slug>`) rely on. `src/test/hostingFiles.test.js` pins the file to that shape. The
   Vite dev server falls back to `index.html` for unknown paths, and the `adminEntryRewrite`
   plugin in `vite.config.js` gives `npm run dev`/`vite preview` the same two admin rewrites, so
   the URL an owner naturally types works locally exactly as it does on Pages.
@@ -190,6 +196,28 @@ and CRUD for weddings, gallery photos, films, and testimonials), straight into P
 Row Level Security, not client code, is what makes it safe to ship the Supabase anon key in the
 browser bundle: Postgres refuses anything the policies do not permit. See
 `supabase/migrations/*_row_level_security.sql` and `npm run db:verify`.
+
+### SEO data modules
+
+Phase 5 adds two pure modules that take the data-layer shapes above and return values — no DOM,
+no React, no Supabase client, no Node APIs — so the same code serves a component, the build-time
+SEO step that writes per-route HTML, and any future edge function:
+
+- `src/data/seo.js` — the static per-route meta descriptions (`STATIC_SEO`), `descriptionFor()`
+  (a wedding's own summary on `/stories/<slug>`, a collection's description on `/more/<slug>`,
+  the static copy elsewhere), and `cardImageFor()` (the share-card image per route, `''` when
+  none is available). The copy obeys CLAUDE.md's content-integrity rule: what the studio is and
+  where it works, never awards, press, or statistics.
+- `src/lib/seo/jsonLd.js` — schema.org JSON-LD: `localBusinessJsonLd()` (the studio at its
+  Gomtinagar address, from `src/data/contact.js` and `settings.contact`), `websiteJsonLd()`, and
+  `pageJsonLd()` (the per-route type: `ImageGallery`, `ItemList` of `VideoObject`s, `AboutPage`,
+  `ContactPage`, `CollectionPage`, and `ImageGallery` + `BreadcrumbList` for a wedding page). URLs
+  are absolute when a `siteUrl` is given and relative otherwise.
+
+Neither is a component, so neither has a `docs/COMPONENTS.md` row. Related: `src/lib/googleFonts.js`
+builds the Google Fonts URL for whichever admin-chosen families `index.html` does not already
+load (only the three defaults ship in the HTML since Phase 5), and `App.jsx`'s fonts effect
+keeps exactly one `<link id="site-fonts">` in step with it.
 
 ## The inquiry write path
 
