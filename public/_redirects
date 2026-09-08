@@ -10,3 +10,9 @@
 # react-router routes need.
 /admin    /admin.html   200
 /admin/    /admin.html   200
+
+# Prerendered per-route files are flat (stories/<slug>.html served at
+# /stories/<slug>); send the trailing-slash form to the canonical URL rather
+# than relying on undocumented normalisation.
+/stories/:slug/    /stories/:slug    301
+/more/:slug/       /more/:slug       301

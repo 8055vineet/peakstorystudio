@@ -21,6 +21,15 @@ describe('public/_redirects', () => {
     }
   });
 
+  it('redirects trailing-slash forms of the prerendered dynamic routes to their canonical URLs', () => {
+    // Prerendered files are flat (stories/<slug>.html), served at /stories/<slug>.
+    // Cloudflare documents placeholders in _redirects; what it does with an
+    // unmatched trailing slash is undocumented, so the rule is explicit.
+    const lines = rules(read('public/_redirects')).map((line) => line.split(/\s+/));
+    expect(lines).toContainEqual(['/stories/:slug/', '/stories/:slug', '301']);
+    expect(lines).toContainEqual(['/more/:slug/', '/more/:slug', '301']);
+  });
+
   it('keeps both /admin rewrites to the admin entry', () => {
     const lines = rules(read('public/_redirects')).map((line) => line.split(/\s+/));
     expect(lines).toContainEqual(['/admin', '/admin.html', '200']);
