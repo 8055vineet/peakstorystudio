@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { STATIC_SEO, descriptionFor, cardImageFor } from '../seo';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { STATIC_SEO, SLUG_PATTERN, descriptionFor, cardImageFor, storyByline } from '../seo';
 import { SITE_SETTINGS_FALLBACK } from '../siteSettingsFallback';
 
 const ROUTES = ['/', '/gallery', '/films', '/stories', '/about', '/contact'];
@@ -97,5 +99,75 @@ describe('cardImageFor', () => {
     }
     expect(cardImageFor('/', {})).toBe('');
     expect(cardImageFor('/gallery')).toBe('');
+  });
+});
+
+// The admin derives a wedding's or collection's slug from its title with
+// this rule (src/admin/resources/weddings.js and collections.js each keep
+// their own copy). Repeated here rather than imported: neither module
+// exports it, and importing either would pull the admin query factory into
+// a pure-data test.
+function adminSlugify(text) {
+  return String(text ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+describe('SLUG_PATTERN', () => {
+  it.each(['pragya', 'a-royal-affair-2', 'x', 'a'.repeat(120)])('accepts %s', (slug) => {
+    expect(SLUG_PATTERN.test(slug)).toBe(true);
+  });
+
+  it.each([
+    ['empty', ''],
+    ['capitals', 'Has Caps'],
+    ['underscore', 'snake_case'],
+    ['dot', 'a.b'],
+    ['spaces', 'two words'],
+    ['slash', 'a/b'],
+    ['unicode', 'shaadi-\u0936'],
+    ['121 chars', 'a'.repeat(121)],
+  ])('rejects %s', (_label, slug) => {
+    expect(SLUG_PATTERN.test(slug)).toBe(false);
+  });
+
+  it.each([
+    ["Pragya's Wedding", 'pragya-s-wedding'],
+    ['Ananya & Rohan — Jaipur', 'ananya-rohan-jaipur'],
+    ['  A Royal Affair (2)  ', 'a-royal-affair-2'],
+  ])('accepts what the admin slugify makes of %s', (title, expected) => {
+    const slug = adminSlugify(title);
+    expect(slug).toBe(expected);
+    expect(SLUG_PATTERN.test(slug)).toBe(true);
+  });
+});
+
+describe('storyByline', () => {
+  it('joins couple, location and date with a middle dot', () => {
+    expect(storyByline(stories[0])).toBe('Sam & Alex · La Martiniere, Lucknow · November 2024');
+  });
+
+  it('drops whatever the wedding lacks', () => {
+    expect(storyByline({ couple: 'Sam & Alex', location: '', date: null })).toBe('Sam & Alex');
+    expect(storyByline({ location: 'Lucknow', date: 'May 2025' })).toBe('Lucknow · May 2025');
+  });
+
+  it('is empty when there is nothing to say', () => {
+    expect(storyByline({})).toBe('');
+    expect(storyByline(null)).toBe('');
+    expect(storyByline()).toBe('');
+  });
+});
+
+describe('index.html', () => {
+  // The prerender replaces index.html's static description with
+  // STATIC_SEO['/'] on Home; the two must already agree so a dev-server
+  // page and a prerendered one never describe the studio differently.
+  it("carries the same description as STATIC_SEO['/']", () => {
+    const html = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
+    const match = html.match(/<meta\s+name="description"\s+content="([^"]*)"/);
+    expect(match).not.toBeNull();
+    expect(match[1]).toBe(STATIC_SEO['/'].description);
   });
 });

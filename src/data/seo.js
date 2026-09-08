@@ -29,6 +29,20 @@ export const STATIC_SEO = {
   },
 };
 
+// The one rule for what a public slug may look like: lowercase ASCII
+// letters, digits and hyphens, at most 120 characters. The admin's slugify
+// (src/admin/resources/weddings.js, collections.js) only ever produces
+// this shape; the prerender uses it to decide which rows get a page, so it
+// never writes a filename Cloudflare Pages would canonicalise differently.
+export const SLUG_PATTERN = /^[a-z0-9-]{1,120}$/;
+
+// "Couple · Location · Date" with whichever parts the wedding has, '' when
+// it has none — the byline under a wedding's title, on its page and in the
+// prerendered shell alike.
+export function storyByline(story) {
+  return [story?.couple, story?.location, story?.date].filter(Boolean).join(' · ');
+}
+
 // '/gallery/' -> '/gallery'; '/' stays '/'.
 function normalize(pathname) {
   const path = String(pathname ?? '');

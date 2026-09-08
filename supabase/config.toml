@@ -445,3 +445,11 @@ verify_jwt = true
 # functions apply — see the function's module comment.
 entrypoint = "./functions/manage-team/index.js"
 verify_jwt = true
+
+[functions.request-rebuild]
+# Same explicit-entrypoint and verify_jwt rationale as sign-upload above,
+# and the same in-function admin gate. Holds CF_DEPLOY_HOOK_URL — the only
+# credential a Cloudflare Deploy Hook has — so it is the one place that
+# secret ever lives; see the function's module comment.
+entrypoint = "./functions/request-rebuild/index.js"
+verify_jwt = true
