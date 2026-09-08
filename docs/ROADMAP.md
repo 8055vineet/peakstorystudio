@@ -118,6 +118,19 @@ admin-managed under a Client Galleries tab, per-couple by construction (see
 in-site downloads are dropped, not deferred. The same change added owner-only team management
 (only the owner account can create or remove admins, via the `manage-team` Edge Function).
 
+**Phase 5 — SEO and shareable pages** (`v0.6`, 2026-09-09) was built ahead of Phase 4's first
+deploy completing (the hosting steps sit with the owner; both ship together on the first
+deploy). Every published wedding now has its own page at `/stories/<slug>`; `npm run build`
+prerenders a per-route `<head>` (title, description, canonical, Open Graph card with the real
+photograph, JSON-LD) into flat `dist/<route>.html` files plus `sitemap.xml`, while React still
+renders the page; content published in the admin triggers a Cloudflare rebuild automatically
+through a `site_publish` dirty flag and the `request-rebuild` Edge Function, with publish status
+and a Rebuild-now button in the admin. The same phase removed a `_redirects` catch-all that
+would have broken the first deploy, trimmed the Google Fonts payload to the families in use,
+added a real favicon and a Home `<h1>`. See
+[the Phase 5 design](superpowers/specs/2026-09-08-seo-design.md) and
+[ADR 0006](adr/0006-build-time-prerender.md).
+
 ## Phase and version table
 
 | Version | Phase | Deliverable | Definition of done | Runs on |
