@@ -68,7 +68,11 @@ task notes) rather than silently fixing or silently working around it.
 - `npm run dev` — Vite dev server at `http://localhost:3000`.
 - `npm run build` — production build into `dist/`. `dist/` is untracked and gitignored as of
   Phase 4 (`PS-019`, resolved — Cloudflare Pages builds from source), so a build leaves the
-  working tree clean and needs no cleanup afterwards.
+  working tree clean and needs no cleanup afterwards. Since Phase 5 the build is two steps — `vite build`, then
+  `vite-node scripts/prerender.mjs`, which stamps every public route's own `<head>` into flat
+  `dist/<route>.html` files (never `<dir>/index.html`, never a `404.html`) and writes
+  `sitemap.xml` and `build-info.json`; without a reachable database it degrades to the static
+  routes locally and in CI but fails on Cloudflare so the last good deploy stays live (ADR 0006).
 - `npm run check:docs` — verifies required docs exist, every component in `src/components` is
   documented in `docs/COMPONENTS.md`, every `src/...` path cited in a doc actually exists, and
   every relative markdown link resolves. Run this after any change that touches components or
