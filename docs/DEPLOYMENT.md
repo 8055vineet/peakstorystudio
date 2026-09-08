@@ -203,6 +203,21 @@ the production URL — on per-PR preview URLs it will be browser-blocked, which 
 acceptable (previews are for reviewing pages, not taking bookings; CORS is a courtesy
 here, not the security control — Turnstile and auth are).
 
+### Create the Deploy Hook (so a publish in the admin rebuilds the site)
+
+1. Cloudflare dashboard → Workers & Pages → the Pages project → **Settings** → **Builds** →
+   **Deploy hooks** → *Add deploy hook*. Name it `admin-publish`, branch `main`. Copy the URL.
+2. Treat that URL as a secret — anyone who has it can trigger builds (500 a month on the free
+   plan). Store it only in the password manager and as an Edge Function secret:
+   `supabase secrets set CF_DEPLOY_HOOK_URL=<the url>` (project linked). Never in git, never in
+   a `VITE_*` variable.
+3. Prove it from the live admin: Overview → **Rebuild now** should show "Rebuild requested" and a
+   new deployment should appear in Cloudflare within a minute. Until the secret is set the admin
+   says "Automatic rebuilds are not configured on this environment", which is also what every
+   local environment shows.
+4. After `scripts/load-real-content.mjs` (Stage 7) or any script that writes content, press
+   Rebuild now — scripts do not dispatch.
+
 ### Preview-deploy checklist
 
 Run these against the first preview URL (and again after any change to `public/_headers`,
@@ -305,6 +320,7 @@ deploys on merge, preview deploys per PR — plus, from the issues register: `PS
 | `RESEND_API_KEY` | from Resend | Missing: inquiry stored, email skipped + recorded |
 | `RESEND_FROM` | `onboarding@resend.dev` until Phase 7 | Then an address on the verified domain |
 | `STUDIO_NOTIFY_EMAIL` | `peakstorystudio@gmail.com` | Where "new inquiry" lands |
+| `CF_DEPLOY_HOOK_URL` | the Deploy Hook URL (Stage 6) | Missing: `request-rebuild` answers `NOT_CONFIGURED`; the admin shows rebuilds as not configured and never dispatches |
 | `ALLOWED_ORIGINS` | `https://<project>.pages.dev` | Comma-append the real domain in Phase 7 |
 | `S3_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | from Stage 3 | Upload signing fails closed (500) if incomplete |
 | `S3_INTERNAL_ENDPOINT` | **leave unset in production** | Local-only override for delete-media; see `supabase/functions/.env.example` |

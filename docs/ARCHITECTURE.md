@@ -312,6 +312,48 @@ or `dist/more`. CI runs it in the `admin-e2e` job (which has a database) after a
 builds too and then asserts `build-info.json` says `degraded: true` with six routes — so both
 branches of the failure policy are proven on every push.
 
+## Freshness: automatic rebuilds after a publish (Phase 5)
+
+The prerendered heads above are only as fresh as the last build, so a publish in the admin has
+to trigger one. The loop has four parts, none of which needs the owner to do anything:
+
+1. **A dirty flag in the database.** `public.site_publish` is a single row (`id = 1`) that
+   admins may read and only the service role may write (see
+   [DATA-MODEL.md](DATA-MODEL.md)). `mark_site_content_changed()`, a `SECURITY DEFINER`
+   trigger function, sets `content_changed_at = now()` after any insert, update, or delete on
+   a public content table — but only when the change is publicly visible (a row that is or was
+   `published`; a child photograph of a published wedding or page; any change to settings,
+   categories, or services). Editing a draft never fires it.
+2. **An Edge Function holds the secret.** `supabase/functions/request-rebuild` is
+   admin-authenticated exactly like `sign-upload` (token verified with Supabase Auth, role read
+   from `profiles` with the service role) and reads `CF_DEPLOY_HOOK_URL` from its secrets — a
+   Cloudflare Deploy Hook is a bare URL whose possession is the credential, which is why it
+   never appears in git, in a `VITE_*` variable, or in the browser. The function applies a
+   floor (`_shared/rebuild-floor.js`, pure and unit-tested): a dispatch always goes out when the
+   last one is older than 90 seconds; inside that window exactly one follow-up is allowed (a
+   build that started before the change could have read stale content); anything more is
+   skipped as `window_busy`; `force` always dispatches. Every attempt is recorded in
+   `site_publish` (`last_dispatch_at`, `last_dispatch_status`, `dispatch_count`,
+   `followup_sent`). With no hook configured — every local environment — it answers
+   `{ ok: false, error: 'NOT_CONFIGURED' }` quietly.
+3. **The admin drives it.** `src/hooks/usePublishStatus.js` (one instance, in the admin shell)
+   polls `site_publish` and the public `/build-info.json` every 30 seconds while the admin is
+   open. When `content_changed_at` is newer than `last_dispatch_at` it waits a 20-second quiet
+   window (so a burst of saves becomes one build) and calls the function. A `NOT_CONFIGURED`
+   answer stops automatic dispatch for the session. Scripts such as
+   `load-real-content.mjs` never dispatch; the runbook says to press Rebuild now afterwards.
+4. **The owner can see it.** The Overview's Publishing card shows when the site was last
+   published (from `build-info.json`), whether changes are waiting or a rebuild was requested,
+   a warning after 20 minutes of waiting with the manual fallback (Cloudflare → retry the last
+   deployment), and a Rebuild-now button (`force: true`). The Weddings list marks each
+   published wedding "Live · View page" once its `updated_at` predates the live build, else
+   "Publishing…".
+
+Why not a database-side dispatcher (`pg_cron` + `pg_net` + Vault), which the design panel
+proposed: three new extensions and a Vault dependency the local stack has commented out, for a
+site whose every publish already happens in the admin. It stays the documented upgrade path if
+admin-driven dispatch ever proves insufficient (see the Phase 5 spec, §6).
+
 ## The inquiry write path
 
 Since Phase 2 (`v0.3`), `BookingForm` is a real write path, not a form that only ever reads. Even
