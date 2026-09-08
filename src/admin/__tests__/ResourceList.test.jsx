@@ -321,4 +321,29 @@ describe('thumbnail column', () => {
     const { container } = render(<ResourceList {...baseProps()} />);
     expect(container.querySelectorAll('tbody img')).toHaveLength(0);
   });
+
+});
+
+// Phase 5's per-wedding "Live · View page / Publishing…" cue: the list
+// stays generic and only offers a slot; what goes in it is the caller's.
+describe('rowMeta', () => {
+  it('renders whatever the callback returns for each item, inside that item’s row', () => {
+    render(<ResourceList {...baseProps({ rowMeta: (item) => (item.status === 'published' ? <span>Live · View page</span> : null) })} />);
+
+    const table = screen.getByRole('table');
+    const betaRow = within(table).getByText('Beta').closest('tr');
+    expect(within(betaRow).getByText('Live · View page')).toBeInTheDocument();
+    const alphaRow = within(table).getByText('Alpha').closest('tr');
+    expect(within(alphaRow).queryByText('Live · View page')).toBeNull();
+  });
+
+  it('renders nothing extra when the prop is absent', () => {
+    render(<ResourceList {...baseProps()} />);
+
+    expect(screen.queryByText(/live|publishing/i)).toBeNull();
+    const table = screen.getByRole('table');
+    const alphaRow = within(table).getByText('Alpha').closest('tr');
+    // Still exactly one cell per listColumn plus the actions cell.
+    expect(within(alphaRow).getAllByRole('cell')).toHaveLength(CONFIG.listColumns.length + 1);
+  });
 });

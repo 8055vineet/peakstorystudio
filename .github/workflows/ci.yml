@@ -63,6 +63,24 @@ jobs:
             exit 1
           }
 
+      # This job has no database, so scripts/prerender.mjs must take its
+      # degraded path (six static routes, exit 0) rather than fail the build
+      # — see docs/ARCHITECTURE.md "Build pipeline". The admin-e2e job below,
+      # which does have a database, proves the full path with verify:prerender.
+      - name: Prerender degraded gracefully without a database
+        run: |
+          node -e '
+            const info = require("./dist/build-info.json");
+            if (info.degraded !== true || !Array.isArray(info.routes) || info.routes.length !== 6) {
+              console.error("build-info.json: degraded=" + info.degraded + " routes=" + (info.routes || []).length);
+              process.exit(1);
+            }
+            console.log("degraded build carried the six static routes");
+          ' || {
+            echo "::error::the databaseless build did not degrade to the six static routes :: $(node -e 'console.log(JSON.stringify(require("./dist/build-info.json")))' 2>/dev/null | head -c 600)"
+            exit 1
+          }
+
   inquiry-e2e:
     name: Inquiry end-to-end
     runs-on: ubuntu-latest
@@ -183,5 +201,29 @@ jobs:
           npm run verify:admin || {
             echo "::error::The admin publishing pipeline did not reach the public site"
             cat /tmp/functions.log
+            exit 1
+          }
+
+      # The same stack, now with content in it (verify:admin removes its
+      # probe wedding again, so this sees whatever the migrations seed):
+      # build for real, then assert dist/ carries a prerendered head,
+      # sitemap entry and flat file for every published route.
+      - name: Prerender against the local stack and verify it
+        run: |
+          set -o pipefail
+          eval "$(supabase status -o env | sed 's/^/export /')"
+          export SUPABASE_URL="$API_URL"
+          export SUPABASE_ANON_KEY="$ANON_KEY"
+          export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export VITE_SUPABASE_URL="$API_URL"
+          export VITE_SUPABASE_ANON_KEY="$ANON_KEY"
+          export VITE_MEDIA_BASE_URL="$API_URL/storage/v1/object/public/media"
+          export VITE_SITE_URL=http://localhost:4173
+          npm run build 2>&1 | tee /tmp/step.log || {
+            echo "::error::the prerender build failed against the local stack :: $(grep -iE "error|failed|warning" /tmp/step.log | head -c 1200 | tr "\n" "⏎")"
+            exit 1
+          }
+          npm run verify:prerender 2>&1 | tee /tmp/step.log || {
+            echo "::error::the prerendered dist/ did not match the database :: $(grep -E "FAIL|crashed|missing" /tmp/step.log | head -c 1200 | tr "\n" "⏎")"
             exit 1
           }

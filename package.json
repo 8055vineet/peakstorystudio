@@ -23,7 +23,8 @@
     "db:seed-admin": "node scripts/seed-admin.mjs",
     "db:functions": "supabase functions serve --env-file supabase/functions/.env.local",
     "verify:inquiry": "node scripts/verify-inquiry.mjs",
-    "verify:admin": "vite-node scripts/verify-admin.mjs"
+    "verify:admin": "vite-node scripts/verify-admin.mjs",
+    "verify:prerender": "vite-node scripts/verify-prerender.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.111.0",

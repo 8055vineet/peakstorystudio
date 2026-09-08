@@ -24,10 +24,13 @@ export const weddingsResource = {
   // can write the value `weddingsQueries.create` (below) derives. Never
   // written by `update`: valuesToRow in adminContent.js only writes a
   // column when the values object actually has that camelCase key, and no
-  // ResourceForm submission for this config ever will.
+  // ResourceForm submission for this config ever will. `updated_at` is
+  // read on the same terms (Phase 5): the list compares it against the
+  // live build's timestamp for its "Live / Publishing…" cue, moddatetime
+  // maintains it, and nothing in the admin writes it.
   columns: [
     'id', 'slug', 'title', 'couple', 'location', 'event_date', 'summary',
-    'cover_media_id', 'tags', 'sort_order', 'status',
+    'cover_media_id', 'tags', 'sort_order', 'status', 'updated_at',
   ],
   defaultSort: 'sort_order',
   // ResourceList renders a leading photo column from this, and the factory

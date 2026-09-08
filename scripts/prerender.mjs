@@ -22,6 +22,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { resolveOrigin, failurePolicy, mapDatabaseEnv } from './lib/prerender-env.mjs';
+import { storyByline } from '../src/data/seo.js';
 import {
   STATIC_ROUTES, routesFor, metaFor, buildHead, buildShell, injectHead, sitemapXml, buildInfo,
 } from './lib/prerender-html.mjs';
@@ -79,12 +80,16 @@ const data = { ...content, morePages: content.collections.map(({ slug, title }) 
 const { routes, skipped } = routesFor(data);
 for (const bad of skipped) log(`WARNING: skipped a route whose slug is not URL-safe: ${JSON.stringify(bad)}`);
 
+// A rerun must not leave behind files for weddings or pages unpublished since
+// the last run (a fresh build has none; `npm run prerender` reruns do).
+for (const dir of ['stories', 'more']) fs.rmSync(path.join(DIST, dir), { recursive: true, force: true });
+
 const indexHtml = fs.readFileSync(INDEX, 'utf8');
 const written = [];
 for (const pathname of routes) {
   const meta = metaFor(pathname, data, origin);
   const story = pathname.startsWith('/stories/') ? data.stories.find((s) => `/stories/${s.slug}` === pathname) : null;
-  const html = injectHead(indexHtml, buildHead(meta), buildShell(meta, { story }));
+  const html = injectHead(indexHtml, buildHead(meta), buildShell(meta, { byline: story ? storyByline(story) : '' }));
   const target = pathname === '/' ? INDEX : path.join(DIST, `${pathname.slice(1)}.html`);
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, html);

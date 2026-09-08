@@ -219,6 +219,99 @@ builds the Google Fonts URL for whichever admin-chosen families `index.html` doe
 load (only the three defaults ship in the HTML since Phase 5), and `App.jsx`'s fonts effect
 keeps exactly one `<link id="site-fonts">` in step with it.
 
+## Build pipeline: prerendered heads (Phase 5)
+
+Since Phase 5, `npm run build` is two steps: `vite build` (unchanged — `dist/index.html`,
+`dist/admin.html`, hashed assets) and then `vite-node scripts/prerender.mjs`, which stamps every
+public route with its own crawler-visible `<head>` and a small visible shell, and writes
+`dist/sitemap.xml` and `dist/build-info.json`. The app is still a client-rendered SPA; nothing
+about the render flow above changes at runtime. The decision and its alternatives are in
+[docs/adr/0006-build-time-prerender.md](adr/0006-build-time-prerender.md); the full design is
+[docs/superpowers/specs/2026-09-08-seo-design.md](superpowers/specs/2026-09-08-seo-design.md).
+`npm run prerender` reruns only the second step against an existing `dist/`.
+
+**What the script reads, and why under `vite-node`.** `scripts/prerender.mjs` imports the real
+query modules — `getPublishedWeddings` (`src/lib/queries/weddings.js`), `getCollections`,
+`getGalleryPhotos`, `getFilms`, `getSiteSettings` — with the anon key, so it sees exactly the
+published rows the site does, resolved through the same `src/lib/mediaUrl.js`. Those modules
+reach `src/lib/supabase.js`, which reads `import.meta.env`; plain Node has no such thing, so the
+script runs under `vite-node` the same way `scripts/verify-admin.mjs` does, mapping
+`SUPABASE_URL`/`SUPABASE_ANON_KEY` onto the `VITE_` names first
+(`scripts/lib/prerender-env.mjs`'s `mapDatabaseEnv`). `scripts/` is the one place outside
+`src/lib/queries/` allowed to import a query module; components still never touch the client.
+
+**What it writes.** The pure builders in `scripts/lib/prerender-html.mjs` decide the content:
+
+- `routesFor(data)` — the six static routes plus `/more/<slug>` per collection and
+  `/stories/<slug>` per published wedding. A slug that fails `SLUG_PATTERN` (`src/data/seo.js`)
+  is reported and skipped, never written, so the build cannot produce a filename the host would
+  canonicalise to a different URL.
+- `metaFor(pathname, data, origin)` — title (`src/lib/documentTitle.js`), description and
+  share image (`src/data/seo.js`), canonical, `og:type`, JSON-LD (`src/lib/seo/jsonLd.js`) and
+  the Google Fonts link for non-default families. The client uses the same helpers for its tab
+  titles, so the prerendered head and the runtime one cannot drift.
+- `buildHead(meta)` — `<title>`, `meta[name=description]`, `link[rel=canonical]` (no trailing
+  slash), the Open Graph set (`og:site_name`, `og:locale`, `og:type`, `og:url`, `og:title`,
+  `og:description`, `og:image` + alt/width/height when known), the Twitter card, one
+  `<script type="application/ld+json">`, and `<link id="site-fonts">` when needed. All values
+  HTML-escaped; `<` inside the JSON-LD is written as `\u003c`.
+- `buildShell(meta, { byline })` — the `<div data-prerender-shell>` a crawler (or a visitor
+  before the bundle runs) sees inside `#root`: the page's `<h1>`, a wedding's
+  couple · location · date byline, and the description, on the site's own Tailwind utilities.
+  Never hidden text. `src/main.jsx` mounts with `createRoot().render()`, which replaces those
+  children outright — `src/__tests__/prerenderTakeover.test.jsx` mounts the real `App` onto a
+  container already holding a real shell and proves the shell is gone, exactly one `<h1>`
+  remains, and `console.error` was never called (a hydration mismatch would call it).
+- `injectHead(indexHtml, head, shell)` — replaces Vite's `<title>` and description, inserts the
+  rest inside a `<!-- prerender:start -->…<!-- prerender:end -->` block before `</head>`, and
+  puts the shell inside `<div id="root">`. It strips any earlier block and shell first, so it is
+  idempotent; `dist/index.html` (Home) is rewritten in place on every run.
+
+**Flat files, no `404.html`.** Every route is written as `dist/<route>.html` —
+`dist/gallery.html`, `dist/stories/<slug>.html` — never `<route>/index.html`, because
+Cloudflare Pages serves `foo.html` at `/foo` but canonicalises `foo/index.html` to `/foo/`
+(a redirect, and a different canonical URL from the one in the head). `dist/` also never
+contains a `404.html`: with none present, Pages serves the root `index.html` for any path that
+matches no file, which is what keeps react-router deep links to not-yet-built pages working (a
+wedding published seconds ago renders client-side until the next build lands).
+
+**Origin resolution.** Absolute URLs (canonical, `og:url`, `og:image`, the sitemap, JSON-LD)
+use, in order: `VITE_SITE_URL` (`https://peakstorystudio.in` in production), then the
+`CF_PAGES_URL` Cloudflare injects into every build (so a preview deploy's URLs point at itself),
+then `http://localhost:4173` (`vite preview`). A value that is not an absolute `http(s)` origin
+throws (`resolveOrigin`).
+
+**Failure policy** (`failurePolicy`). When the database is unconfigured or unreachable: on
+Cloudflare (`CF_PAGES=1`) the script exits non-zero, so the build fails and the previous
+deployment stays live — a degraded site is never published by accident. Everywhere else (CI's
+databaseless `verify` job, a laptop without the local stack) it logs a warning, writes the six
+static routes with static copy and the fallback settings, a sitemap of those six, and
+`build-info.json` with `degraded: true`, and exits 0. `PRERENDER_ALLOW_EMPTY=1` forces the
+degraded path on Cloudflare too — the escape hatch for publishing while the database is down.
+Zero published weddings is not a failure; it is a build with only the static routes.
+
+**Sidecar files.** `build-info.json` is
+`{ builtAt, origin, degraded, routes, fingerprint }`, where `fingerprint` hashes the content
+the build saw (wedding slugs and `updated_at`, collection slugs, the settings that affect the
+public site, photo and film ids); the admin reads it from the public origin to show when the
+site was last published and whether a wedding is live yet. `sitemap.xml` lists every route
+with an absolute `<loc>` and, for weddings, `<lastmod>` from `updated_at`. `robots.txt` stays a
+static file in `public/`.
+
+**How it is exercised.** Unit tests cover the pure modules (`scripts/__tests__/`) and the
+takeover. `npm run verify:prerender` (`scripts/verify-prerender.mjs`, also under `vite-node`)
+does not build; it reads every published wedding and collection back through the query modules
+and asserts the built `dist/` matches: per wedding, `stories/<slug>.html` exists with the title
+in `<title>`, a canonical ending in `/stories/<slug>`, `og:image` equal to the cover made
+absolute against `build-info.origin`, a parsable JSON-LD `ImageGallery` named after it, and a
+shell `<h1>` equal to the title; per collection, `more/<slug>.html` with its title; the six
+static pages, `robots.txt`, exactly one prerender block in `index.html`, a `<loc>` for every
+route in `sitemap.xml`, `degraded: false`, and no `index.html` anywhere under `dist/stories`
+or `dist/more`. CI runs it in the `admin-e2e` job (which has a database) after a real
+`npm run build` with `VITE_SITE_URL=http://localhost:4173`; the databaseless `verify` job
+builds too and then asserts `build-info.json` says `degraded: true` with six routes — so both
+branches of the failure policy are proven on every push.
+
 ## The inquiry write path
 
 Since Phase 2 (`v0.3`), `BookingForm` is a real write path, not a form that only ever reads. Even

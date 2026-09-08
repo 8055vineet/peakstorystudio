@@ -203,6 +203,50 @@ the production URL — on per-PR preview URLs it will be browser-blocked, which 
 acceptable (previews are for reviewing pages, not taking bookings; CORS is a courtesy
 here, not the security control — Turnstile and auth are).
 
+### Preview-deploy checklist
+
+Run these against the first preview URL (and again after any change to `public/_headers`,
+`public/_redirects`, or `scripts/prerender.mjs`). Each line is one hosting fact the build
+relies on; a surprise here is a hosting problem, not a code one. `<preview>` is the
+`https://<hash>.<project>.pages.dev` origin and `<slug>` any published wedding's slug from
+`<preview>/build-info.json`.
+
+```bash
+P=https://<preview>   # no trailing slash
+
+# Extension-less serving: /gallery is dist/gallery.html, with its own prerendered title.
+curl -s --max-time 15 "$P/gallery" | grep -o '<title>[^<]*</title>'        # <title>Gallery | Peak Story Studio</title>
+curl -sI --max-time 15 "$P/gallery.html" | head -1                          # HTTP/2 301 (Pages canonicalises to /gallery)
+
+# A wedding page carries its own head; the trailing-slash form redirects to the flat URL.
+curl -s --max-time 15 "$P/stories/<slug>" | grep -o '<link rel="canonical"[^>]*>'   # href="$P/stories/<slug>" (or VITE_SITE_URL)
+curl -s --max-time 15 "$P/stories/<slug>" | grep -o '<meta property="og:image"[^>]*>'
+curl -sI --max-time 15 "$P/stories/<slug>/" | head -1                       # HTTP/2 301
+
+# The admin entry, with and without the slash, is admin.html (public/_redirects).
+curl -s --max-time 15 "$P/admin"  | grep -o '<title>[^<]*</title>'
+curl -s --max-time 15 "$P/admin/" | grep -o '<title>[^<]*</title>'
+
+# Every HTML response carries the noindex header from public/_headers while the
+# site is still on the pages.dev origin — check the root, a section, a wedding, and the admin.
+for path in / /gallery "/stories/<slug>" /admin; do
+  curl -sI --max-time 15 "$P$path" | grep -i 'x-robots-tag'                 # X-Robots-Tag: noindex
+done
+
+# Unknown paths fall back to the root file (the SPA renders not-found client-side).
+curl -sI --max-time 15 "$P/no-such-page" | head -1                          # HTTP/2 200
+curl -s --max-time 15 "$P/no-such-page" | grep -c 'id="root"'               # 1
+
+# The build's sidecar files exist and were not degraded.
+curl -s --max-time 15 "$P/sitemap.xml" | grep -c '<loc>'                    # 6 + one per wedding + one per collection
+curl -sI --max-time 15 "$P/robots.txt" | head -1                            # HTTP/2 200
+curl -s --max-time 15 "$P/build-info.json"                                  # "degraded": false, "origin": "$P"
+```
+
+Whether `X-Robots-Tag: noindex` should still be present depends on the phase: it belongs on
+every response while the site lives on `pages.dev`, and is removed for the custom domain —
+see Stage 1 (item 2) and the comment at the top of `public/_headers`.
+
 ## Stage 7 — Content on the hosted site
 
 1. Re-run `scripts/load-real-content.mjs` against the hosted project **immediately after
@@ -250,7 +294,7 @@ deploys on merge, preview deploys per PR — plus, from the issues register: `PS
 | `VITE_TURNSTILE_SITE_KEY` | real site key (Stage 4) | Replaces the published test key |
 | `VITE_MEDIA_BASE_URL` | public media base (Stage 3) | What makes uploads display |
 | `VITE_WHATSAPP_NUMBER` | leave blank | Superseded by the admin Settings value |
-| `VITE_SITE_URL` | `https://peakstorystudio.in` | Read by the SEO build step for the sitemap, canonical URLs, and JSON-LD; blank locally (paths stay relative) |
+| `VITE_SITE_URL` | `https://peakstorystudio.in` | `https://peakstorystudio.in` in production; leave it unset on preview builds, which fall back to the `CF_PAGES_URL` Cloudflare injects (so every preview's absolute URLs point at itself), and locally `scripts/prerender.mjs` falls back to `http://localhost:4173` (`vite preview`). Read by `scripts/prerender.mjs` for the canonical URL, `og:url`, `og:image`, `sitemap.xml` and JSON-LD of every prerendered page; must be an absolute `http(s)://` origin with no path. The running React app never reads it — only the build does. |
 
 ### Supabase Edge Function secrets (dashboard/CLI only — never in git)
 
