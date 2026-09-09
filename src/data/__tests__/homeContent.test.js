@@ -13,7 +13,7 @@ describe('home page content', () => {
     expect(BRAND_STORY.heading).toBe('The Brand Story');
     expect(BRAND_STORY.paragraphs).toHaveLength(2);
     expect(BRAND_STORY.paragraphs[0]).toMatch(/^At Peak Story Studio, we believe/);
-    expect(BRAND_STORY.paragraphs[0]).toContain('lived—they unfold like a masterpiece');
+    expect(BRAND_STORY.paragraphs[0]).toContain('lived: they unfold like a masterpiece');
     expect(BRAND_STORY.paragraphs[1]).toMatch(/relive forever\.$/);
   });
 

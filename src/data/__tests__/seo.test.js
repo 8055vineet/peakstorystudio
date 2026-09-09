@@ -50,12 +50,12 @@ describe('descriptionFor', () => {
 
   it('/stories/<slug> describes that wedding: its summary, then where and when', () => {
     expect(descriptionFor('/stories/a-royal-affair', data))
-      .toBe('Three days of ceremony under the winter sun. Sam & Alex — La Martiniere, Lucknow, November 2024.');
+      .toBe('Three days of ceremony under the winter sun. Sam & Alex; La Martiniere, Lucknow, November 2024.');
   });
 
   it('/stories/<slug> copes with a wedding that has no summary or date', () => {
     const bare = { ...data, stories: [{ ...stories[0], summary: '', date: '' }] };
-    expect(descriptionFor('/stories/a-royal-affair', bare)).toBe('Sam & Alex — La Martiniere, Lucknow.');
+    expect(descriptionFor('/stories/a-royal-affair', bare)).toBe('Sam & Alex; La Martiniere, Lucknow.');
   });
 
   it('/stories/<unknown> falls back to the Stories copy', () => {

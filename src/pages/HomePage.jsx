@@ -16,13 +16,6 @@ export default function HomePage({
   return (
     <div data-testid="home-page">
 
-      {/* The page's one <h1>: who, what, where — for search engines and
-          screen readers. Set as quietly as the section headings below so it
-          reads as a caption above the hero, not a banner. */}
-      <h1 className="px-6 pb-4 text-center font-garamond text-sm sm:text-base tracking-[0.2em] uppercase text-pitch-900">
-        Peak Story Studio — Wedding Photography &amp; Films, Lucknow
-      </h1>
-
       {/* Hero */}
       <Photo
         src={images.hero.src}
@@ -104,6 +97,14 @@ export default function HomePage({
         alt={images.closing.alt}
         className="w-full max-h-[70vh] object-cover"
       />
+
+      {/* The page's one <h1>: who, what, where — for search engines and
+          screen readers. Placed last, after every visual section, so it
+          never competes with the hero; heading level, not position, is
+          what search engines and assistive tech read from it. */}
+      <h1 className="px-6 py-6 text-center font-garamond text-sm sm:text-base tracking-[0.2em] uppercase text-pitch-900">
+        Peak Story Studio: Wedding Photography &amp; Films, Lucknow
+      </h1>
     </div>
   );
 }

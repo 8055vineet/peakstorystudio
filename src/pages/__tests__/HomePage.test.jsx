@@ -40,6 +40,13 @@ describe('HomePage', () => {
     expect(h1).toHaveTextContent(/Wedding Photography/);
   });
 
+  it('places the h1 at the bottom of the page, after every section, so it never competes with the hero', () => {
+    renderPage();
+    const page = screen.getByTestId('home-page');
+    const h1 = screen.getByRole('heading', { level: 1 });
+    expect(page.lastElementChild).toBe(h1);
+  });
+
   it('renders the quote and credit verbatim', () => {
     renderPage();
     expect(screen.getByText(new RegExp(HOME_QUOTE.text.slice(0, 40)))).toBeInTheDocument();

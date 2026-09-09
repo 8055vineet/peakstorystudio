@@ -10,22 +10,22 @@
 
 export const STATIC_SEO = {
   '/': {
-    description: 'Peak Story Studio is a wedding photography and film studio in Lucknow, Uttar Pradesh — fine art photographs and cinematic films of weddings, here and beyond.',
+    description: 'Peak Story Studio is a wedding photography and film studio in Lucknow, Uttar Pradesh: fine art photographs and cinematic films of weddings, here and beyond.',
   },
   '/gallery': {
     description: 'Wedding, pre-wedding, engagement, haldi and mehendi photographs by Peak Story Studio, a fine art wedding photography studio based in Gomtinagar, Lucknow.',
   },
   '/films': {
-    description: 'Cinematic wedding films by Peak Story Studio, Lucknow — the ceremonies, the baraat, and the quiet moments between, edited into a film the couple keeps.',
+    description: 'Cinematic wedding films by Peak Story Studio, Lucknow: the ceremonies, the baraat, and the quiet moments between, edited into a film the couple keeps.',
   },
   '/stories': {
     description: 'Complete wedding stories photographed and filmed by Peak Story Studio in Lucknow, Uttar Pradesh: each couple, their venue, and the full album.',
   },
   '/about': {
-    description: 'About Peak Story Studio, a wedding photography and cinematic film studio in Lucknow, Uttar Pradesh — how we work, and what we look for in a wedding.',
+    description: 'About Peak Story Studio, a wedding photography and cinematic film studio in Lucknow, Uttar Pradesh: how we work, and what we look for in a wedding.',
   },
   '/contact': {
-    description: 'Book Peak Story Studio for your wedding photography and film in Lucknow or anywhere in Uttar Pradesh — check a date, ask a question, or visit us in Gomtinagar.',
+    description: 'Book Peak Story Studio for your wedding photography and film in Lucknow or anywhere in Uttar Pradesh: check a date, ask a question, or visit us in Gomtinagar.',
   },
 };
 
@@ -55,10 +55,10 @@ const MORE_ROUTE = /^\/more\/([^/]+)$/;
 const findStory = (stories, slug) => (stories ?? []).find((story) => story.slug === slug);
 const findCollection = (collections, slug) => (collections ?? []).find((collection) => collection.slug === slug);
 
-// "Summary. Couple — Location, Date." with whichever parts the wedding has.
+// "Summary. Couple; Location, Date." with whichever parts the wedding has.
 function storyDescription(story) {
   const where = [story.location, story.date].filter(Boolean).join(', ');
-  const who = [story.couple, where].filter(Boolean).join(' — ');
+  const who = [story.couple, where].filter(Boolean).join('; ');
   return [story.summary, who ? `${who}.` : ''].filter(Boolean).join(' ').trim();
 }
 

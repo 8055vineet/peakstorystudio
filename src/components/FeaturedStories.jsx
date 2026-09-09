@@ -24,7 +24,7 @@ export default function FeaturedStories({ stories }) {
               FEATURED <span className="font-garamond italic font-normal text-pitch-900">WEDDING STORIES</span>
             </h2>
             <p className="font-garamond text-xl text-charcoal-700 italic font-light">
-              Step inside our grandest wedding sagas—where love, culture, and cinematic artistry merge seamlessly.
+              Step inside our grandest wedding sagas, where love, culture, and cinematic artistry merge seamlessly.
             </p>
           </div>
         </ScrollReveal>
