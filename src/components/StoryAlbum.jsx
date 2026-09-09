@@ -13,7 +13,9 @@ import { activateOnKey } from '../lib/keyboardActivate';
 export default function StoryAlbum({ story, onSelectImage, onOpenVideo }) {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  const images = story.fullGallery || [story.coverImage];
+  // An album with no photographs yet (a normal state — the wedding may be
+  // published with just its cover) shows the cover rather than an empty box.
+  const images = story.fullGallery?.length ? story.fullGallery : [story.coverImage].filter(Boolean);
 
   // The lightbox gets the chosen photograph, its index, and the whole album
   // (as the `{ url }` objects it expects) so it opens on that photograph and

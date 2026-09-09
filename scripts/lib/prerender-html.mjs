@@ -42,7 +42,9 @@ export function routesFor(data = {}) {
   const add = (kind, rows, prefix) => {
     for (const row of rows ?? []) {
       const slug = row?.slug ?? '';
-      if (SLUG_PATTERN.test(slug)) routes.push(`${prefix}/${slug}`);
+      // `index` would become <dir>/index.html, which Pages canonicalises to
+      // a trailing slash — a different URL from the canonical the head carries.
+      if (SLUG_PATTERN.test(slug) && slug !== 'index') routes.push(`${prefix}/${slug}`);
       else skipped.push({ kind, id: row?.id ?? null, slug });
     }
   };

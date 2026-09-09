@@ -47,3 +47,9 @@ describe('public/robots.txt', () => {
     expect(lines).toContain('Sitemap: https://peakstorystudio.in/sitemap.xml');
   });
 });
+
+describe('the SPA fallback', () => {
+  it('is never disabled by a 404.html — Pages serves the root for unknown paths only while none exists', () => {
+    expect(existsSync(resolve(process.cwd(), 'public/404.html'))).toBe(false);
+  });
+});

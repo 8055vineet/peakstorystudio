@@ -35,7 +35,7 @@ and accessibility pass. Two of the eight have since been closed outright by Phas
 | PS-002 | **Narrowed by Phase 3b.** The rendered fabrications are gone: the multi-page redesign deleted the component that carried the "AS FEATURED IN" press bar, the "Vogue Fine Art Choice" badge, and the invented "1,000+ weddings / 40+ destinations" statistics, at the owner's direction (recorded in the Phase 3b spec). What remains is the testimonial attributed to "Deepika & Ranveer" — the real names of a real married Bollywood couple — in two places: `src/data/weddingData.js`'s `TESTIMONIALS` (the outage fallback a visitor sees when the database is unreachable) and the seeded row in the `testimonials` table, which the About page renders until the owner replaces it through the admin | Critical (legal) | `src/data/weddingData.js`, `scripts/seed-db.mjs` | 7 |
 | PS-007 | "Download ZIP" button is a non-functional stub that fires a browser `alert()` | Medium | `src/components/ClientGalleryModal.jsx:59` | 6 |
 | PS-009 | Modals do not trap focus, lock body scroll, or close on Escape | Medium | all modals except `src/components/LightboxModal.jsx` | 7 |
-| PS-012 | No `prefers-reduced-motion` handling | Medium | `src/index.css`, app-wide | 5 |
+| PS-012 | No `prefers-reduced-motion` handling (Phase 5 scoped it out; belongs to the accessibility pass) | Medium | `src/index.css`, app-wide | 7 |
 | PS-014 | Duplicated pill-button and badge markup across many components | Low | app-wide | 7 |
 | PS-016 | Unused CSS rules and palette tokens (the audit counted 10 rules and 7 tokens; the counts are stale after Phase 3b deleted ten components and their styles — recount before acting). Phase 3b also left inert `data-cursor` attributes in `FeaturedStories`, `FilmsGallery`, and `PhotoGallery` after deleting the `CustomCursor` that read them; they belong to this cleanup | Low | `src/index.css`, `tailwind.config.js` | 7 |
 | PS-017 | Icon-only buttons use `title` instead of `aria-label` | Low | `src/components/PhotoGallery.jsx` and others | 7 |
@@ -62,6 +62,7 @@ and accessibility pass. Two of the eight have since been closed outright by Phas
 | PS-050 | `sign-upload`'s size ceiling checks only the client-declared `byteSize`; the presigned PUT signs the host alone, so the browser can PUT any size. Same shape as `PS-031` (content type), admin-only | Low | `supabase/functions/sign-upload/index.js`, `supabase/functions/_shared/s3-presign.js` | 4 |
 | PS-051 | `manage-team` maps every GoTrue 422 to `EMAIL_EXISTS`, so a hosted password-policy rejection reads "That email already has an account"; `listMembers` is an N+1 of `getUserById` | Low | `supabase/functions/manage-team/index.js` | 7 |
 | PS-052 | Bulk gallery rows take the camera file name as their title, and "Publish all" pushes it live as the public `alt`/`aria-label` ("IMG_4532") with an empty `alt_text` | Low | `src/admin/App.jsx`, `src/components/PhotoGallery.jsx` | 7 |
+| PS-053 | **The rebuild floor is read-then-write.** `request-rebuild` reads `site_publish`, decides, then writes; two admins (or two tabs) calling within the same few hundred milliseconds can both pass the 90-second window and one `dispatch_count` increment is lost — at worst one extra queued build. A single-owner studio with the admin's 20-second quiet window makes this rare. Fix: an atomic `claim_rebuild_dispatch(force, window_ms)` SQL function doing `select … for update` on the singleton and applying the floor in one statement | Low | `supabase/functions/request-rebuild/index.js`, `supabase/functions/_shared/rebuild-floor.js` | 7 |
 
 ### Notes on selected rows
 
@@ -333,7 +334,8 @@ failing test first:
   image, and `robots.txt` itself would have been answered with `index.html`'s bytes — a blank
   page with console errors. The catch-all was never needed: with no `404.html` in the build,
   Pages already serves `index.html` for any unknown path, which is the SPA fallback the
-  react-router deep links rely on. The file now holds only the two `/admin` rewrites, and
+  react-router deep links rely on. The file now holds the two `/admin` rewrites plus two 301
+  trailing-slash rules for the prerendered dynamic routes (`/stories/:slug/`, `/more/:slug/`), and
   `src/test/hostingFiles.test.js` fails if a `/*` rule ever returns. Latent until the first
   deploy, so no visitor was affected.
 - **PS-008 — no shareable, indexable per-wedding URL; no prerendering, sitemap, OG images, or
@@ -365,3 +367,16 @@ failing test first:
   Hook it holds as a secret under a 90-second floor with one follow-up build, and the admin's
   Overview shows publish status, dispatches automatically after a 20-second quiet window, and
   offers Rebuild now. Verified end to end against a fake hook.
+- **Branch review (2026-09-09), seventeen findings fixed before merge.** The outage fallback
+  stories gained slugs and a slug-less story renders a plain card, never a link to
+  `/stories/undefined`; a wedding with a cover but no album photographs shows the cover; a
+  `/more/<slug>` page is never titled "not found" while its data loads; the reserved slug
+  `index` is skipped by the prerender; the prerendered fonts link is kept until the settings
+  query resolves; album changes now touch the parent wedding's `updated_at`
+  (`20260909100000_wedding_photos_touch_parent.sql`) so sitemap `lastmod` moves; a failed hook
+  POST records its status without counting as a dispatch, so the admin keeps waiting, shows the
+  failure, and retries; the admin polls every 10 seconds while changes are waiting so the
+  20-second quiet window can actually restart; CI seeds a fixture wedding and page before
+  `verify:prerender`, which now fails on an empty database instead of passing vacuously;
+  `public/404.html` is asserted absent; and the runbook, architecture notes, component table,
+  and ADR were corrected where they lagged the code. The one finding deferred is `PS-053`.

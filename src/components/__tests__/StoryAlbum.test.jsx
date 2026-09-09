@@ -86,3 +86,13 @@ describe('StoryAlbum thumbnails', () => {
     expect(onSelectImage).toHaveBeenCalledWith('/images/cover.jpg', 0, expect.any(Array));
   });
 });
+
+describe('StoryAlbum with a cover but no album photographs yet', () => {
+  it('shows the cover photograph instead of an empty box', () => {
+    render(
+      <StoryAlbum story={{ ...story, fullGallery: [], coverImage: '/images/cover.jpg' }} onSelectImage={vi.fn()} onOpenVideo={vi.fn()} />
+    );
+    expect(document.querySelector('img[src="/images/cover.jpg"]')).not.toBeNull();
+    expect(screen.getByText(/1 Photograph/)).toBeInTheDocument();
+  });
+});

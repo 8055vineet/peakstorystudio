@@ -171,3 +171,11 @@ describe('index.html', () => {
     expect(match[1]).toBe(STATIC_SEO['/'].description);
   });
 });
+
+describe('the outage fallback stories', () => {
+  it('each carry a URL-safe slug so their cards can link to a page during an outage', async () => {
+    const { INITIAL_STORIES } = await import('../weddingData');
+    for (const story of INITIAL_STORIES) expect(story.slug).toMatch(SLUG_PATTERN);
+    expect(new Set(INITIAL_STORIES.map((s) => s.slug)).size).toBe(INITIAL_STORIES.length);
+  });
+});

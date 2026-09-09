@@ -278,18 +278,24 @@ Deno.serve(async (req) => {
 
   const status = await postDeployHook(hookUrl);
 
-  // Recorded whenever a POST was attempted, whatever its outcome: a failed
-  // attempt still counts against the window (Cloudflare may well have
-  // queued the build before the response was lost) and its status is what
-  // the admin's "waiting" warning surfaces.
+  // Only a hook that answered 2xx counts as a dispatch: last_dispatch_at is
+  // what the admin compares content_changed_at against, so stamping it on a
+  // failed POST would turn a lost build into a permanent "rebuild requested"
+  // with no retry. A failure records only its status; the row stays
+  // "waiting", the admin shows the failure, and the next quiet window
+  // retries. (A Cloudflare 5xx may still have queued the build; the follow-up
+  // rule tolerates that duplicate.)
+  const dispatched = status === 'ok';
   const { error: updateError } = await db
     .from('site_publish')
-    .update({
-      last_dispatch_at: new Date().toISOString(),
-      last_dispatch_status: status,
-      dispatch_count: (state.dispatch_count ?? 0) + 1,
-      followup_sent: decision.followupSent,
-    })
+    .update(dispatched
+      ? {
+        last_dispatch_at: new Date().toISOString(),
+        last_dispatch_status: status,
+        dispatch_count: (state.dispatch_count ?? 0) + 1,
+        followup_sent: decision.followupSent,
+      }
+      : { last_dispatch_status: status })
     .eq('id', 1);
 
   if (updateError) {

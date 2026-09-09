@@ -265,3 +265,23 @@ describe('usePublishStatus', () => {
     expect(requestRebuild).not.toHaveBeenCalled();
   });
 });
+
+describe('polling cadence', () => {
+  it('polls every 10 seconds while changes are waiting, so a 20-second quiet window can actually restart', async () => {
+    serve(WAITING);
+    renderHook(() => usePublishStatus());
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    const afterMount = getPublishStatus.mock.calls.length;
+    await act(async () => { vi.advanceTimersByTime(10_000); await Promise.resolve(); });
+    expect(getPublishStatus.mock.calls.length).toBeGreaterThan(afterMount);
+  });
+
+  it('keeps the slow 30-second poll when nothing is waiting', async () => {
+    serve(IDLE);
+    renderHook(() => usePublishStatus());
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+    const afterMount = getPublishStatus.mock.calls.length;
+    await act(async () => { vi.advanceTimersByTime(10_000); await Promise.resolve(); });
+    expect(getPublishStatus.mock.calls.length).toBe(afterMount);
+  });
+});

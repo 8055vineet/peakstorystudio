@@ -96,7 +96,7 @@ Phase 4 owns, all small:
    `X-Robots-Tag: noindex` (Phase 7 removes it at domain cutover; `admin.html` keeps its
    own permanent `noindex` meta regardless).
 3. **Empty-image guards** (`PS-036`) — `FeaturedStories`, `PhotoGallery`,
-   `StoryDetailModal`, `FilmsGallery` get a guard so an unresolvable photograph renders
+   `StoryDetailModal` (since Phase 5, `StoryAlbum`), `FilmsGallery` get a guard so an unresolvable photograph renders
    nothing instead of a broken-image box.
 4. **`/admin` redirect + navbar admin link** (`PS-030`) — a hosting-layer redirect from
    `/admin` to `/admin.html`, and the admin badge in `src/components/Navbar.jsx` finally
@@ -131,8 +131,8 @@ Phase 4 owns, all small:
    refuses to create a *second* admin by typo, and marks the account it seeds as the
    **owner** (`profiles.is_owner`) — the only account that can create or remove other
    admins, from Settings → Team.
-6. Deploy the four Edge Functions
-   (`supabase functions deploy submit-inquiry sign-upload delete-media manage-team`)
+6. Deploy the five Edge Functions
+   (`supabase functions deploy submit-inquiry sign-upload delete-media manage-team request-rebuild`)
    and set their secrets (reference table below). Two need generating fresh:
    `RATE_LIMIT_SALT` (a long random string — unset would make the rate-limiter's IP
    hashes trivially reversible) and the real Turnstile secret from Stage 4.
@@ -196,8 +196,9 @@ links: with no `404.html` in `dist/`, Pages serves `index.html` for any path tha
 asset. Do **not** add a `/* /index.html 200` catch-all to `public/_redirects` — Pages applies
 `_redirects` rules *before* the static-asset lookup
 ([developers.cloudflare.com/pages/configuration/redirects](https://developers.cloudflare.com/pages/configuration/redirects/)),
-so that rule would proxy every JS/CSS chunk and image to `index.html`; the file holds only the
-two `/admin` rewrites. One known nuance: the Edge Functions' CORS
+so that rule would proxy every JS/CSS chunk and image to `index.html`; the file holds the two
+`/admin` rewrites plus the two 301 trailing-slash rules for the prerendered dynamic routes
+(`/stories/:slug/`, `/more/:slug/`), nothing else. One known nuance: the Edge Functions' CORS
 allowlist (`ALLOWED_ORIGINS`) matches origins exactly, so the booking form is pinned to
 the production URL — on per-PR preview URLs it will be browser-blocked, which is
 acceptable (previews are for reviewing pages, not taking bookings; CORS is a courtesy
@@ -207,8 +208,10 @@ here, not the security control — Turnstile and auth are).
 
 1. Cloudflare dashboard → Workers & Pages → the Pages project → **Settings** → **Builds** →
    **Deploy hooks** → *Add deploy hook*. Name it `admin-publish`, branch `main`. Copy the URL.
-2. Treat that URL as a secret — anyone who has it can trigger builds (500 a month on the free
-   plan). Store it only in the password manager and as an Edge Function secret:
+2. Make sure the function is deployed (`supabase functions deploy request-rebuild` — it is one
+   of the five in Stage 2; redeploy after any change to it). Treat the URL as a secret — anyone
+   who has it can trigger builds (500 a month on the free plan). Store it only in the password
+   manager and as an Edge Function secret:
    `supabase secrets set CF_DEPLOY_HOOK_URL=<the url>` (project linked). Never in git, never in
    a `VITE_*` variable.
 3. Prove it from the live admin: Overview → **Rebuild now** should show "Rebuild requested" and a
@@ -309,7 +312,7 @@ deploys on merge, preview deploys per PR — plus, from the issues register: `PS
 | `VITE_TURNSTILE_SITE_KEY` | real site key (Stage 4) | Replaces the published test key |
 | `VITE_MEDIA_BASE_URL` | public media base (Stage 3) | What makes uploads display |
 | `VITE_WHATSAPP_NUMBER` | leave blank | Superseded by the admin Settings value |
-| `VITE_SITE_URL` | `https://peakstorystudio.in` | `https://peakstorystudio.in` in production; leave it unset on preview builds, which fall back to the `CF_PAGES_URL` Cloudflare injects (so every preview's absolute URLs point at itself), and locally `scripts/prerender.mjs` falls back to `http://localhost:4173` (`vite preview`). Read by `scripts/prerender.mjs` for the canonical URL, `og:url`, `og:image`, `sitemap.xml` and JSON-LD of every prerendered page; must be an absolute `http(s)://` origin with no path. The running React app never reads it — only the build does. |
+| `VITE_SITE_URL` | unset until cutover, then `https://peakstorystudio.in` | Leave it **unset** on both environments while the site lives on `pages.dev` — every deploy then uses the `CF_PAGES_URL` Cloudflare injects, so canonicals and share cards point at the host that actually serves them (matching the `noindex` state). Set it to `https://peakstorystudio.in` at the Phase 7 domain cutover, in the same change that deletes `public/_headers`. Leave it unset on preview builds, which fall back to the `CF_PAGES_URL` Cloudflare injects (so every preview's absolute URLs point at itself), and locally `scripts/prerender.mjs` falls back to `http://localhost:4173` (`vite preview`). Read by `scripts/prerender.mjs` for the canonical URL, `og:url`, `og:image`, `sitemap.xml` and JSON-LD of every prerendered page; must be an absolute `http(s)://` origin with no path. The running React app never reads it — only the build does. |
 
 ### Supabase Edge Function secrets (dashboard/CLI only — never in git)
 

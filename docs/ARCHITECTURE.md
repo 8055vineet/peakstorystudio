@@ -119,8 +119,9 @@ Two supporting conventions arrived with routing:
   Brand Story copy, and the three slot paths; the files live in `public/images/home/`
   (`hero.webp`, `brand-story.webp`, `closing.webp` — WebP since the Phase 4 optimization pass). **The owner changes an image by overwriting
   the file — no code edit.**
-- **`public/_redirects`** holds only the two admin rewrites (`/admin` and `/admin/` →
-  `/admin.html`). Cloudflare's actual rule
+- **`public/_redirects`** holds the two admin rewrites (`/admin` and `/admin/` →
+  `/admin.html`) and the two trailing-slash redirects for the prerendered dynamic routes
+  (`/stories/:slug/` and `/more/:slug/` → 301 to the canonical form), nothing else. Cloudflare's actual rule
   ([developers.cloudflare.com/pages/configuration/redirects](https://developers.cloudflare.com/pages/configuration/redirects/))
   is that `_redirects` is evaluated *before* the static-asset lookup — a matching rule wins even
   when a file exists at that path — so the `/* /index.html 200` catch-all the file carried until
@@ -622,11 +623,13 @@ that gate today and by R2 for real once Phase 4 configures it, closes that gap e
 
 ## Known architectural limits
 
-- **Per-wedding pages, but client-rendered.** Phase 3b gave every navbar option its own URL
-  and Phase 5 gave every published wedding one too (`/stories/:slug`, `StoryPage`, replacing
-  the old `StoryDetailModal`). The story is found in the already-loaded weddings list, so a
-  crawler that does not execute JavaScript still sees the empty shell; prerendering, the
-  sitemap, OG images, and structured data are the rest of `PS-008`'s Phase 5 scope.
+- **Per-wedding pages, but the body is still client-rendered.** Phase 3b gave every navbar
+  option its own URL and Phase 5 gave every published wedding one too (`/stories/:slug`,
+  `StoryPage`). The build prerenders each route's `<head>` (title, description, canonical,
+  Open Graph, JSON-LD) and a visible one-heading shell, but the album itself renders in the
+  browser, so a crawler that does not execute JavaScript sees the head and the shell only —
+  Google renders the rest. Content is also stale between a publish and the rebuild landing
+  (minutes; see the freshness section).
 - **One top-level error boundary, not per-page.** `src/components/ErrorBoundary.jsx` (added
   in Phase 1a, `v0.2a`) implements `getDerivedStateFromError` and `componentDidCatch`, and
   wraps the entire tree in `src/main.jsx` (outside `BrowserRouter`), so an unhandled render

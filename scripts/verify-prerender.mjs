@@ -265,6 +265,9 @@ async function main() {
 
   const [weddings, collections] = await Promise.all([getPublishedWeddings(), getCollections()]);
   console.log(`\ndatabase: ${weddings.length} published wedding(s), ${collections.length} collection(s)`);
+  // Without content the per-route checks below never run and this gate is
+  // green by vacuity — CI seeds scripts/seed-prerender-fixture.mjs first.
+  check('at least one published wedding and one published page to verify', weddings.length > 0 && collections.length > 0);
 
   checkStaticPages();
   for (const wedding of weddings) checkWedding(wedding, origin);

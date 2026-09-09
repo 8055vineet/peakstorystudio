@@ -4,6 +4,7 @@
 export const INITIAL_STORIES = [
   {
     id: "story-1",
+    slug: "the-royal-palace-symphony",
     title: "The Royal Palace Symphony",
     couple: "Ranveer & Deepika",
     location: "Umaid Bhawan Palace, Jodhpur",
@@ -22,6 +23,7 @@ export const INITIAL_STORIES = [
   },
   {
     id: "story-2",
+    slug: "sunset-serenade-by-the-ocean",
     title: "Sunset Serenade by the Ocean",
     couple: "Aria & Julian",
     location: "Amalfi Coast, Italy",
@@ -38,6 +40,7 @@ export const INITIAL_STORIES = [
   },
   {
     id: "story-3",
+    slug: "the-regal-heritage-saga",
     title: "The Regal Heritage Saga",
     couple: "Siddharth & Ananya",
     location: "City Palace, Udaipur",

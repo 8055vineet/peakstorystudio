@@ -55,6 +55,11 @@ function PublishingCard({ publish, now }) {
           {`Changes waiting since ${clockTime(publish.changesWaitingSince)} — publishing automatically…`}
         </p>
       )}
+      {status === 'waiting' && publish?.lastDispatchStatus && publish.lastDispatchStatus !== 'ok' && (
+        <p className="text-xs text-charcoal-700 mt-1">
+          {`Last attempt failed (${publish.lastDispatchStatus}) — retrying automatically.`}
+        </p>
+      )}
       {status === 'dispatched' && (
         <p className="text-xs font-semibold text-charcoal-700 mt-1">
           {`Rebuild requested ${relativeTime(publish.lastDispatchAt, now) ?? 'just now'} — the site updates in a few minutes`}

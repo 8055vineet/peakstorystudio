@@ -53,3 +53,12 @@ describe('FeaturedStories cards are links', () => {
     expect(screen.queryByText(/Full Album Gallery/)).toBeNull();
   });
 });
+
+describe('FeaturedStories with the outage fallback', () => {
+  it('never renders a link to /stories/undefined — a story without a slug is a plain card', () => {
+    render(<MemoryRouter><FeaturedStories stories={[{ ...SAMPLE[0], slug: undefined }]} /></MemoryRouter>);
+    expect(screen.queryByRole('link', { name: /A Royal Affair/ })).toBeNull();
+    expect(screen.getByText('A Royal Affair')).toBeInTheDocument();
+    expect(document.querySelector('a[href*="undefined"]')).toBeNull();
+  });
+});

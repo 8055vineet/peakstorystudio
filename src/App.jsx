@@ -64,6 +64,11 @@ export default function App() {
   // as the choice changes.
   const { heading: headingFont, body: bodyFont, quote: quoteFont } = settings.fonts ?? {};
   useEffect(() => {
+    // Until the settings query resolves the fonts are the shipped defaults, and
+    // acting on them would strip the <link id="site-fonts"> the prerendered
+    // head already carries for the owner's real choice — a flash of the wrong
+    // fonts on every first paint. Wait for the real answer.
+    if (settingsLoading) return;
     const root = document.documentElement;
     if (headingFont) root.style.setProperty('--font-heading', `"${headingFont}"`);
     if (bodyFont) root.style.setProperty('--font-body', `"${bodyFont}"`);
@@ -82,7 +87,7 @@ export default function App() {
       document.head.appendChild(link);
     }
     if (link.getAttribute('href') !== href) link.setAttribute('href', href);
-  }, [headingFont, bodyFont, quoteFont]);
+  }, [settingsLoading, headingFont, bodyFont, quoteFont]);
 
   // Apply the admin-chosen surface warmth site-wide (Phase 3i). Tailwind's
   // offwhite-* tokens read these variables; surfaceRamp(0.5) reproduces the

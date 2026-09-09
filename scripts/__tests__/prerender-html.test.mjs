@@ -358,3 +358,12 @@ describe('buildInfo', () => {
     expect(info.fingerprint).toBe(createHash('sha256').update(JSON.stringify(summary)).digest('hex'));
   });
 });
+
+describe('routesFor and the reserved basename', () => {
+  it('skips a slug of "index" — <dir>/index.html would be canonicalised to a trailing slash on Pages', () => {
+    const { routes, skipped } = routesFor({ collections: [{ id: 'c', slug: 'index', title: 'Index' }], stories: [{ id: 's', slug: 'index' }] });
+    expect(routes).not.toContain('/more/index');
+    expect(routes).not.toContain('/stories/index');
+    expect(skipped.map((s) => s.slug)).toEqual(['index', 'index']);
+  });
+});

@@ -24,6 +24,8 @@ import { getPublishStatus, requestRebuild, getBuildInfo } from '../lib/queries/a
 
 const WAITING_TOO_LONG_MS = 20 * 60_000;
 
+const WAITING_POLL_MS = 10_000;
+
 export function usePublishStatus({ pollMs = 30_000, quietMs = 20_000 } = {}) {
   const [publish, setPublish] = useState(null);
   const [buildInfo, setBuildInfo] = useState(null);
@@ -97,11 +99,6 @@ export function usePublishStatus({ pollMs = 30_000, quietMs = 20_000 } = {}) {
   // directly — same shape as useResource's Promise.resolve().then(reload)
   // — so every setState this effect can trigger happens inside a promise
   // callback, never synchronously in the effect body itself.
-  useEffect(() => {
-    Promise.resolve().then(refresh);
-    const interval = setInterval(refresh, pollMs);
-    return () => clearInterval(interval);
-  }, [refresh, pollMs]);
 
   const contentChangedAt = publish?.contentChangedAt ?? null;
   const lastDispatchAt = publish?.lastDispatchAt ?? null;
@@ -111,6 +108,21 @@ export function usePublishStatus({ pollMs = 30_000, quietMs = 20_000 } = {}) {
   const waiting = Boolean(
     contentChangedAt && (!lastDispatchAt || contentChangedAt > lastDispatchAt),
   );
+
+  // Poll. Every pollMs normally; every 10 s while changes are waiting, so
+  // the quiet window below can see a save that lands mid-window and restart
+  // (with a 30 s poll and a 20 s window it never could, and a burst of saves
+  // cost two builds instead of one). The first read is deferred through
+  // .then() rather than invoked directly — same shape as useResource's
+  // Promise.resolve().then(reload) — so every setState this effect can
+  // trigger happens inside a promise callback, never synchronously in the
+  // effect body itself.
+  const pollEvery = waiting ? Math.min(pollMs, WAITING_POLL_MS) : pollMs;
+  useEffect(() => { Promise.resolve().then(refresh); }, [refresh]);
+  useEffect(() => {
+    const interval = setInterval(refresh, pollEvery);
+    return () => clearInterval(interval);
+  }, [refresh, pollEvery]);
 
   // The quiet window. Keyed on contentChangedMs (not the Date object, whose
   // identity changes every poll) so the window restarts exactly when the

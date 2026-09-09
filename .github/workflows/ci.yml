@@ -204,10 +204,12 @@ jobs:
             exit 1
           }
 
-      # The same stack, now with content in it (verify:admin removes its
-      # probe wedding again, so this sees whatever the migrations seed):
-      # build for real, then assert dist/ carries a prerendered head,
-      # sitemap entry and flat file for every published route.
+      # The same stack, with a known published wedding and page seeded
+      # first (the migrations seed no content, and verify:admin removes its
+      # own probe, so without this the per-route checks would have nothing to
+      # check and pass by vacuity): build for real, then assert dist/ carries
+      # a prerendered head, sitemap entry and flat file for every published
+      # route.
       - name: Prerender against the local stack and verify it
         run: |
           set -o pipefail
@@ -215,6 +217,10 @@ jobs:
           export SUPABASE_URL="$API_URL"
           export SUPABASE_ANON_KEY="$ANON_KEY"
           export SUPABASE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          npm run seed:prerender-fixture 2>&1 | tee /tmp/step.log || {
+            echo "::error::seeding the prerender fixture failed :: $(grep -iE "error|failed" /tmp/step.log | head -c 1200 | tr "\n" "⏎")"
+            exit 1
+          }
           export VITE_SUPABASE_URL="$API_URL"
           export VITE_SUPABASE_ANON_KEY="$ANON_KEY"
           export VITE_MEDIA_BASE_URL="$API_URL/storage/v1/object/public/media"

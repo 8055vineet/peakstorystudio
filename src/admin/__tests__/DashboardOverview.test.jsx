@@ -192,4 +192,11 @@ describe('DashboardOverview publishing card', () => {
     await waitFor(() => expect(screen.getByText('Publishing')).toBeInTheDocument());
     expect(screen.getByText(/not published yet/i)).toBeInTheDocument();
   });
+  it('says the last attempt failed and that it will retry, instead of pretending a rebuild is under way', async () => {
+    await renderLoaded(publishState({
+      status: 'waiting', changesWaitingSince: minutesBefore(2), lastDispatchAt: minutesBefore(1), lastDispatchStatus: 'http_500',
+    }));
+    expect(screen.getByText(/Last attempt failed \(http_500\)/)).toBeInTheDocument();
+  });
+
 });

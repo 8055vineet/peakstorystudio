@@ -24,7 +24,10 @@ export function titleFor(pathname, morePages = [], stories = []) {
   const more = path.match(/^\/more\/([^/]+)$/);
   if (more) {
     const page = morePages.find((candidate) => candidate.slug === more[1]);
-    if (page) return `${page.title} | ${STUDIO}`;
+    // The list is empty until the collections query resolves; this pure rule
+    // cannot tell "not loaded" from "no such page", so it never says not found
+    // here (the page itself renders NotFoundPage once loaded).
+    return `${page ? `${page.title} | ` : ''}${STUDIO}`;
   }
   const story = path.match(/^\/stories\/([^/]+)$/);
   if (story) {

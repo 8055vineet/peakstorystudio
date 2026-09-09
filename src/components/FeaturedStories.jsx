@@ -31,10 +31,14 @@ export default function FeaturedStories({ stories }) {
 
         {/* Stories Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {stories.map((story, index) => (
+          {stories.map((story, index) => {
+            // A story without a slug (the outage fallback has none of the
+            // database's URLs) is a plain card, never a link to /stories/undefined.
+            const Card = story.slug ? Link : 'div';
+            return (
             <ScrollReveal key={story.id} delay={index * 150} className="h-full">
-              <Link
-                to={`/stories/${story.slug}`}
+              <Card
+                {...(story.slug ? { to: `/stories/${story.slug}` } : {})}
                 data-cursor="EXPLORE ALBUM"
                 className="group relative bg-offwhite-50 overflow-hidden minimal-card cursor-pointer flex flex-col transition-all duration-500 h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-pitch-900 focus-visible:ring-offset-2"
               >
@@ -82,9 +86,10 @@ export default function FeaturedStories({ stories }) {
                     </div>
                   </div>
                 </div>
-              </Link>
+              </Card>
             </ScrollReveal>
-          ))}
+            );
+          })}
         </div>
 
       </div>

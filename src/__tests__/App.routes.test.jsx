@@ -238,3 +238,15 @@ describe('home while settings load', () => {
     expect(screen.queryByTestId('intro-splash')).toBeNull();
   });
 });
+
+describe('fonts while settings load', () => {
+  it('keeps the prerendered site-fonts link until the settings query resolves', () => {
+    const link = document.createElement('link');
+    link.id = 'site-fonts'; link.rel = 'stylesheet'; link.href = 'https://fonts.googleapis.com/css2?family=Cinzel&display=swap';
+    document.head.appendChild(link);
+    settingsLoading = true;
+    renderAt('/gallery');
+    expect(document.getElementById('site-fonts')?.getAttribute('href')).toContain('Cinzel');
+    link.remove();
+  });
+});

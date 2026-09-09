@@ -39,3 +39,10 @@ describe('DocumentTitle', () => {
     expect(document.title).toBe('Page not found | Peak Story Studio');
   });
 });
+
+describe('DocumentTitle while the More pages are still loading', () => {
+  it('never labels a /more/<slug> page as not found before the collections arrive', () => {
+    renderAt('/more/model-shoot', { morePages: [] });
+    expect(document.title).toBe('Peak Story Studio');
+  });
+});
