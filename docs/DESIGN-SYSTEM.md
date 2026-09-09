@@ -98,7 +98,7 @@ Non-`@keyframes` utility classes in `src/index.css`:
 | `glass-panel-light` | 0 | **unused** |
 | `minimal-card` | 2 | in use — `FeaturedStories.jsx`, `FilmsGallery.jsx` |
 | `img-blur-up` | 0 | **unused** |
-| `img-zoom-container` | 3 | in use — `FeaturedStories.jsx`, `FilmsGallery.jsx`, `StoryDetailModal.jsx` |
+| `img-zoom-container` | 3 | in use — `FeaturedStories.jsx`, `FilmsGallery.jsx`, `StoryAlbum.jsx` |
 
 ## Locally injected styles
 

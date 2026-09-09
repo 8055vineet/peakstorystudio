@@ -68,6 +68,32 @@ vi.mock('../../hooks/useSession', () => ({
   useSession: (...args) => useSession(...args),
 }));
 
+// AdminDashboard's single usePublishStatus instance (Phase 5's freshness
+// loop) polls site_publish and build-info.json; mocked so the shell tests
+// never start that polling and can pin the "what is live" answer the
+// Weddings list's cue and the Overview's Publishing card read from it.
+const usePublishStatus = vi.fn();
+vi.mock('../../hooks/usePublishStatus', () => ({
+  usePublishStatus: (...args) => usePublishStatus(...args),
+}));
+
+function publishState(overrides = {}) {
+  return {
+    status: 'unknown',
+    lastBuiltAt: null,
+    changesWaitingSince: null,
+    lastDispatchAt: null,
+    lastDispatchStatus: null,
+    waitingTooLong: false,
+    busy: false,
+    lastResult: null,
+    error: null,
+    refresh: vi.fn(),
+    rebuild: vi.fn(),
+    ...overrides,
+  };
+}
+
 // The default-mounted dashboard (InquiriesDashboard, defined in App.jsx)
 // calls the real useResource hook, which calls these. Mocked here the same
 // way the query module is mocked in src/lib/queries/__tests__/*.test.js, so
@@ -373,6 +399,8 @@ beforeEach(() => {
   // reset it so no test inherits another test's tab.
   window.history.replaceState(null, '', window.location.pathname);
   useSession.mockReset();
+  usePublishStatus.mockReset();
+  usePublishStatus.mockReturnValue(publishState());
   listInquiries.mockReset();
   updateInquiryStatus.mockReset();
   listMedia.mockReset();
@@ -2081,4 +2109,105 @@ describe('admin App shell', () => {
     });
   });
 
+});
+
+// Phase 5 (SEO): the freshness loop's two admin surfaces are wired from one
+// usePublishStatus instance in AdminDashboard — the Overview's Publishing
+// card reads the whole state, the Weddings list reads lastBuiltAt for its
+// per-row cue. The hook itself is proven in
+// src/hooks/__tests__/usePublishStatus.test.jsx; this is the wiring.
+describe('publish status wiring', () => {
+  function signIn() {
+    useSession.mockReturnValue({
+      ...baseState,
+      status: 'authenticated',
+      session: { user: { id: 'user-2', email: 'admin@example.test' } },
+      profile: { userId: 'user-2', role: 'admin', displayName: 'Studio Director' },
+    });
+  }
+
+  const BUILT_AT = new Date('2026-09-08T12:00:00Z');
+  const LIVE_WEDDING = {
+    id: 'wedding-2', slug: 'a-garden-wedding-1a2b', title: 'A Garden Wedding', couple: 'Priya & Arjun', location: 'Jaipur', sortOrder: 1, status: 'published', updatedAt: '2026-09-08T11:00:00Z',
+  };
+  const FRESH_WEDDING = {
+    id: 'wedding-3', slug: 'a-beach-wedding-3c4d', title: 'A Beach Wedding', couple: 'Meera & Kabir', location: 'Goa', sortOrder: 2, status: 'published', updatedAt: '2026-09-08T12:30:00Z',
+  };
+  const DRAFT_WEDDING = {
+    id: 'wedding-1', slug: 'a-palace-wedding-5e6f', title: 'A Palace Wedding', couple: 'Aisha & Dev', location: 'Udaipur', sortOrder: 0, status: 'draft', updatedAt: '2026-09-08T11:00:00Z',
+  };
+
+  async function openWeddings(weddings) {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    weddingsList.mockResolvedValue(weddings);
+    signIn();
+    render(<App />);
+    const user = userEvent.setup();
+    const nav = screen.getByRole('navigation', { name: /admin sections/i });
+    await user.click(within(nav).getByRole('button', { name: /weddings/i }));
+    await waitFor(() => expect(screen.getByText(weddings[0].title)).toBeInTheDocument());
+    return user;
+  }
+
+  function rowOf(title) {
+    return screen.getByText(title).closest('tr');
+  }
+
+  it('hands the hook state to the Overview’s Publishing card', async () => {
+    usePublishStatus.mockReturnValue(publishState({ status: 'configured-missing' }));
+    signIn();
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByText('Publishing')).toBeInTheDocument());
+    expect(screen.getByText(/automatic rebuilds are not configured on this environment/i)).toBeInTheDocument();
+    expect(usePublishStatus).toHaveBeenCalled();
+  });
+
+  it('marks a published wedding older than the live build as Live, linking to its page in a new tab', async () => {
+    usePublishStatus.mockReturnValue(publishState({ status: 'idle', lastBuiltAt: BUILT_AT }));
+    await openWeddings([LIVE_WEDDING]);
+
+    const link = within(rowOf('A Garden Wedding')).getByRole('link', { name: /live · view page/i });
+    expect(link).toHaveAttribute('href', '/stories/a-garden-wedding-1a2b');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noreferrer');
+  });
+
+  it('says Publishing… for a published wedding changed after the live build', async () => {
+    usePublishStatus.mockReturnValue(publishState({ status: 'waiting', lastBuiltAt: BUILT_AT }));
+    await openWeddings([FRESH_WEDDING]);
+
+    const row = rowOf('A Beach Wedding');
+    expect(within(row).getByText('Publishing…')).toBeInTheDocument();
+    expect(within(row).queryByRole('link')).toBeNull();
+  });
+
+  it('offers only a View page link when the live build is unknown', async () => {
+    usePublishStatus.mockReturnValue(publishState({ status: 'unknown', lastBuiltAt: null }));
+    await openWeddings([LIVE_WEDDING]);
+
+    const row = rowOf('A Garden Wedding');
+    const link = within(row).getByRole('link', { name: /^view page$/i });
+    expect(link).toHaveAttribute('href', '/stories/a-garden-wedding-1a2b');
+    expect(within(row).queryByText(/live/i)).toBeNull();
+    expect(within(row).queryByText('Publishing…')).toBeNull();
+  });
+
+  it('shows nothing for a draft', async () => {
+    usePublishStatus.mockReturnValue(publishState({ status: 'idle', lastBuiltAt: BUILT_AT }));
+    await openWeddings([DRAFT_WEDDING, LIVE_WEDDING]);
+
+    const row = rowOf('A Palace Wedding');
+    expect(within(row).queryByRole('link')).toBeNull();
+    expect(within(row).queryByText(/publishing|live|view page/i)).toBeNull();
+  });
+
+  it('uses one hook instance for the whole dashboard, not one per wedding row', async () => {
+    usePublishStatus.mockReturnValue(publishState({ status: 'idle', lastBuiltAt: BUILT_AT }));
+    await openWeddings([LIVE_WEDDING, FRESH_WEDDING, DRAFT_WEDDING]);
+
+    // Every call comes from AdminDashboard's own renders and is made with
+    // no per-row argument; a per-row instance would be keyed by wedding.
+    expect(usePublishStatus.mock.calls.every((args) => args.length === 0)).toBe(true);
+  });
 });

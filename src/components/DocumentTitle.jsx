@@ -4,11 +4,12 @@ import { titleFor } from '../lib/documentTitle';
 
 // Names the browser tab (and the search-result title) per route — see
 // titleFor in src/lib/documentTitle.js for the rules. Renders nothing. The
-// sitemap, OG tags, and per-wedding URLs remain PS-008's work.
-export default function DocumentTitle({ morePages = [] }) {
+// build (scripts/prerender.mjs) stamps the same rule's result into each
+// route's HTML, so the tab and the crawler-visible <title> cannot drift.
+export default function DocumentTitle({ morePages = [], stories = [] }) {
   const { pathname } = useLocation();
   useEffect(() => {
-    document.title = titleFor(pathname, morePages);
-  }, [pathname, morePages]);
+    document.title = titleFor(pathname, morePages, stories);
+  }, [pathname, morePages, stories]);
   return null;
 }

@@ -68,9 +68,14 @@ function renderCell(item, column, config) {
 // the move/publish/delete controls are disabled so a second arrow click
 // cannot race two reorders against the same rows — the guard
 // WeddingPhotos already applies from its own actionPending.
+//
+// `rowMeta(item)`, when given, returns a small muted node rendered under
+// the row's primary cell — the Weddings dashboard's "Live · View page /
+// Publishing…" cue (Phase 5). The list only offers the slot; what goes in
+// it, and whether anything does, is the caller's decision per item.
 export default function ResourceList({
   config, items, status, error, onEdit, onCreate, onDelete, onToggleStatus, onReorder, onRetry,
-  pending = false,
+  pending = false, rowMeta = null,
 }) {
   const label = config.label ?? 'Items';
   const singularLabel = label.toLowerCase();
@@ -185,13 +190,21 @@ export default function ResourceList({
                       </div>
                     </td>
                   )}
-                  {config.listColumns.map((column) => (
-                    <td key={column.name} className="py-3 pr-4 text-charcoal-700">
-                      {column.name === 'status'
-                        ? <StatusToggle item={item} onToggleStatus={onToggleStatus} disabled={pending} />
-                        : renderCell(item, column, config)}
-                    </td>
-                  ))}
+                  {config.listColumns.map((column, columnIndex) => {
+                    const meta = columnIndex === 0 && rowMeta ? rowMeta(item) : null;
+                    return (
+                      <td key={column.name} className="py-3 pr-4 text-charcoal-700">
+                        {column.name === 'status'
+                          ? <StatusToggle item={item} onToggleStatus={onToggleStatus} disabled={pending} />
+                          : renderCell(item, column, config)}
+                        {meta != null && meta !== false && (
+                          <span className="block text-[10px] uppercase tracking-widest text-charcoal-500 font-semibold mt-1">
+                            {meta}
+                          </span>
+                        )}
+                      </td>
+                    );
+                  })}
                   <td className="py-3 pr-4">
                     <div className="flex items-center gap-1.5">
                       <button

@@ -34,9 +34,8 @@ and accessibility pass. Two of the eight have since been closed outright by Phas
 | PS-001 | Any client PIN unlocks every client's photos; no per-client scoping | Critical | `src/components/AuthModal.jsx`, `src/components/ClientGalleryModal.jsx` | 6 |
 | PS-002 | **Narrowed by Phase 3b.** The rendered fabrications are gone: the multi-page redesign deleted the component that carried the "AS FEATURED IN" press bar, the "Vogue Fine Art Choice" badge, and the invented "1,000+ weddings / 40+ destinations" statistics, at the owner's direction (recorded in the Phase 3b spec). What remains is the testimonial attributed to "Deepika & Ranveer" — the real names of a real married Bollywood couple — in two places: `src/data/weddingData.js`'s `TESTIMONIALS` (the outage fallback a visitor sees when the database is unreachable) and the seeded row in the `testimonials` table, which the About page renders until the owner replaces it through the admin | Critical (legal) | `src/data/weddingData.js`, `scripts/seed-db.mjs` | 7 |
 | PS-007 | "Download ZIP" button is a non-functional stub that fires a browser `alert()` | Medium | `src/components/ClientGalleryModal.jsx:59` | 6 |
-| PS-008 | **Narrowed by Phase 3b**, which brought React Router and a real URL per page (`/gallery`, `/films`, `/stories`, `/about`, `/contact`). What remains is the original core: no shareable or indexable per-**wedding** URL — a couple's story still opens in a modal, not at its own address — plus prerendering, sitemap, OG images, and structured data | High | `src/components/FeaturedStories.jsx`, `src/components/StoryDetailModal.jsx` | 5 |
 | PS-009 | Modals do not trap focus, lock body scroll, or close on Escape | Medium | all modals except `src/components/LightboxModal.jsx` | 7 |
-| PS-012 | No `prefers-reduced-motion` handling | Medium | `src/index.css`, app-wide | 5 |
+| PS-012 | No `prefers-reduced-motion` handling (Phase 5 scoped it out; belongs to the accessibility pass) | Medium | `src/index.css`, app-wide | 7 |
 | PS-014 | Duplicated pill-button and badge markup across many components | Low | app-wide | 7 |
 | PS-016 | Unused CSS rules and palette tokens (the audit counted 10 rules and 7 tokens; the counts are stale after Phase 3b deleted ten components and their styles — recount before acting). Phase 3b also left inert `data-cursor` attributes in `FeaturedStories`, `FilmsGallery`, and `PhotoGallery` after deleting the `CustomCursor` that read them; they belong to this cleanup | Low | `src/index.css`, `tailwind.config.js` | 7 |
 | PS-017 | Icon-only buttons use `title` instead of `aria-label` | Low | `src/components/PhotoGallery.jsx` and others | 7 |
@@ -57,14 +56,13 @@ and accessibility pass. Two of the eight have since been closed outright by Phas
 | PS-042 | **A non-YouTube video URL goes straight into the iframe.** `youtubeEmbedUrl()` returns the raw value when it cannot parse an id, so a Vimeo link or a malformed YouTube URL renders a "refused to connect" frame — on Home, as the full-width autoplaying hero. The admin film form and the collection video field validate only `https://`. Fix: parse Vimeo (`player.vimeo.com/video/<id>`) and reject anything else in the admin | Medium | `src/lib/youtube.js`, `src/admin/resources/films.js`, `src/admin/CollectionItems.jsx` | 7 |
 | PS-043 | **Two different response promises.** The booking form's success panel says the studio will "reach out within 24 hours"; the confirmation email says "personally within two working days". Same couple, two answers. Owner's call which is true | Low | `src/components/BookingForm.jsx`, `supabase/functions/_shared/email.js` | 7 |
 | PS-044 | Raw hex in a public component: the confetti burst hardcodes `#0a0a0a`, `#262626`, `#d5cfc2`, `#ffffff` (`#0a0a0a` is not even a palette token). The no-raw-hex rule was recorded as having no standing violation when `PS-020` closed | Low | `src/components/BookingForm.jsx` | 7 |
-| PS-045 | SEO basics beyond the per-route titles now set by `DocumentTitle`: Home has no `<h1>`, the favicon is an emoji data URI although `public/images/home/logo.webp` exists, there is no canonical link, and `public/_headers` carries `X-Robots-Tag: noindex` (deliberate for the `pages.dev` host — must be removed at domain cutover). Sitemap, OG tags, and per-wedding URLs remain `PS-008` | Low | `index.html`, `src/pages/HomePage.jsx`, `public/_headers` | 5 |
 | PS-046 | **The example function config is an always-pass config.** `supabase/functions/.env.example` ships Cloudflare's published test Turnstile secret (accepts any token), a placeholder `RATE_LIMIT_SALT`, and blank `ALLOWED_ORIGINS` (→ `*`). `supabase secrets set --env-file` of that file would silently disable the only real spam control on the live form, and nothing at runtime detects it. Fix: treat Cloudflare's test secrets as `NOT_CONFIGURED` unless `ALLOW_TURNSTILE_TEST_KEYS=true` (CI sets it); refuse the placeholder salt outside local | Medium | `supabase/functions/_shared/turnstile.js`, `supabase/functions/.env.example` | 4 |
-| PS-047 | `weddings.updated_at` and `site_settings.updated_at` exist but nothing maintains them — no trigger, and the admin writes only declared columns — so they always equal `created_at`. Add a `moddatetime` trigger or drop them | Low | `supabase/migrations/20260730203451_initial_schema.sql`, `supabase/migrations/20260804100000_site_settings.sql` | 7 |
 | PS-048 | No index on the media foreign keys (`weddings.cover_media_id`, `gallery_photos.media_id`, `films.thumbnail_media_id`, `collection_items.media_id`, the four `site_settings.*_media_id`), nor on `inquiries (status, created_at)`, `media (created_at)`, `collections (status, sort_order)`, `client_galleries (status)`. Every `delete-media` runs eight sequential-scan FK checks. Harmless at hundreds of rows | Low | `supabase/migrations/` | 7 |
 | PS-049 | **The attach dialogs allow a double insert**: `WeddingPhotos` and `CollectionItems` keep the picker open and never disable Select while an add is in flight, so a second click before the reload inserts again — a raw `duplicate key` message for weddings, a silent duplicate row for pages (no unique constraint on `(collection_id, media_id)`). Their bulk uploader also fires one add per file without awaiting, which is the concurrent read-max-then-insert `PS-032` says the shipped UI cannot reach — that sentence is now stale | Low | `src/admin/WeddingPhotos.jsx`, `src/admin/CollectionItems.jsx`, `src/admin/UploadField.jsx` | 7 |
 | PS-050 | `sign-upload`'s size ceiling checks only the client-declared `byteSize`; the presigned PUT signs the host alone, so the browser can PUT any size. Same shape as `PS-031` (content type), admin-only | Low | `supabase/functions/sign-upload/index.js`, `supabase/functions/_shared/s3-presign.js` | 4 |
 | PS-051 | `manage-team` maps every GoTrue 422 to `EMAIL_EXISTS`, so a hosted password-policy rejection reads "That email already has an account"; `listMembers` is an N+1 of `getUserById` | Low | `supabase/functions/manage-team/index.js` | 7 |
 | PS-052 | Bulk gallery rows take the camera file name as their title, and "Publish all" pushes it live as the public `alt`/`aria-label` ("IMG_4532") with an empty `alt_text` | Low | `src/admin/App.jsx`, `src/components/PhotoGallery.jsx` | 7 |
+| PS-053 | **The rebuild floor is read-then-write.** `request-rebuild` reads `site_publish`, decides, then writes; two admins (or two tabs) calling within the same few hundred milliseconds can both pass the 90-second window and one `dispatch_count` increment is lost — at worst one extra queued build. A single-owner studio with the admin's 20-second quiet window makes this rare. Fix: an atomic `claim_rebuild_dispatch(force, window_ms)` SQL function doing `select … for update` on the singleton and applying the floor in one statement | Low | `supabase/functions/request-rebuild/index.js`, `supabase/functions/_shared/rebuild-floor.js` | 7 |
 
 ### Notes on selected rows
 
@@ -325,3 +323,60 @@ failing test first:
 - **Inputs were cleared before the write was confirmed** in the collection video form and the
   category/service managers, losing what the admin typed when the add failed. They now clear only on
   success.
+
+### Phase 5 (SEO) — resolved on `phase-5/seo`
+
+- **`public/_redirects` carried a `/* /index.html 200` catch-all that would have broken the
+  first Cloudflare Pages deploy.** The line was written on the belief that static assets take
+  precedence over `_redirects` on Pages; Cloudflare's rule is the reverse
+  ([developers.cloudflare.com/pages/configuration/redirects](https://developers.cloudflare.com/pages/configuration/redirects/)):
+  a matching rule is applied *before* the asset lookup, so every hashed JS/CSS chunk, every
+  image, and `robots.txt` itself would have been answered with `index.html`'s bytes — a blank
+  page with console errors. The catch-all was never needed: with no `404.html` in the build,
+  Pages already serves `index.html` for any unknown path, which is the SPA fallback the
+  react-router deep links rely on. The file now holds the two `/admin` rewrites plus two 301
+  trailing-slash rules for the prerendered dynamic routes (`/stories/:slug/`, `/more/:slug/`), and
+  `src/test/hostingFiles.test.js` fails if a `/*` rule ever returns. Latent until the first
+  deploy, so no visitor was affected.
+- **PS-008 — no shareable, indexable per-wedding URL; no prerendering, sitemap, OG images, or
+  structured data.** Closed. Every published wedding renders at `/stories/<slug>`
+  (`src/pages/StoryPage.jsx` over `src/components/StoryAlbum.jsx`; the cards in
+  `FeaturedStories` are real links; `StoryDetailModal` is gone). `npm run build` now runs
+  `scripts/prerender.mjs` after `vite build`, which writes a flat `dist/<route>.html` per public
+  route — including one per wedding and per More page — carrying its own title, description,
+  canonical, Open Graph/Twitter card with the real cover photograph, and JSON-LD
+  (`LocalBusiness` + `WebSite` on Home, `ImageGallery` + `BreadcrumbList` on a wedding), a
+  visible shell React replaces on mount, plus `sitemap.xml` and `build-info.json`. Design and
+  rationale: [the Phase 5 spec](superpowers/specs/2026-09-08-seo-design.md) and
+  [ADR 0006](adr/0006-build-time-prerender.md). Proven by `npm run verify:prerender` in CI and
+  a browser run against `vite preview`.
+- **PS-045 — SEO basics.** Closed: Home has a visible `<h1>` naming the studio and Lucknow, the
+  favicon is the studio logo (`public/favicon-32.png`, `favicon-192.png`,
+  `apple-touch-icon.png`), every prerendered page carries a canonical link, and
+  `index.html`'s meta description is the Lucknow copy in `src/data/seo.js` (a test fails if
+  they drift). The `X-Robots-Tag: noindex` header in `public/_headers` is not an issue but the
+  deliberate Phase 7 cutover step, and stays.
+- **PS-047 — `updated_at` never maintained.** Closed ahead of its planned Phase 7, because the
+  sitemap's `lastmod` and the admin's "is this wedding live yet" cue both depend on it:
+  `supabase/migrations/20260908130000_site_publish.sql` installs `moddatetime` triggers on
+  `weddings`, `site_settings`, and the new `site_publish` table (the only tables that carry
+  the column).
+- **Content published in the admin could never reach crawlers without a manual deploy.** The
+  same migration adds a `site_publish` dirty flag set by triggers on every public content
+  table (published rows only), the `request-rebuild` Edge Function fires the Cloudflare Deploy
+  Hook it holds as a secret under a 90-second floor with one follow-up build, and the admin's
+  Overview shows publish status, dispatches automatically after a 20-second quiet window, and
+  offers Rebuild now. Verified end to end against a fake hook.
+- **Branch review (2026-09-09), seventeen findings fixed before merge.** The outage fallback
+  stories gained slugs and a slug-less story renders a plain card, never a link to
+  `/stories/undefined`; a wedding with a cover but no album photographs shows the cover; a
+  `/more/<slug>` page is never titled "not found" while its data loads; the reserved slug
+  `index` is skipped by the prerender; the prerendered fonts link is kept until the settings
+  query resolves; album changes now touch the parent wedding's `updated_at`
+  (`20260909100000_wedding_photos_touch_parent.sql`) so sitemap `lastmod` moves; a failed hook
+  POST records its status without counting as a dispatch, so the admin keeps waiting, shows the
+  failure, and retries; the admin polls every 10 seconds while changes are waiting so the
+  20-second quiet window can actually restart; CI seeds a fixture wedding and page before
+  `verify:prerender`, which now fails on an empty database instead of passing vacuously;
+  `public/404.html` is asserted absent; and the runbook, architecture notes, component table,
+  and ADR were corrected where they lagged the code. The one finding deferred is `PS-053`.

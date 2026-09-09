@@ -4,6 +4,10 @@
 
 Accepted
 
+**Reassessed in Phase 5 (2026-09-08):** the SPA stays. Search visibility was addressed with
+build-time prerendered per-route heads and per-wedding pages rather than a Next.js migration —
+see [ADR 0006](0006-build-time-prerender.md).
+
 ## Context
 
 The stated priority is a working, live site that can take real inquiries — not a rebuild. The

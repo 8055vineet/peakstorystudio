@@ -45,6 +45,15 @@ describe('weddingsResource config', () => {
     expect(weddingsResource.columns).toEqual(expect.arrayContaining(['id', 'slug']));
   });
 
+  // Phase 5 (SEO): the Weddings list compares each wedding's updated_at
+  // against the live build's timestamp for its "Live / Publishing…" cue.
+  // Read-only here — moddatetime maintains it (see supabase/migrations/
+  // 20260908130000_site_publish.sql) and no form field ever writes it.
+  it('reads updated_at for the publish cue but never offers it as a field', () => {
+    expect(weddingsResource.columns).toContain('updated_at');
+    expect(weddingsResource.fields.some((f) => f.name === 'updatedAt')).toBe(false);
+  });
+
   it('uses the date field type for the wedding date, writing straight to event_date', () => {
     const dateField = weddingsResource.fields.find((f) => f.name === 'eventDate');
     expect(dateField).toBeDefined();

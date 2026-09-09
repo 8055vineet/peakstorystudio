@@ -1,3 +1,18 @@
+# Cloudflare Pages redirects — https://developers.cloudflare.com/pages/configuration/redirects/
+#
+# Only the admin entry needs a rule: the URL the studio types (/admin, /admin/)
+# is rewritten to the second Vite entry, admin.html. Pages applies these rules
+# BEFORE it looks for a static asset, so a "/* /index.html 200" catch-all
+# would have proxied every request — hashed JS/CSS chunks, images,
+# robots.txt — to index.html and broken the site on first deploy. It is not
+# needed: with no 404.html in the build, Pages already serves index.html for
+# any path that matches no asset, which is exactly the SPA fallback the
+# react-router routes need.
 /admin    /admin.html   200
 /admin/    /admin.html   200
-/*    /index.html   200
+
+# Prerendered per-route files are flat (stories/<slug>.html served at
+# /stories/<slug>); send the trailing-slash form to the canonical URL rather
+# than relying on undocumented normalisation.
+/stories/:slug/    /stories/:slug    301
+/more/:slug/       /more/:slug       301

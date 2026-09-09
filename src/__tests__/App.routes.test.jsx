@@ -18,6 +18,8 @@ const MOCK_COLLECTIONS = [{
 let weddingsData = [];
 let photosData = [];
 let settingsLoading = false;
+const NON_DEFAULT_FONTS = { heading: 'Playfair Display', body: 'Inter', quote: 'Marcellus' };
+let fontsData = NON_DEFAULT_FONTS;
 
 // Pages fetch through these hooks; route tests need no network and no Supabase.
 vi.mock('../hooks/useContent', () => ({
@@ -41,7 +43,7 @@ vi.mock('../hooks/useContent', () => ({
         address: 'Settings Street 1', email: 'settings@example.test', phone: '+91 11111 11111',
         whatsappNumber: '911111111111', instagramUrl: '', youtubeUrl: '',
       },
-      fonts: { heading: 'Playfair Display', body: 'Inter', quote: 'Marcellus' },
+      fonts: fontsData,
       appearance: { warmth: 1 },
       logo: '/images/home/logo.jpg',
     },
@@ -53,7 +55,16 @@ vi.mock('../hooks/useContent', () => ({
 const renderAt = (path) =>
   render(<MemoryRouter initialEntries={[path]}><App /></MemoryRouter>);
 
-beforeEach(() => { window.sessionStorage.clear(); weddingsData = []; photosData = []; settingsLoading = false; });
+beforeEach(() => {
+  window.sessionStorage.clear();
+  weddingsData = [];
+  photosData = [];
+  settingsLoading = false;
+  fontsData = NON_DEFAULT_FONTS;
+  // The document persists across tests in this file; the fonts effect
+  // leaves its <link> in document.head, so each test starts without one.
+  document.getElementById('site-fonts')?.remove();
+});
 
 describe('routing', () => {
   it.each([
@@ -73,6 +84,31 @@ describe('routing', () => {
     expect(document.documentElement.style.getPropertyValue('--font-heading')).toContain('Playfair Display');
     expect(document.documentElement.style.getPropertyValue('--font-body')).toContain('Inter');
     expect(document.documentElement.style.getPropertyValue('--font-quote')).toContain('Marcellus');
+  });
+
+  // index.html loads only the three default families; anything else the
+  // admin chose is fetched by exactly one <link id="site-fonts">.
+  it('adds one site-fonts stylesheet link for the non-default families the settings chose', () => {
+    renderAt('/');
+    const links = document.querySelectorAll('link#site-fonts');
+    expect(links).toHaveLength(1);
+    const href = links[0].getAttribute('href');
+    expect(links[0].getAttribute('rel')).toBe('stylesheet');
+    expect(href).toMatch(/^https:\/\/fonts\.googleapis\.com\/css2\?/);
+    expect(href).toContain('family=Playfair+Display');
+    expect(href).toContain('family=Inter');
+    expect(href).toContain('family=Marcellus');
+  });
+
+  it('adds no site-fonts link when the settings resolve to the three defaults, and removes a stale one', () => {
+    fontsData = { heading: 'Cormorant Garamond', body: 'Plus Jakarta Sans', quote: 'Quicksand' };
+    const stale = document.createElement('link');
+    stale.id = 'site-fonts';
+    stale.rel = 'stylesheet';
+    stale.href = 'https://fonts.googleapis.com/css2?family=Inter&display=swap';
+    document.head.appendChild(stale);
+    renderAt('/');
+    expect(document.querySelector('link#site-fonts')).toBeNull();
   });
 
   it('applies the admin-chosen surface warmth as CSS variables on the document', () => {
@@ -148,16 +184,48 @@ describe('/more/:slug', () => {
   });
 });
 
-describe('stories lightbox', () => {
-  it('/stories opens the lightbox on the clicked album photograph, not on the first gallery photo', () => {
-    weddingsData = [{
-      id: 'w-1', title: 'A Royal Affair', couple: 'Sam & Alex', location: 'Jaipur', date: 'November 2024',
-      coverImage: '/images/w/cover.jpg', fullGallery: ['/images/w/one.jpg', '/images/w/two.jpg'], tags: [],
-    }];
-    photosData = [{ id: 'g-1', title: 'Unrelated gallery photo', url: '/images/g/first.jpg', category: 'Wedding', couple: '', location: '' }];
+const ROYAL_AFFAIR = {
+  id: 'w-1', slug: 'a-royal-affair', title: 'A Royal Affair', couple: 'Sam & Alex', location: 'Jaipur',
+  date: 'November 2024', summary: 'Three days under the desert sky.', coverImage: '/images/w/cover.jpg',
+  fullGallery: ['/images/w/one.jpg', '/images/w/two.jpg'], videoUrl: null, tags: [],
+};
+
+describe('/stories/:slug', () => {
+  it('renders the wedding at its own URL, under the shared frame', () => {
+    weddingsData = [ROYAL_AFFAIR];
+    renderAt('/stories/a-royal-affair');
+    expect(screen.getByTestId('story-page')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'A Royal Affair' })).toBeInTheDocument();
+    expect(screen.getByText(/Three days under the desert sky\./)).toBeInTheDocument();
+    expect(screen.getByRole('navigation')).toBeInTheDocument();
+    expect(screen.getByRole('contentinfo')).toBeInTheDocument();
+  });
+
+  it('names the tab after the wedding', () => {
+    weddingsData = [ROYAL_AFFAIR];
+    renderAt('/stories/a-royal-affair');
+    expect(document.title).toBe('A Royal Affair | Peak Story Studio');
+  });
+
+  it('the card on /stories links to that page', () => {
+    weddingsData = [ROYAL_AFFAIR];
     renderAt('/stories');
-    fireEvent.click(screen.getByText('A Royal Affair'));
-    fireEvent.click(screen.getAllByAltText('Thumbnail')[1]);
+    expect(screen.getByRole('link', { name: /A Royal Affair/ })).toHaveAttribute('href', '/stories/a-royal-affair');
+  });
+
+  it('shows the not-found content for an unknown slug once loaded', () => {
+    weddingsData = [ROYAL_AFFAIR];
+    renderAt('/stories/no-such-wedding');
+    expect(screen.getByTestId('not-found-page')).toBeInTheDocument();
+  });
+});
+
+describe('stories lightbox', () => {
+  it('a story page opens the lightbox on the clicked album photograph, not on the first gallery photo', () => {
+    weddingsData = [ROYAL_AFFAIR];
+    photosData = [{ id: 'g-1', title: 'Unrelated gallery photo', url: '/images/g/first.jpg', category: 'Wedding', couple: '', location: '' }];
+    renderAt('/stories/a-royal-affair');
+    fireEvent.click(screen.getByRole('button', { name: 'Photograph 2 of 2' }));
     expect(screen.getByRole('img', { name: 'Wedding Photograph' })).toHaveAttribute('src', '/images/w/two.jpg');
   });
 });
@@ -168,5 +236,17 @@ describe('home while settings load', () => {
     renderAt('/');
     expect(screen.queryByTestId('home-page')).toBeNull();
     expect(screen.queryByTestId('intro-splash')).toBeNull();
+  });
+});
+
+describe('fonts while settings load', () => {
+  it('keeps the prerendered site-fonts link until the settings query resolves', () => {
+    const link = document.createElement('link');
+    link.id = 'site-fonts'; link.rel = 'stylesheet'; link.href = 'https://fonts.googleapis.com/css2?family=Cinzel&display=swap';
+    document.head.appendChild(link);
+    settingsLoading = true;
+    renderAt('/gallery');
+    expect(document.getElementById('site-fonts')?.getAttribute('href')).toContain('Cinzel');
+    link.remove();
   });
 });

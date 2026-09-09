@@ -96,7 +96,7 @@ Phase 4 owns, all small:
    `X-Robots-Tag: noindex` (Phase 7 removes it at domain cutover; `admin.html` keeps its
    own permanent `noindex` meta regardless).
 3. **Empty-image guards** (`PS-036`) — `FeaturedStories`, `PhotoGallery`,
-   `StoryDetailModal`, `FilmsGallery` get a guard so an unresolvable photograph renders
+   `StoryDetailModal` (since Phase 5, `StoryAlbum`), `FilmsGallery` get a guard so an unresolvable photograph renders
    nothing instead of a broken-image box.
 4. **`/admin` redirect + navbar admin link** (`PS-030`) — a hosting-layer redirect from
    `/admin` to `/admin.html`, and the admin badge in `src/components/Navbar.jsx` finally
@@ -131,8 +131,8 @@ Phase 4 owns, all small:
    refuses to create a *second* admin by typo, and marks the account it seeds as the
    **owner** (`profiles.is_owner`) — the only account that can create or remove other
    admins, from Settings → Team.
-6. Deploy the four Edge Functions
-   (`supabase functions deploy submit-inquiry sign-upload delete-media manage-team`)
+6. Deploy the five Edge Functions
+   (`supabase functions deploy submit-inquiry sign-upload delete-media manage-team request-rebuild`)
    and set their secrets (reference table below). Two need generating fresh:
    `RATE_LIMIT_SALT` (a long random string — unset would make the rate-limiter's IP
    hashes trivially reversible) and the real Turnstile secret from Stage 4.
@@ -189,13 +189,81 @@ described above — a deliberate, recorded trade, not an oversight.
 ## Stage 6 — Cloudflare Pages (engineering)
 
 Connect the GitHub repo to a new Pages project: production branch `main`, build command
-`npm run build`, output directory `dist`, Node 22. Set the five build-time variables
+`npm run build`, output directory `dist`, Node 22. Set the build-time variables
 (reference table below). From then on: **every merge to `main` deploys automatically**,
-and every PR gets its own preview URL. One known nuance: the Edge Functions' CORS
+and every PR gets its own preview URL. Nothing else is needed for the react-router deep
+links: with no `404.html` in `dist/`, Pages serves `index.html` for any path that matches no
+asset. Do **not** add a `/* /index.html 200` catch-all to `public/_redirects` — Pages applies
+`_redirects` rules *before* the static-asset lookup
+([developers.cloudflare.com/pages/configuration/redirects](https://developers.cloudflare.com/pages/configuration/redirects/)),
+so that rule would proxy every JS/CSS chunk and image to `index.html`; the file holds the two
+`/admin` rewrites plus the two 301 trailing-slash rules for the prerendered dynamic routes
+(`/stories/:slug/`, `/more/:slug/`), nothing else. One known nuance: the Edge Functions' CORS
 allowlist (`ALLOWED_ORIGINS`) matches origins exactly, so the booking form is pinned to
 the production URL — on per-PR preview URLs it will be browser-blocked, which is
 acceptable (previews are for reviewing pages, not taking bookings; CORS is a courtesy
 here, not the security control — Turnstile and auth are).
+
+### Create the Deploy Hook (so a publish in the admin rebuilds the site)
+
+1. Cloudflare dashboard → Workers & Pages → the Pages project → **Settings** → **Builds** →
+   **Deploy hooks** → *Add deploy hook*. Name it `admin-publish`, branch `main`. Copy the URL.
+2. Make sure the function is deployed (`supabase functions deploy request-rebuild` — it is one
+   of the five in Stage 2; redeploy after any change to it). Treat the URL as a secret — anyone
+   who has it can trigger builds (500 a month on the free plan). Store it only in the password
+   manager and as an Edge Function secret:
+   `supabase secrets set CF_DEPLOY_HOOK_URL=<the url>` (project linked). Never in git, never in
+   a `VITE_*` variable.
+3. Prove it from the live admin: Overview → **Rebuild now** should show "Rebuild requested" and a
+   new deployment should appear in Cloudflare within a minute. Until the secret is set the admin
+   says "Automatic rebuilds are not configured on this environment", which is also what every
+   local environment shows.
+4. After `scripts/load-real-content.mjs` (Stage 7) or any script that writes content, press
+   Rebuild now — scripts do not dispatch.
+
+### Preview-deploy checklist
+
+Run these against the first preview URL (and again after any change to `public/_headers`,
+`public/_redirects`, or `scripts/prerender.mjs`). Each line is one hosting fact the build
+relies on; a surprise here is a hosting problem, not a code one. `<preview>` is the
+`https://<hash>.<project>.pages.dev` origin and `<slug>` any published wedding's slug from
+`<preview>/build-info.json`.
+
+```bash
+P=https://<preview>   # no trailing slash
+
+# Extension-less serving: /gallery is dist/gallery.html, with its own prerendered title.
+curl -s --max-time 15 "$P/gallery" | grep -o '<title>[^<]*</title>'        # <title>Gallery | Peak Story Studio</title>
+curl -sI --max-time 15 "$P/gallery.html" | head -1                          # HTTP/2 301 (Pages canonicalises to /gallery)
+
+# A wedding page carries its own head; the trailing-slash form redirects to the flat URL.
+curl -s --max-time 15 "$P/stories/<slug>" | grep -o '<link rel="canonical"[^>]*>'   # href="$P/stories/<slug>" (or VITE_SITE_URL)
+curl -s --max-time 15 "$P/stories/<slug>" | grep -o '<meta property="og:image"[^>]*>'
+curl -sI --max-time 15 "$P/stories/<slug>/" | head -1                       # HTTP/2 301
+
+# The admin entry, with and without the slash, is admin.html (public/_redirects).
+curl -s --max-time 15 "$P/admin"  | grep -o '<title>[^<]*</title>'
+curl -s --max-time 15 "$P/admin/" | grep -o '<title>[^<]*</title>'
+
+# Every HTML response carries the noindex header from public/_headers while the
+# site is still on the pages.dev origin — check the root, a section, a wedding, and the admin.
+for path in / /gallery "/stories/<slug>" /admin; do
+  curl -sI --max-time 15 "$P$path" | grep -i 'x-robots-tag'                 # X-Robots-Tag: noindex
+done
+
+# Unknown paths fall back to the root file (the SPA renders not-found client-side).
+curl -sI --max-time 15 "$P/no-such-page" | head -1                          # HTTP/2 200
+curl -s --max-time 15 "$P/no-such-page" | grep -c 'id="root"'               # 1
+
+# The build's sidecar files exist and were not degraded.
+curl -s --max-time 15 "$P/sitemap.xml" | grep -c '<loc>'                    # 6 + one per wedding + one per collection
+curl -sI --max-time 15 "$P/robots.txt" | head -1                            # HTTP/2 200
+curl -s --max-time 15 "$P/build-info.json"                                  # "degraded": false, "origin": "$P"
+```
+
+Whether `X-Robots-Tag: noindex` should still be present depends on the phase: it belongs on
+every response while the site lives on `pages.dev`, and is removed for the custom domain —
+see Stage 1 (item 2) and the comment at the top of `public/_headers`.
 
 ## Stage 7 — Content on the hosted site
 
@@ -244,6 +312,7 @@ deploys on merge, preview deploys per PR — plus, from the issues register: `PS
 | `VITE_TURNSTILE_SITE_KEY` | real site key (Stage 4) | Replaces the published test key |
 | `VITE_MEDIA_BASE_URL` | public media base (Stage 3) | What makes uploads display |
 | `VITE_WHATSAPP_NUMBER` | leave blank | Superseded by the admin Settings value |
+| `VITE_SITE_URL` | unset until cutover, then `https://peakstorystudio.in` | Leave it **unset** on both environments while the site lives on `pages.dev` — every deploy then uses the `CF_PAGES_URL` Cloudflare injects, so canonicals and share cards point at the host that actually serves them (matching the `noindex` state). Set it to `https://peakstorystudio.in` at the Phase 7 domain cutover, in the same change that deletes `public/_headers`. Leave it unset on preview builds, which fall back to the `CF_PAGES_URL` Cloudflare injects (so every preview's absolute URLs point at itself), and locally `scripts/prerender.mjs` falls back to `http://localhost:4173` (`vite preview`). Read by `scripts/prerender.mjs` for the canonical URL, `og:url`, `og:image`, `sitemap.xml` and JSON-LD of every prerendered page; must be an absolute `http(s)://` origin with no path. The running React app never reads it — only the build does. |
 
 ### Supabase Edge Function secrets (dashboard/CLI only — never in git)
 
@@ -254,6 +323,7 @@ deploys on merge, preview deploys per PR — plus, from the issues register: `PS
 | `RESEND_API_KEY` | from Resend | Missing: inquiry stored, email skipped + recorded |
 | `RESEND_FROM` | `onboarding@resend.dev` until Phase 7 | Then an address on the verified domain |
 | `STUDIO_NOTIFY_EMAIL` | `peakstorystudio@gmail.com` | Where "new inquiry" lands |
+| `CF_DEPLOY_HOOK_URL` | the Deploy Hook URL (Stage 6) | Missing: `request-rebuild` answers `NOT_CONFIGURED`; the admin shows rebuilds as not configured and never dispatches |
 | `ALLOWED_ORIGINS` | `https://<project>.pages.dev` | Comma-append the real domain in Phase 7 |
 | `S3_ENDPOINT` / `S3_REGION` / `S3_BUCKET` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | from Stage 3 | Upload signing fails closed (500) if incomplete |
 | `S3_INTERNAL_ENDPOINT` | **leave unset in production** | Local-only override for delete-media; see `supabase/functions/.env.example` |

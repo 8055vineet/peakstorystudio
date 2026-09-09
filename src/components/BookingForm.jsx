@@ -15,10 +15,10 @@ import { validateInquiry, SERVICES, HONEYPOT_FIELD } from '@shared/inquiry-valid
 // on that path the check never ran, so telling them they failed it is both
 // untrue and the likeliest moment to lose a booking.
 const ERROR_COPY = {
-  VALIDATION_FAILED: 'Some details need another look — see the notes above.',
+  VALIDATION_FAILED: 'Some details need another look. See the notes above.',
   RATE_LIMITED: 'Too many inquiries from this connection just now. Please wait a few minutes, or reach us directly.',
   CAPTCHA_FAILED: 'The verification check did not pass. Please reload the page and try again.',
-  CAPTCHA_UNAVAILABLE: 'Our verification service is temporarily unreachable — this is on us, not you. Please reach us directly and we will pick it up straight away.',
+  CAPTCHA_UNAVAILABLE: 'Our verification service is temporarily unreachable. This is on us, not you. Please reach us directly and we will pick it up straight away.',
   CAPTCHA_NOT_CONFIGURED: 'The form is temporarily unavailable. Please reach us directly.',
   PAYLOAD_TOO_LARGE: 'That message is longer than the form can send. Please shorten it, or reach us directly.',
   BACKEND_UNCONFIGURED: 'The form is not accepting inquiries at the moment. Please reach us directly.',

@@ -13,7 +13,7 @@ export const HOME_QUOTE = {
 export const BRAND_STORY = {
   heading: 'The Brand Story',
   paragraphs: [
-    "At Peak Story Studio, we believe that life's most profound moments are not just lived—they unfold like a masterpiece. Whether it is the quiet, nervous anticipation right before a wedding ceremony or the soaring crescendo of a cinematic short film, every narrative has a summit.",
+    "At Peak Story Studio, we believe that life's most profound moments are not just lived: they unfold like a masterpiece. Whether it is the quiet, nervous anticipation right before a wedding ceremony or the soaring crescendo of a cinematic short film, every narrative has a summit.",
     "Our passion lies in recognizing that exact heartbeat. We don't just record events; we wait for the emotion, the light, and the connection to converge at their highest point. By freezing time at the peak of your story, we turn fleeting chapters into timeless memories that you can relive forever.",
   ],
 };

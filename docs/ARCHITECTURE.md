@@ -9,7 +9,8 @@ Peak Story Studio is a Vite + React 18 single-page application styled with Tailw
 routed with **react-router-dom v6** since Phase 3b (`v0.4b`): each navbar option is its own
 page at its own URL — `/`, `/gallery`, `/films`, `/stories`, `/about`, `/contact`, plus
 `/more/:slug` since Phase 3e for the admin-created collection pages (`CollectionPage`, listed
-in the navbar's **More** dropdown; the menu hides entirely while no page is published) —
+in the navbar's **More** dropdown; the menu hides entirely while no page is published) and
+`/stories/:slug` since Phase 5 for each published wedding's own page (`StoryPage`) —
 sharing one header/footer frame (`src/components/Layout.jsx`), with an unknown URL rendering
 `NotFoundPage`. Before 3b the entire site was one scrolling page navigated by anchor links;
 documents and commits that describe it that way predate `v0.4b`. The visual design is the
@@ -87,8 +88,8 @@ that wrote them was deleted in the same change.
 | State | Holds | Persists to localStorage? | Consumed by |
 | --- | --- | --- | --- |
 | `user` | `null`, or an object such as `{ role, name, ... }` set by a successful login | Yes — key `peak_story_user` (the key is removed with `localStorage.removeItem` when the user logs out) | `Navbar` (renders the admin/client badge and sign-out control); `ClientGalleryModal` (gates its content on `user` being present); set via `handleLoginSuccess` from `AuthModal`, cleared via `handleLogout` |
-| `lightboxState` | `{ isOpen, activeUrl, activeIndex, imagesList }` for the fullscreen image viewer | No | `LightboxModal`; opened via `handleOpenLightbox` from `HomePage`'s images grid, `PhotoGallery` (Gallery page), and `FeaturedStories` (Stories page) |
-| `videoModalUrl` | A video embed URL, or `null` when no video modal is open | No | Renders the inline video-iframe modal defined directly in `App.jsx`; set via `onOpenVideo` (`HomePage`, `FeaturedStories`) and `onOpenVideoModal` (`FilmsGallery`) callbacks |
+| `lightboxState` | `{ isOpen, activeUrl, activeIndex, imagesList }` for the fullscreen image viewer | No | `LightboxModal`; opened via `handleOpenLightbox` from `HomePage`'s images grid, `PhotoGallery` (Gallery page), `StoryAlbum` (a wedding's page), and `CollectionPage` |
+| `videoModalUrl` | A video embed URL, or `null` when no video modal is open | No | Renders the inline video-iframe modal defined directly in `App.jsx`; set via `onOpenVideo` (`HomePage`, `StoryPage`, `CollectionPage`) and `onOpenVideoModal` (`FilmsGallery`) callbacks |
 | `authModalOpen` | Boolean visibility flag for the sign-in modal | No | `AuthModal`; opened from `Navbar` |
 | `clientGalleryOpen` | Boolean visibility flag for the private client proofing modal | No | `ClientGalleryModal`; opened from `Navbar`, and set to `true` automatically inside `handleLoginSuccess` when a client (as opposed to admin) logs in |
 
@@ -104,7 +105,8 @@ work identically from every page.
 
 ## Routes and pages
 
-`src/App.jsx` renders one layout route wrapping seven child routes. Each page in `src/pages/`
+`src/App.jsx` renders one layout route wrapping nine child routes (the six navbar pages,
+`/more/:slug`, `/stories/:slug`, and the `*` not-found route). Each page in `src/pages/`
 is a thin composition over the section components (see `docs/COMPONENTS.md` for the page
 table): `HomePage` is the owner's approved design section-for-section; the other pages open
 with the shared `PageHeader` and mount their section component. `ScrollToTop` (inside
@@ -117,9 +119,16 @@ Two supporting conventions arrived with routing:
   Brand Story copy, and the three slot paths; the files live in `public/images/home/`
   (`hero.webp`, `brand-story.webp`, `closing.webp` — WebP since the Phase 4 optimization pass). **The owner changes an image by overwriting
   the file — no code edit.**
-- **`public/_redirects`** (`/admin` and `/admin/` → `/admin.html`, then `/* /index.html 200`)
-  ships now so the Phase 4 Cloudflare Pages deploy serves deep links like `/gallery` correctly;
-  static assets take precedence over redirects on Pages, so `/admin.html` is unaffected. The
+- **`public/_redirects`** holds the two admin rewrites (`/admin` and `/admin/` →
+  `/admin.html`) and the two trailing-slash redirects for the prerendered dynamic routes
+  (`/stories/:slug/` and `/more/:slug/` → 301 to the canonical form), nothing else. Cloudflare's actual rule
+  ([developers.cloudflare.com/pages/configuration/redirects](https://developers.cloudflare.com/pages/configuration/redirects/))
+  is that `_redirects` is evaluated *before* the static-asset lookup — a matching rule wins even
+  when a file exists at that path — so the `/* /index.html 200` catch-all the file carried until
+  Phase 5 would have proxied every hashed JS/CSS chunk and image to `index.html` on first deploy.
+  It was never needed: with no `404.html` in `dist/`, Pages serves `index.html` for any path that
+  matches no asset, which is exactly the SPA fallback the react-router deep links (`/gallery`,
+  `/stories/<slug>`) rely on. `src/test/hostingFiles.test.js` pins the file to that shape. The
   Vite dev server falls back to `index.html` for unknown paths, and the `adminEntryRewrite`
   plugin in `vite.config.js` gives `npm run dev`/`vite preview` the same two admin rewrites, so
   the URL an owner naturally types works locally exactly as it does on Pages.
@@ -188,6 +197,163 @@ and CRUD for weddings, gallery photos, films, and testimonials), straight into P
 Row Level Security, not client code, is what makes it safe to ship the Supabase anon key in the
 browser bundle: Postgres refuses anything the policies do not permit. See
 `supabase/migrations/*_row_level_security.sql` and `npm run db:verify`.
+
+### SEO data modules
+
+Phase 5 adds two pure modules that take the data-layer shapes above and return values — no DOM,
+no React, no Supabase client, no Node APIs — so the same code serves a component, the build-time
+SEO step that writes per-route HTML, and any future edge function:
+
+- `src/data/seo.js` — the static per-route meta descriptions (`STATIC_SEO`), `descriptionFor()`
+  (a wedding's own summary on `/stories/<slug>`, a collection's description on `/more/<slug>`,
+  the static copy elsewhere), and `cardImageFor()` (the share-card image per route, `''` when
+  none is available). The copy obeys CLAUDE.md's content-integrity rule: what the studio is and
+  where it works, never awards, press, or statistics.
+- `src/lib/seo/jsonLd.js` — schema.org JSON-LD: `localBusinessJsonLd()` (the studio at its
+  Gomtinagar address, from `src/data/contact.js` and `settings.contact`), `websiteJsonLd()`, and
+  `pageJsonLd()` (the per-route type: `ImageGallery`, `ItemList` of `VideoObject`s, `AboutPage`,
+  `ContactPage`, `CollectionPage`, and `ImageGallery` + `BreadcrumbList` for a wedding page). URLs
+  are absolute when a `siteUrl` is given and relative otherwise.
+
+Neither is a component, so neither has a `docs/COMPONENTS.md` row. Related: `src/lib/googleFonts.js`
+builds the Google Fonts URL for whichever admin-chosen families `index.html` does not already
+load (only the three defaults ship in the HTML since Phase 5), and `App.jsx`'s fonts effect
+keeps exactly one `<link id="site-fonts">` in step with it.
+
+## Build pipeline: prerendered heads (Phase 5)
+
+Since Phase 5, `npm run build` is two steps: `vite build` (unchanged — `dist/index.html`,
+`dist/admin.html`, hashed assets) and then `vite-node scripts/prerender.mjs`, which stamps every
+public route with its own crawler-visible `<head>` and a small visible shell, and writes
+`dist/sitemap.xml` and `dist/build-info.json`. The app is still a client-rendered SPA; nothing
+about the render flow above changes at runtime. The decision and its alternatives are in
+[docs/adr/0006-build-time-prerender.md](adr/0006-build-time-prerender.md); the full design is
+[docs/superpowers/specs/2026-09-08-seo-design.md](superpowers/specs/2026-09-08-seo-design.md).
+`npm run prerender` reruns only the second step against an existing `dist/`.
+
+**What the script reads, and why under `vite-node`.** `scripts/prerender.mjs` imports the real
+query modules — `getPublishedWeddings` (`src/lib/queries/weddings.js`), `getCollections`,
+`getGalleryPhotos`, `getFilms`, `getSiteSettings` — with the anon key, so it sees exactly the
+published rows the site does, resolved through the same `src/lib/mediaUrl.js`. Those modules
+reach `src/lib/supabase.js`, which reads `import.meta.env`; plain Node has no such thing, so the
+script runs under `vite-node` the same way `scripts/verify-admin.mjs` does, mapping
+`SUPABASE_URL`/`SUPABASE_ANON_KEY` onto the `VITE_` names first
+(`scripts/lib/prerender-env.mjs`'s `mapDatabaseEnv`). `scripts/` is the one place outside
+`src/lib/queries/` allowed to import a query module; components still never touch the client.
+
+**What it writes.** The pure builders in `scripts/lib/prerender-html.mjs` decide the content:
+
+- `routesFor(data)` — the six static routes plus `/more/<slug>` per collection and
+  `/stories/<slug>` per published wedding. A slug that fails `SLUG_PATTERN` (`src/data/seo.js`)
+  is reported and skipped, never written, so the build cannot produce a filename the host would
+  canonicalise to a different URL.
+- `metaFor(pathname, data, origin)` — title (`src/lib/documentTitle.js`), description and
+  share image (`src/data/seo.js`), canonical, `og:type`, JSON-LD (`src/lib/seo/jsonLd.js`) and
+  the Google Fonts link for non-default families. The client uses the same helpers for its tab
+  titles, so the prerendered head and the runtime one cannot drift.
+- `buildHead(meta)` — `<title>`, `meta[name=description]`, `link[rel=canonical]` (no trailing
+  slash), the Open Graph set (`og:site_name`, `og:locale`, `og:type`, `og:url`, `og:title`,
+  `og:description`, `og:image` + alt/width/height when known), the Twitter card, one
+  `<script type="application/ld+json">`, and `<link id="site-fonts">` when needed. All values
+  HTML-escaped; `<` inside the JSON-LD is written as `\u003c`.
+- `buildShell(meta, { byline })` — the `<div data-prerender-shell>` a crawler (or a visitor
+  before the bundle runs) sees inside `#root`: the page's `<h1>`, a wedding's
+  couple · location · date byline, and the description, on the site's own Tailwind utilities.
+  Never hidden text. `src/main.jsx` mounts with `createRoot().render()`, which replaces those
+  children outright — `src/__tests__/prerenderTakeover.test.jsx` mounts the real `App` onto a
+  container already holding a real shell and proves the shell is gone, exactly one `<h1>`
+  remains, and `console.error` was never called (a hydration mismatch would call it).
+- `injectHead(indexHtml, head, shell)` — replaces Vite's `<title>` and description, inserts the
+  rest inside a `<!-- prerender:start -->…<!-- prerender:end -->` block before `</head>`, and
+  puts the shell inside `<div id="root">`. It strips any earlier block and shell first, so it is
+  idempotent; `dist/index.html` (Home) is rewritten in place on every run.
+
+**Flat files, no `404.html`.** Every route is written as `dist/<route>.html` —
+`dist/gallery.html`, `dist/stories/<slug>.html` — never `<route>/index.html`, because
+Cloudflare Pages serves `foo.html` at `/foo` but canonicalises `foo/index.html` to `/foo/`
+(a redirect, and a different canonical URL from the one in the head). `dist/` also never
+contains a `404.html`: with none present, Pages serves the root `index.html` for any path that
+matches no file, which is what keeps react-router deep links to not-yet-built pages working (a
+wedding published seconds ago renders client-side until the next build lands).
+
+**Origin resolution.** Absolute URLs (canonical, `og:url`, `og:image`, the sitemap, JSON-LD)
+use, in order: `VITE_SITE_URL` (`https://peakstorystudio.in` in production), then the
+`CF_PAGES_URL` Cloudflare injects into every build (so a preview deploy's URLs point at itself),
+then `http://localhost:4173` (`vite preview`). A value that is not an absolute `http(s)` origin
+throws (`resolveOrigin`).
+
+**Failure policy** (`failurePolicy`). When the database is unconfigured or unreachable: on
+Cloudflare (`CF_PAGES=1`) the script exits non-zero, so the build fails and the previous
+deployment stays live — a degraded site is never published by accident. Everywhere else (CI's
+databaseless `verify` job, a laptop without the local stack) it logs a warning, writes the six
+static routes with static copy and the fallback settings, a sitemap of those six, and
+`build-info.json` with `degraded: true`, and exits 0. `PRERENDER_ALLOW_EMPTY=1` forces the
+degraded path on Cloudflare too — the escape hatch for publishing while the database is down.
+Zero published weddings is not a failure; it is a build with only the static routes.
+
+**Sidecar files.** `build-info.json` is
+`{ builtAt, origin, degraded, routes, fingerprint }`, where `fingerprint` hashes the content
+the build saw (wedding slugs and `updated_at`, collection slugs, the settings that affect the
+public site, photo and film ids); the admin reads it from the public origin to show when the
+site was last published and whether a wedding is live yet. `sitemap.xml` lists every route
+with an absolute `<loc>` and, for weddings, `<lastmod>` from `updated_at`. `robots.txt` stays a
+static file in `public/`.
+
+**How it is exercised.** Unit tests cover the pure modules (`scripts/__tests__/`) and the
+takeover. `npm run verify:prerender` (`scripts/verify-prerender.mjs`, also under `vite-node`)
+does not build; it reads every published wedding and collection back through the query modules
+and asserts the built `dist/` matches: per wedding, `stories/<slug>.html` exists with the title
+in `<title>`, a canonical ending in `/stories/<slug>`, `og:image` equal to the cover made
+absolute against `build-info.origin`, a parsable JSON-LD `ImageGallery` named after it, and a
+shell `<h1>` equal to the title; per collection, `more/<slug>.html` with its title; the six
+static pages, `robots.txt`, exactly one prerender block in `index.html`, a `<loc>` for every
+route in `sitemap.xml`, `degraded: false`, and no `index.html` anywhere under `dist/stories`
+or `dist/more`. CI runs it in the `admin-e2e` job (which has a database) after a real
+`npm run build` with `VITE_SITE_URL=http://localhost:4173`; the databaseless `verify` job
+builds too and then asserts `build-info.json` says `degraded: true` with six routes — so both
+branches of the failure policy are proven on every push.
+
+## Freshness: automatic rebuilds after a publish (Phase 5)
+
+The prerendered heads above are only as fresh as the last build, so a publish in the admin has
+to trigger one. The loop has four parts, none of which needs the owner to do anything:
+
+1. **A dirty flag in the database.** `public.site_publish` is a single row (`id = 1`) that
+   admins may read and only the service role may write (see
+   [DATA-MODEL.md](DATA-MODEL.md)). `mark_site_content_changed()`, a `SECURITY DEFINER`
+   trigger function, sets `content_changed_at = now()` after any insert, update, or delete on
+   a public content table — but only when the change is publicly visible (a row that is or was
+   `published`; a child photograph of a published wedding or page; any change to settings,
+   categories, or services). Editing a draft never fires it.
+2. **An Edge Function holds the secret.** `supabase/functions/request-rebuild` is
+   admin-authenticated exactly like `sign-upload` (token verified with Supabase Auth, role read
+   from `profiles` with the service role) and reads `CF_DEPLOY_HOOK_URL` from its secrets — a
+   Cloudflare Deploy Hook is a bare URL whose possession is the credential, which is why it
+   never appears in git, in a `VITE_*` variable, or in the browser. The function applies a
+   floor (`_shared/rebuild-floor.js`, pure and unit-tested): a dispatch always goes out when the
+   last one is older than 90 seconds; inside that window exactly one follow-up is allowed (a
+   build that started before the change could have read stale content); anything more is
+   skipped as `window_busy`; `force` always dispatches. Every attempt is recorded in
+   `site_publish` (`last_dispatch_at`, `last_dispatch_status`, `dispatch_count`,
+   `followup_sent`). With no hook configured — every local environment — it answers
+   `{ ok: false, error: 'NOT_CONFIGURED' }` quietly.
+3. **The admin drives it.** `src/hooks/usePublishStatus.js` (one instance, in the admin shell)
+   polls `site_publish` and the public `/build-info.json` every 30 seconds while the admin is
+   open. When `content_changed_at` is newer than `last_dispatch_at` it waits a 20-second quiet
+   window (so a burst of saves becomes one build) and calls the function. A `NOT_CONFIGURED`
+   answer stops automatic dispatch for the session. Scripts such as
+   `load-real-content.mjs` never dispatch; the runbook says to press Rebuild now afterwards.
+4. **The owner can see it.** The Overview's Publishing card shows when the site was last
+   published (from `build-info.json`), whether changes are waiting or a rebuild was requested,
+   a warning after 20 minutes of waiting with the manual fallback (Cloudflare → retry the last
+   deployment), and a Rebuild-now button (`force: true`). The Weddings list marks each
+   published wedding "Live · View page" once its `updated_at` predates the live build, else
+   "Publishing…".
+
+Why not a database-side dispatcher (`pg_cron` + `pg_net` + Vault), which the design panel
+proposed: three new extensions and a Vault dependency the local stack has commented out, for a
+site whose every publish already happens in the admin. It stays the documented upgrade path if
+admin-driven dispatch ever proves insufficient (see the Phase 5 spec, §6).
 
 ## The inquiry write path
 
@@ -457,10 +623,13 @@ that gate today and by R2 for real once Phase 4 configures it, closes that gap e
 
 ## Known architectural limits
 
-- **Pages, but not per-wedding pages.** Phase 3b gave every navbar option its own URL, but an
-  individual wedding story still opens in `StoryDetailModal` rather than at a shareable,
-  indexable address of its own. Per-wedding URLs, prerendering, sitemap, and OG images are
-  Phase 5 scope (`PS-008`).
+- **Per-wedding pages, but the body is still client-rendered.** Phase 3b gave every navbar
+  option its own URL and Phase 5 gave every published wedding one too (`/stories/:slug`,
+  `StoryPage`). The build prerenders each route's `<head>` (title, description, canonical,
+  Open Graph, JSON-LD) and a visible one-heading shell, but the album itself renders in the
+  browser, so a crawler that does not execute JavaScript sees the head and the shell only —
+  Google renders the rest. Content is also stale between a publish and the rebuild landing
+  (minutes; see the freshness section).
 - **One top-level error boundary, not per-page.** `src/components/ErrorBoundary.jsx` (added
   in Phase 1a, `v0.2a`) implements `getDerivedStateFromError` and `componentDidCatch`, and
   wraps the entire tree in `src/main.jsx` (outside `BrowserRouter`), so an unhandled render

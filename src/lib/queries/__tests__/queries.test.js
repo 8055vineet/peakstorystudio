@@ -188,6 +188,9 @@ describe('getPublishedWeddings', () => {
         'https://cdn.peakstorystudio.test/uploads/b.webp',
         'https://cdn.peakstorystudio.test/uploads/c.webp',
       ],
+      // Phase 5 additive fields; weddings.test.js pins their behaviour.
+      updatedAt: null,
+      coverMeta: { width: null, height: null, alt: null },
     }]);
   });
 

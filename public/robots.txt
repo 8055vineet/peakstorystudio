@@ -1,0 +1,7 @@
+# Everything public is crawlable. The admin entry (admin.html) carries its
+# own noindex meta and needs no rule here. The sitemap is generated at build
+# time by the SEO build step (Phase 5).
+User-agent: *
+Allow: /
+
+Sitemap: https://peakstorystudio.in/sitemap.xml

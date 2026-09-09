@@ -3,6 +3,7 @@ import {
 } from 'react';
 import { useSession } from '../hooks/useSession';
 import { useResource } from '../hooks/useResource';
+import { usePublishStatus } from '../hooks/usePublishStatus';
 import { useScrollToTop } from './useScrollToTop.js';
 import { listInquiries, updateInquiryStatus } from '../lib/queries/adminInquiries';
 import { listMedia, deleteMedia } from '../lib/queries/media';
@@ -311,6 +312,28 @@ function SettingsDashboard({ isOwner = false }) {
   );
 }
 
+// The Weddings list's per-row publish cue (Phase 5, spec section 6). The
+// public site is prerendered at build time, so a published wedding is only
+// live once a build newer than its last change has landed: `lastBuiltAt`
+// is the live build-info.json's timestamp from AdminDashboard's
+// usePublishStatus instance, `item.updatedAt` is moddatetime's stamp on
+// the row. Unknown on either side (no build info locally, a row read
+// before the column was selected) yields the bare link — the cue never
+// claims "Live" it cannot back. Drafts get nothing: there is no page.
+function weddingRowMeta(item, lastBuiltAt) {
+  if (item.status !== 'published' || !item.slug) return null;
+  const href = `/stories/${item.slug}`;
+  const updatedAt = item.updatedAt ? new Date(item.updatedAt) : null;
+  const known = lastBuiltAt instanceof Date && updatedAt && !Number.isNaN(updatedAt.getTime());
+  if (!known) {
+    return <a href={href} target="_blank" rel="noreferrer" className="hover:text-pitch-900">View page</a>;
+  }
+  if (updatedAt <= lastBuiltAt) {
+    return <a href={href} target="_blank" rel="noreferrer" className="hover:text-pitch-900">Live · View page</a>;
+  }
+  return 'Publishing…';
+}
+
 // Owns the weddings resource's data the same way InquiriesDashboard and
 // MediaLibraryDashboard own theirs — one useResource instance, per that
 // hook's own "one instance per resource, always" rule (see its module
@@ -324,7 +347,7 @@ function SettingsDashboard({ isOwner = false }) {
 // rather than lifted to AdminDashboard's `tab` state, the same way
 // InquiriesDashboard keeps `selectedId` local: nothing outside this
 // component's own tab needs to know which wedding is being edited.
-function WeddingsDashboard() {
+function WeddingsDashboard({ lastBuiltAt = null }) {
   const {
     items, status, error, reload, mutate,
   } = useResource(weddingsQueries);
@@ -451,6 +474,7 @@ function WeddingsDashboard() {
         onToggleStatus={(id, nextStatus) => runListAction('update', id, { status: nextStatus })}
         onReorder={(ids) => runListAction('reorder', ids)}
         pending={listActionPending}
+        rowMeta={(item) => weddingRowMeta(item, lastBuiltAt)}
       />
     </div>
   );
@@ -1245,6 +1269,11 @@ function initialTab() {
 // tabs, not mounting the shell, is what triggers each one's first load.
 function AdminDashboard({ isOwner = false }) {
   const [tab, setTab] = useState(initialTab);
+  // One instance for the whole admin session (see the hook's module
+  // comment): it polls, and it remembers a NOT_CONFIGURED answer — both
+  // things that must not restart every time the admin changes tab. The
+  // Overview reads all of it; the Weddings list only needs lastBuiltAt.
+  const publish = usePublishStatus();
   // Set by the Media Library's "Add to Gallery"; consumed by the Gallery
   // tab's mount; cleared whenever the admin navigates anywhere else so a
   // later visit to Gallery opens on the list, not a stale form.
@@ -1282,14 +1311,14 @@ function AdminDashboard({ isOwner = false }) {
           </button>
         ))}
       </nav>
-      {tab === 'dashboard' && <DashboardOverview onNavigate={openTab} />}
+      {tab === 'dashboard' && <DashboardOverview onNavigate={openTab} publish={publish} />}
       {tab === 'leads' && <InquiriesDashboard />}
       {tab === 'media' && (
         <MediaLibraryDashboard
           onAddToGallery={(media) => { setGalleryPrefill(media.id); goTab('gallery'); }}
         />
       )}
-      {tab === 'weddings' && <WeddingsDashboard />}
+      {tab === 'weddings' && <WeddingsDashboard lastBuiltAt={publish.lastBuiltAt} />}
       {tab === 'gallery' && <GalleryDashboard prefillMediaId={galleryPrefill} />}
       {tab === 'films' && <FilmsDashboard />}
       {tab === 'testimonials' && <TestimonialsDashboard />}

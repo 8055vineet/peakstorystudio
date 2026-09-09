@@ -22,8 +22,27 @@ describe('DocumentTitle', () => {
     expect(document.title).toBe('Travels | Peak Story Studio');
   });
 
+  it("uses the wedding's title on its own story page", () => {
+    renderAt('/stories/a-royal-affair', { stories: [{ slug: 'a-royal-affair', title: 'A Royal Affair' }] });
+    expect(document.title).toBe('A Royal Affair | Peak Story Studio');
+  });
+
+  it('falls back to the Stories title while the weddings list has not loaded, never to not found', () => {
+    renderAt('/stories/a-royal-affair');
+    expect(document.title).toBe('Stories | Peak Story Studio');
+    renderAt('/stories/a-royal-affair', { stories: [] });
+    expect(document.title).toBe('Stories | Peak Story Studio');
+  });
+
   it('labels an unknown route as not found', () => {
     renderAt('/nope');
     expect(document.title).toBe('Page not found | Peak Story Studio');
+  });
+});
+
+describe('DocumentTitle while the More pages are still loading', () => {
+  it('never labels a /more/<slug> page as not found before the collections arrive', () => {
+    renderAt('/more/model-shoot', { morePages: [] });
+    expect(document.title).toBe('Peak Story Studio');
   });
 });

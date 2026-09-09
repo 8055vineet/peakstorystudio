@@ -22,7 +22,7 @@ export default function FilmsGallery({ films, onOpenVideoModal }) {
               </h2>
             </div>
             <p className="font-garamond text-xl text-charcoal-700 italic max-w-md font-light">
-              Rendered as illustrious as contemporary cinema—experience our high-definition wedding showreels.
+              Rendered as illustrious as contemporary cinema, experience our high-definition wedding showreels.
             </p>
           </div>
         </ScrollReveal>

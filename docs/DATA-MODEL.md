@@ -166,7 +166,7 @@ decorative arrays that once added more Unsplash hotlinks of their own were remov
 
 Content is read from a local Postgres database (run via `supabase start`), not from
 `weddingData.js` — the one exception being the error-fallback role described above. The schema —
-thirteen tables — lives in `supabase/migrations/`:
+sixteen tables — lives in `supabase/migrations/`:
 
 - `20260730203451_initial_schema.sql` creates `media` (image records: storage path, width,
   height, `alt_text`, `blurhash`), `weddings` (one row per wedding story, with a `slug`), the
@@ -269,6 +269,11 @@ thirteen tables — lives in `supabase/migrations/`:
   compares the trimmed input against the stored value as-is, so a code stored with a stray
   space or under six characters could never be entered successfully by the couple.
 
+- `20260908130000_site_publish.sql` (Phase 5, SEO) creates **`site_publish`** — the singleton
+  behind the admin's automatic-rebuild loop — plus the triggers that write it and the
+  `updated_at` maintenance `PS-047` had been waiting for. See [`site_publish`](#site_publish)
+  below.
+
 `inquiries.notification_status` is a text column, defaulting to `pending`, constrained to four
 values: `pending` (the row was written but no notification attempt has happened yet), `sent` (the
 studio's notification email was accepted by Resend), `failed` (Resend rejected or errored on the
@@ -350,6 +355,65 @@ interleaved under one `sort_order` rather than one wedding's own ordered set. On
 throughout that hand-written module: removing a `wedding_photos` row **never** deletes the
 underlying `media` row — the same photograph may be attached to another wedding, the standalone
 gallery, or nothing at all, and is deleted (if ever) only from the Media Library itself.
+
+### `site_publish`
+
+The public site is prerendered at build time (see
+[ARCHITECTURE.md](ARCHITECTURE.md)), so a content change is not live until Cloudflare
+rebuilds. `site_publish` is the one-row table (`id int primary key check (id = 1)`, seeded by
+`20260908130000_site_publish.sql`) that tells the admin whether a rebuild is owed:
+
+| Column | Type | Written by | Meaning |
+| --- | --- | --- | --- |
+| `content_changed_at` | `timestamptz` | the `mark_site_content_changed()` trigger | when a publicly visible row last changed; seeded to `now()` at migration time so a fresh project starts as "waiting" |
+| `last_dispatch_at` | `timestamptz` | the `request-rebuild` Edge Function | when the Cloudflare deploy hook was last called |
+| `last_dispatch_status` | `text` | the `request-rebuild` Edge Function | what that call returned (recorded even when the POST fails, so the admin can show it) |
+| `dispatch_count` | `int not null default 0` | the `request-rebuild` Edge Function | how many dispatches have happened |
+| `followup_sent` | `boolean not null default false` | the `request-rebuild` Edge Function | whether the second, follow-up dispatch inside the 90-second floor has been used |
+| `updated_at` | `timestamptz not null default now()` | `moddatetime` trigger `site_publish_set_updated_at` | last write of any kind |
+
+**Who writes it.** Two writers only: the trigger below (a `security definer` function owned by
+`postgres`, so it succeeds whichever role's statement fired it) and the `request-rebuild` Edge
+Function, which holds the service-role key. Browsers read it and never write it: the only policy
+is `site_publish_admin_read` (`for select using (public.is_admin())`); there are no
+insert/update/delete policies, and — as with `profiles` — `insert, update, delete` are
+`revoke`d from `anon` and `authenticated` at the grant level, so a session `PATCH` fails with
+`42501` rather than becoming a silent no-op. `service_role` keeps every privilege. The admin's
+`usePublishStatus` hook polls the row (`content_changed_at > last_dispatch_at` means "changes
+waiting") and asks the Edge Function to dispatch.
+
+**The trigger rule.** One function, `public.mark_site_content_changed()`, is attached as an
+`after insert or update or delete ... for each row` trigger named `<table>_content_changed` to
+each of the ten public-content tables. It sets `content_changed_at = now()` only when the change
+is publicly visible, branching on `TG_TABLE_NAME` and `TG_OP` inside the function rather than
+through three per-event `WHEN` clauses per table (a `WHEN` clause cannot name `NEW` on
+`DELETE` or `OLD` on `INSERT`, so the alternative would have been twenty trigger definitions
+carrying the rule between them):
+
+| Tables | Fires when |
+| --- | --- |
+| `weddings`, `gallery_photos`, `films`, `testimonials`, `collections` | the row is or was published: `NEW.status = 'published'` on insert/update, or `OLD.status = 'published'` on update/delete. Creating, editing or deleting a draft does not fire; publishing a draft or unpublishing a live row does |
+| `wedding_photos`, `collection_items` (no `status` of their own) | the parent wedding/collection — looked up by `coalesce(NEW.<parent>_id, OLD.<parent>_id)` — is published. When a parent is deleted and cascades, the lookup finds nothing, and the parent's own trigger has already stamped the change |
+| `site_settings`, `gallery_categories`, `booking_services` | always — every change to these is public |
+
+`client_galleries` has no trigger: the delivery portal is not a prerendered public page. The
+function is `security definer`, `set search_path = public`, owned by `postgres`, and not
+callable from a browser (`execute` is revoked from `public`, `anon` and `authenticated`;
+Postgres does not check execute privilege when firing a trigger, so an admin session's edit
+still stamps the row — `npm run db:verify` proves it). Being an `AFTER` trigger, a statement that
+fails its own constraints never stamps anything. `scripts/load-real-content.mjs` writes with the
+service role and fires these triggers like any other writer; it does not dispatch a build itself.
+
+**`updated_at` maintenance (`PS-047`, pulled forward from Phase 7).** The same migration
+installs the `moddatetime` extension (schema `extensions`) and `before update` triggers
+`weddings_set_updated_at` and `site_settings_set_updated_at`, so those two columns finally
+move on every update instead of always equalling `created_at`. The admin's per-wedding
+"Live · View page / Publishing…" cue depends on it — it compares `weddings.updated_at` against
+the live build's `build-info.json` timestamp. `npm run db:verify` exercises every branch above
+with throwaway weddings (draft insert/edit/delete → unchanged; published edit, publish,
+unpublish, published delete, an admin-session edit, and a `site_settings` no-op write → stamped;
+both `updated_at` columns advance) and leaves `content_changed_at = now()` behind, which is
+harmless locally where no deploy hook is configured.
 
 ### Inquiry rate limiting
 

@@ -165,9 +165,145 @@ check(
   Array.isArray(clientReads) && clientReads.length === 1 && clientReads[0].user_id === probeClient.userId,
 );
 
+// --- site_publish (Phase 5, 20260908130000_site_publish.sql) ---
+//
+// The singleton row the request-rebuild Edge Function reads and writes with
+// the service role. Browsers only ever read it (admins), so every session
+// write must fail at the grant (42501), and content_changed_at must move
+// only when a PUBLICLY VISIBLE row changes: a published wedding, never a
+// draft. The probe weddings seeded at the top are the only rows mutated,
+// except one idempotent no-op on the owner's site_settings row (the value
+// is written back unchanged; its updated_at advancing is the PS-047
+// trigger doing its job). Running this leaves content_changed_at = now(),
+// which the admin treats as "changes waiting" — harmless locally, where no
+// deploy hook is configured, and this script refuses non-local targets.
+console.log('\nsite_publish checks:');
+
+const publishStamp = async () => {
+  const { data } = await service
+    .from('site_publish').select('content_changed_at').eq('id', 1).maybeSingle();
+  return data?.content_changed_at ?? null;
+};
+const ms = (iso) => (iso ? new Date(iso).getTime() : NaN);
+
+const { data: publishRow } = await service.from('site_publish').select('id').eq('id', 1).maybeSingle();
+check('site_publish singleton row exists', publishRow?.id === 1);
+
+const { error: anonPublishErr } = await anon
+  .from('site_publish').update({ last_dispatch_status: 'hacked' }).eq('id', 1);
+const { data: adminPublishRead, error: adminPublishReadErr } = await probeAdmin.client
+  .from('site_publish').select('id, content_changed_at, last_dispatch_at').eq('id', 1);
+check(
+  'an admin reads the site_publish row',
+  !adminPublishReadErr && Array.isArray(adminPublishRead) && adminPublishRead.length === 1,
+  adminPublishReadErr?.message ?? '',
+);
+const { error: adminPublishErr } = await probeAdmin.client
+  .from('site_publish').update({ last_dispatch_status: 'hacked' }).eq('id', 1);
+const { data: publishAfter } = await service
+  .from('site_publish').select('last_dispatch_status').eq('id', 1).maybeSingle();
+check(
+  'anon cannot update site_publish',
+  anonPublishErr?.code === '42501' && publishAfter?.last_dispatch_status !== 'hacked',
+  anonPublishErr ? `code=${anonPublishErr.code}` : 'no error',
+);
+check(
+  'an admin cannot update site_publish',
+  adminPublishErr?.code === '42501' && publishAfter?.last_dispatch_status !== 'hacked',
+  adminPublishErr ? `code=${adminPublishErr.code}` : 'no error',
+);
+
+// Trigger rule, exercised branch by branch with the service role.
+const stampStart = await publishStamp();
+check('content_changed_at is set after the migration', Boolean(stampStart));
+
+const slugDraftInsert = 'rls-probe-publish-draft-insert';
+await service.from('weddings').delete().eq('slug', slugDraftInsert);
+await service.from('weddings').insert(
+  { slug: slugDraftInsert, title: 'Probe Draft Insert', couple: 'Probe Couple', location: 'Probe', status: 'draft' },
+);
+const stampAfterDraftInsert = await publishStamp();
+check('inserting a draft wedding does not mark content changed', stampAfterDraftInsert === stampStart);
+
+await service.from('weddings').update({ title: 'Probe Draft (edited)' }).eq('slug', slugDraft);
+const stampAfterDraftUpdate = await publishStamp();
+check('editing a draft wedding does not mark content changed', stampAfterDraftUpdate === stampStart);
+
+await service.from('weddings').delete().eq('slug', slugDraftInsert);
+const stampAfterDraftDelete = await publishStamp();
+check('deleting a draft wedding does not mark content changed', stampAfterDraftDelete === stampStart);
+
+const { data: pubBefore } = await service
+  .from('weddings').select('updated_at').eq('slug', slugPub).single();
+await service.from('weddings').update({ title: 'Probe Published (edited)' }).eq('slug', slugPub);
+const stampAfterPubUpdate = await publishStamp();
+const { data: pubAfter } = await service
+  .from('weddings').select('updated_at').eq('slug', slugPub).single();
+check(
+  'editing a published wedding marks content changed',
+  ms(stampAfterPubUpdate) > ms(stampStart),
+  `${stampStart} -> ${stampAfterPubUpdate}`,
+);
+check(
+  'weddings.updated_at advances on update (PS-047)',
+  ms(pubAfter?.updated_at) > ms(pubBefore?.updated_at),
+  `${pubBefore?.updated_at} -> ${pubAfter?.updated_at}`,
+);
+
+await service.from('weddings').update({ status: 'published' }).eq('slug', slugDraft);
+const stampAfterPublish = await publishStamp();
+check(
+  'publishing a draft wedding marks content changed',
+  ms(stampAfterPublish) > ms(stampAfterPubUpdate),
+  `${stampAfterPubUpdate} -> ${stampAfterPublish}`,
+);
+await service.from('weddings').update({ status: 'draft', title: 'Probe Draft' }).eq('slug', slugDraft);
+const stampAfterUnpublish = await publishStamp();
+check(
+  'unpublishing a wedding marks content changed',
+  ms(stampAfterUnpublish) > ms(stampAfterPublish),
+  `${stampAfterPublish} -> ${stampAfterUnpublish}`,
+);
+
+// A browser session must reach the security-definer trigger function even
+// though it cannot call it directly (execute is revoked below the trigger).
+await probeAdmin.client.from('weddings').update({ title: 'Probe Published' }).eq('slug', slugPub);
+const stampAfterAdminEdit = await publishStamp();
+check(
+  'an admin session editing a published wedding marks content changed',
+  ms(stampAfterAdminEdit) > ms(stampAfterUnpublish),
+  `${stampAfterUnpublish} -> ${stampAfterAdminEdit}`,
+);
+
+await service.from('weddings').delete().eq('slug', slugPub);
+const stampAfterPubDelete = await publishStamp();
+check(
+  'deleting a published wedding marks content changed',
+  ms(stampAfterPubDelete) > ms(stampAfterAdminEdit),
+  `${stampAfterAdminEdit} -> ${stampAfterPubDelete}`,
+);
+
+const { data: settingsBefore } = await service
+  .from('site_settings').select('quote_credit, updated_at').eq('id', 1).single();
+await service.from('site_settings').update({ quote_credit: settingsBefore.quote_credit }).eq('id', 1);
+const stampAfterSettings = await publishStamp();
+const { data: settingsAfter } = await service
+  .from('site_settings').select('quote_credit, updated_at').eq('id', 1).single();
+check(
+  'updating site_settings marks content changed',
+  ms(stampAfterSettings) > ms(stampAfterPubDelete),
+  `${stampAfterPubDelete} -> ${stampAfterSettings}`,
+);
+check(
+  'site_settings.updated_at advances on update (PS-047)',
+  ms(settingsAfter?.updated_at) > ms(settingsBefore?.updated_at)
+    && settingsAfter?.quote_credit === settingsBefore?.quote_credit,
+  `${settingsBefore?.updated_at} -> ${settingsAfter?.updated_at}`,
+);
+
 await removeProbeUsers();
 
-await service.from('weddings').delete().in('slug', [slugPub, slugDraft, 'rls-probe-anon-write']);
+await service.from('weddings').delete().in('slug', [slugPub, slugDraft, slugDraftInsert, 'rls-probe-anon-write']);
 await service.from('inquiries').delete().eq('email', inqProbeEmail);
 
 console.log(failures.length ? `\n${failures.length} RLS check(s) FAILED` : '\nall RLS checks passed');
