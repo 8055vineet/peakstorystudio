@@ -1,18 +1,25 @@
 # Cloudflare Pages redirects — https://developers.cloudflare.com/pages/configuration/redirects/
 #
-# Only the admin entry needs a rule: the URL the studio types (/admin, /admin/)
-# is rewritten to the second Vite entry, admin.html. Pages applies these rules
-# BEFORE it looks for a static asset, so a "/* /index.html 200" catch-all
-# would have proxied every request — hashed JS/CSS chunks, images,
-# robots.txt — to index.html and broken the site on first deploy. It is not
-# needed: with no 404.html in the build, Pages already serves index.html for
-# any path that matches no asset, which is exactly the SPA fallback the
-# react-router routes need.
-/admin    /admin.html   200
-/admin/    /admin.html   200
-
-# Prerendered per-route files are flat (stories/<slug>.html served at
-# /stories/<slug>); send the trailing-slash form to the canonical URL rather
-# than relying on undocumented normalisation.
+# Deliberately minimal. Two rules that are NOT here, and must not come back:
+#
+#   /* /index.html 200      A rule matches BEFORE the static asset lookup, so
+#                           this proxied every hashed JS/CSS chunk, every image
+#                           and robots.txt itself to index.html. Not needed:
+#                           with no 404.html in the build, Pages already serves
+#                           index.html for any unmatched path, which is the SPA
+#                           fallback the react-router deep links rely on.
+#
+#   /admin /admin.html 200  Sent /admin into an infinite redirect on the first
+#                           real deploy: the rule rewrote /admin to /admin.html,
+#                           then Pages' own canonicalisation 308'd that back to
+#                           /admin, matching the rule again. Also not needed —
+#                           that same canonicalisation serves admin.html at
+#                           /admin for free. (`npm run dev` has no such
+#                           behaviour, which is what the adminEntryRewrite
+#                           plugin in vite.config.js is for.)
+#
+# What remains: the prerendered per-route files are flat (stories/<slug>.html
+# served at /stories/<slug>). Pages documents placeholders here, but not what
+# it does with an unmatched trailing slash, so those two are explicit.
 /stories/:slug/    /stories/:slug    301
 /more/:slug/       /more/:slug       301
