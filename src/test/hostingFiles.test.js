@@ -30,10 +30,19 @@ describe('public/_redirects', () => {
     expect(lines).toContainEqual(['/more/:slug/', '/more/:slug', '301']);
   });
 
-  it('keeps both /admin rewrites to the admin entry', () => {
-    const lines = rules(read('public/_redirects')).map((line) => line.split(/\s+/));
-    expect(lines).toContainEqual(['/admin', '/admin.html', '200']);
-    expect(lines).toContainEqual(['/admin/', '/admin.html', '200']);
+  it('has no /admin rule — one there loops forever on Pages', () => {
+    // Observed on the first real deploy (2026-09-09): `/admin /admin.html 200`
+    // sent /admin into an infinite redirect. A rule matches before the asset
+    // lookup, so /admin was rewritten to /admin.html; Pages then applies its
+    // own canonicalisation, which 308s any .html path to its extension-less
+    // form (https://developers.cloudflare.com/pages/configuration/serving-pages/)
+    // — back to /admin, matching the rule again. No rule is needed: that same
+    // canonicalisation already serves admin.html at /admin. The Vite dev
+    // server has no such behaviour, which is what adminEntryRewrite in
+    // vite.config.js exists for.
+    for (const rule of rules(read('public/_redirects'))) {
+      expect(rule.startsWith('/admin')).toBe(false);
+    }
   });
 });
 

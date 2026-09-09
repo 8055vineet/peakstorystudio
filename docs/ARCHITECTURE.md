@@ -119,9 +119,8 @@ Two supporting conventions arrived with routing:
   Brand Story copy, and the three slot paths; the files live in `public/images/home/`
   (`hero.webp`, `brand-story.webp`, `closing.webp` — WebP since the Phase 4 optimization pass). **The owner changes an image by overwriting
   the file — no code edit.**
-- **`public/_redirects`** holds the two admin rewrites (`/admin` and `/admin/` →
-  `/admin.html`) and the two trailing-slash redirects for the prerendered dynamic routes
-  (`/stories/:slug/` and `/more/:slug/` → 301 to the canonical form), nothing else. Cloudflare's actual rule
+- **`public/_redirects`** holds only the two trailing-slash redirects for the prerendered
+  dynamic routes (`/stories/:slug/` and `/more/:slug/` → 301 to the canonical form). Cloudflare's actual rule
   ([developers.cloudflare.com/pages/configuration/redirects](https://developers.cloudflare.com/pages/configuration/redirects/))
   is that `_redirects` is evaluated *before* the static-asset lookup — a matching rule wins even
   when a file exists at that path — so the `/* /index.html 200` catch-all the file carried until
@@ -130,8 +129,15 @@ Two supporting conventions arrived with routing:
   matches no asset, which is exactly the SPA fallback the react-router deep links (`/gallery`,
   `/stories/<slug>`) rely on. `src/test/hostingFiles.test.js` pins the file to that shape. The
   Vite dev server falls back to `index.html` for unknown paths, and the `adminEntryRewrite`
-  plugin in `vite.config.js` gives `npm run dev`/`vite preview` the same two admin rewrites, so
-  the URL an owner naturally types works locally exactly as it does on Pages.
+  plugin in `vite.config.js` maps `/admin` to `admin.html` for `npm run dev`/`vite preview`,
+  which Pages does natively (see below), so the URL an owner types works in both places.
+- **`/admin` needs no rule, and must not have one.** Pages serves `admin.html` at `/admin` by
+  its own route matching, and 308s any `.html` path to its extension-less form
+  ([serving-pages](https://developers.cloudflare.com/pages/configuration/serving-pages/)). A
+  `/admin /admin.html 200` rule therefore loops forever: the rule rewrites to `/admin.html`,
+  the canonicalisation sends it back to `/admin`, the rule matches again. That is exactly what
+  the first real deploy did (2026-09-09) until the rule was removed; `hostingFiles.test.js`
+  now fails if one returns.
 
 ## Styling approach
 

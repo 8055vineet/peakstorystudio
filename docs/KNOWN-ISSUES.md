@@ -221,7 +221,7 @@ per-task reviews missed them) — see that task's report for the live-database p
   Cloudflare Pages builds from source on every push, which removed the last reason to commit
   build output at all. `npm run build` no longer dirties the working tree, so the
   `git checkout -- dist/ && git clean -fx dist/` dance in `CLAUDE.md` is retired with it.
-- **PS-030 — inert admin badge** — `Navbar`'s admin badge is now an `<a href="/admin.html">` (and, since the 2026-09-07 review, `/admin` and `/admin/` both reach it in production via `public/_redirects` and in the dev server via the `adminEntryRewrite` plugin in `vite.config.js`),
+- **PS-030 — inert admin badge** — `Navbar`'s admin badge is now an `<a href="/admin.html">` (and `/admin` reaches it too: Pages serves `admin.html` there natively, and the `adminEntryRewrite` plugin in `vite.config.js` does the same for `npm run dev`),
   and `public/_redirects` rewrites `/admin` to it, so a signed-in admin browsing the public
   site can reach the dashboard in one click.
 - **PS-036 — unguarded `<img src="">`** — every affected render (`FeaturedStories`,
@@ -334,8 +334,8 @@ failing test first:
   image, and `robots.txt` itself would have been answered with `index.html`'s bytes — a blank
   page with console errors. The catch-all was never needed: with no `404.html` in the build,
   Pages already serves `index.html` for any unknown path, which is the SPA fallback the
-  react-router deep links rely on. The file now holds the two `/admin` rewrites plus two 301
-  trailing-slash rules for the prerendered dynamic routes (`/stories/:slug/`, `/more/:slug/`), and
+  react-router deep links rely on. The file now holds only two 301 trailing-slash rules for the
+  prerendered dynamic routes (`/stories/:slug/`, `/more/:slug/`), and
   `src/test/hostingFiles.test.js` fails if a `/*` rule ever returns. Latent until the first
   deploy, so no visitor was affected.
 - **PS-008 — no shareable, indexable per-wedding URL; no prerendering, sitemap, OG images, or
