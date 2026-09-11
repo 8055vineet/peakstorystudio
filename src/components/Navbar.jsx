@@ -65,19 +65,25 @@ export default function Navbar({
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-9 pb-6">
 
         {/* Wordmark lockup, centered — the studio logo as a circular badge
-            just before the wordmark when one has been uploaded in the admin. */}
-        <div className="flex items-center justify-center gap-3">
+            just before the wordmark when one has been uploaded in the admin.
+            The hamburger below sits absolutely in the right-hand column, so
+            the row keeps px-10 (its width plus the nav's own padding) clear
+            on both sides until lg, where it is gone; and the badge and
+            wordmark are smaller until sm, because at text-2xl with 0.25em
+            tracking the lockup was wider than a phone and ran under the
+            hamburger at every width from 320 to 414px. */}
+        <div className="flex items-center justify-center gap-2 sm:gap-3 px-10 lg:px-0">
           {logo && (
             <img
               src={logo}
               alt=""
               data-logo-badge
-              className="w-14 h-14 sm:w-16 sm:h-16 rounded-full object-cover ring-1 ring-pitch-900/15 shrink-0"
+              className="w-10 h-10 sm:w-16 sm:h-16 rounded-full object-cover ring-1 ring-pitch-900/15 shrink-0"
             />
           )}
           <Link
             to="/"
-            className="inline-block font-garamond text-2xl sm:text-3xl tracking-[0.25em] text-pitch-900"
+            className="inline-block text-center leading-tight font-garamond text-lg sm:text-3xl tracking-[0.15em] sm:tracking-[0.25em] text-pitch-900"
           >
             Peak Story Studio
           </Link>

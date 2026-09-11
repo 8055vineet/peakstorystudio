@@ -21,6 +21,23 @@ describe('Photo', () => {
     expect(placeholder.getAttribute('aria-hidden')).toBe('true');
   });
 
+  it('passes stored dimensions through as width/height so the browser reserves the space before the bytes arrive', () => {
+    render(<Photo src="/images/a.jpg" alt="A couple" width={2000} height={765} />);
+    const img = screen.getByAltText('A couple');
+    expect(img).toHaveAttribute('width', '2000');
+    expect(img).toHaveAttribute('height', '765');
+  });
+
+  it('gives the placeholder the same aspect ratio the photograph would have had', () => {
+    render(<Photo src="" width={2000} height={765} className="w-full" />);
+    expect(screen.getByTestId('photo-placeholder').style.getPropertyValue('aspect-ratio')).toBe('2000 / 765');
+  });
+
+  it('leaves the placeholder unsized when no dimensions are known', () => {
+    render(<Photo src="" className="w-full" />);
+    expect(screen.getByTestId('photo-placeholder').style.getPropertyValue('aspect-ratio')).toBe('');
+  });
+
   it('treats a null or undefined source the same way', () => {
     const { rerender } = render(<Photo src={null} className="h-10" />);
     expect(screen.getByTestId('photo-placeholder')).toBeInTheDocument();

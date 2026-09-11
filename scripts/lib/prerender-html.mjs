@@ -85,7 +85,11 @@ export function metaFor(pathname, data = {}, origin = '') {
 
   const fontsHref = googleFontsHref(nonDefaultFamilies(settings?.fonts)) || null;
 
-  return { pathname, title, description, canonical, ogType, image, jsonLd, fontsHref };
+  // Home's largest paint is its hero; preloading it from the head starts the
+  // download before the bundle has even been fetched.
+  const preloadImage = pathname === '/' ? (settings?.images?.hero?.src || null) : null;
+
+  return { pathname, title, description, canonical, ogType, image, jsonLd, fontsHref, settings, preloadImage };
 }
 
 const meta = (attr, name, content) => `<meta ${attr}="${name}" content="${escapeHtml(content)}">`;
@@ -94,10 +98,13 @@ const named = (name, content) => meta('name', name, content);
 
 // The head fragment for one route, one tag per line, in a fixed order.
 export function buildHead(m) {
-  const { title, description, canonical, ogType, image, jsonLd = [], fontsHref } = m;
+  const { title, description, canonical, ogType, image, jsonLd = [], fontsHref, settings = {}, preloadImage = null } = m;
   const lines = [
     `<title>${escapeHtml(title)}</title>`,
     named('description', description),
+  ];
+  if (preloadImage) lines.push(`<link rel="preload" as="image" href="${escapeHtml(preloadImage)}" fetchpriority="high">`);
+  lines.push(
     `<link rel="canonical" href="${escapeHtml(canonical)}">`,
     property('og:site_name', STUDIO),
     property('og:locale', 'en_IN'),
@@ -105,7 +112,7 @@ export function buildHead(m) {
     property('og:url', canonical),
     property('og:title', title),
     property('og:description', description),
-  ];
+  );
   if (image) {
     lines.push(property('og:image', image.url), property('og:image:alt', image.alt));
     if (image.width != null && image.height != null) {
@@ -119,6 +126,11 @@ export function buildHead(m) {
   // '<' cannot appear in a <script> body without ending it; \u003c is the
   // same character to a JSON parser.
   lines.push(`<script type="application/ld+json">${JSON.stringify(ld).replace(/</g, '\\u003c')}</script>`);
+
+  // The settings row as the client will read it (src/lib/siteSettingsSnapshot.js):
+  // the first render's hero, quote, contact and logo, before the live query
+  // returns. Same escaping as the JSON-LD, for the same reason.
+  lines.push(`<script type="application/json" id="site-settings">${JSON.stringify(settings).replace(/</g, '\\u003c')}</script>`);
 
   if (fontsHref) lines.push(`<link id="site-fonts" rel="stylesheet" href="${escapeHtml(fontsHref)}">`);
   return lines.join('\n');

@@ -18,8 +18,11 @@ export const BRAND_STORY = {
   ],
 };
 
+// width/height are the files' real pixel sizes: the page puts them on the
+// <img> so the browser reserves the photograph's space before its bytes
+// arrive (Core Web Vitals CLS). Update them if a file is replaced.
 export const HOME_IMAGES = {
-  hero: { src: '/images/home/hero.webp', alt: 'A couple embracing beneath the arches of a Lucknow monument at golden hour' },
-  brandStory: { src: '/images/home/brand-story.webp', alt: 'A bride in an embellished navy lehenga, framed by dark leaves' },
-  closing: { src: '/images/home/closing.webp', alt: "A couple's hands holding their two gold wedding rings" },
+  hero: { src: '/images/home/hero.webp', alt: 'A couple embracing beneath the arches of a Lucknow monument at golden hour', width: 1800, height: 900 },
+  brandStory: { src: '/images/home/brand-story.webp', alt: 'A bride in an embellished navy lehenga, framed by dark leaves', width: 1333, height: 2000 },
+  closing: { src: '/images/home/closing.webp', alt: "A couple's hands holding their two gold wedding rings", width: 1600, height: 800 },
 };

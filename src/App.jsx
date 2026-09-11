@@ -160,24 +160,29 @@ export default function App() {
           <Route
             index
             element={
-              /* Home waits for the settings row: its hero, quote, and the
-                 intro logo all come from it, and painting the fallback first
-                 meant the intro splash mounted late — over a page the visitor
-                 was already looking at — on every first visit. */
-              settingsLoading ? null : (
-                <>
-                  {settings.logo ? <IntroSplash logoUrl={settings.logo} /> : null}
-                  <HomePage
-                    films={films}
-                    photos={photos}
-                    photosLoading={photosLoading}
-                    onOpenLightbox={handleOpenLightbox}
-                    quote={settings.quote}
-                    brandStory={settings.brandStory}
-                    images={settings.images}
-                  />
-                </>
-              )
+              /* Home paints on the first render. Its hero, quote, and the
+                 intro logo come from the settings row, and useSiteSettings
+                 starts from the build-time snapshot in the prerendered head
+                 (src/lib/siteSettingsSnapshot.js), so they are the real ones
+                 from the first frame and the intro mounts before anything is
+                 visible beneath it. Holding the page until the query resolved
+                 (the previous fix for a late intro) left <main> empty with
+                 the footer under the header, then inserted everything at
+                 once — the 0.85 footer shift and the P99 15.8s hero paint in
+                 Cloudflare's field data. Only the dev server, which has no
+                 snapshot, still sees a fallback-then-real swap. */
+              <>
+                {settings.logo ? <IntroSplash logoUrl={settings.logo} /> : null}
+                <HomePage
+                  films={films}
+                  photos={photos}
+                  photosLoading={photosLoading}
+                  onOpenLightbox={handleOpenLightbox}
+                  quote={settings.quote}
+                  brandStory={settings.brandStory}
+                  images={settings.images}
+                />
+              </>
             }
           />
           <Route path="gallery" element={<GalleryPage photos={photos} loading={photosLoading} onOpenLightbox={handleOpenLightbox} categoryOrder={galleryCategories} />} />

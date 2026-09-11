@@ -259,7 +259,9 @@ failing test first:
   fallback and the seeded row) is untouched and still Phase 7's.
 - **The intro splash mounted late, over an already-visible page.** `settings.logo` is `null` in the
   fallback, so Home painted first and the splash covered it when the settings row arrived. The Home
-  route now waits for the settings query before rendering either.
+  route then waited for the settings query before rendering either — reverted on
+  `phase-5/core-web-vitals` (below) once field data showed what that wait cost; the splash now
+  mounts on the first frame from the prerendered settings snapshot instead.
 - **`PS-036`'s claim of "every affected render" had a gap**: the Home grid, hero, portrait, and
   closing images and the More pages still rendered bare `<img>`s. All go through `Photo` now.
 - **Film and story cards and album thumbnails were `<div onClick>`s** — unreachable from a keyboard
@@ -380,3 +382,35 @@ failing test first:
   `verify:prerender`, which now fails on an empty database instead of passing vacuously;
   `public/404.html` is asserted absent; and the runbook, architecture notes, component table,
   and ADR were corrected where they lagged the code. The one finding deferred is `PS-053`.
+
+### Core Web Vitals and the phone header (2026-09-11) — resolved on `phase-5/core-web-vitals`
+
+Cloudflare Web Analytics for `peakstorystudio.in`, 10–11 September 2026: INP 100% good; LCP 57%
+good with a P99 of 15.8s, worst on `/` and `/about`; CLS **70% poor**, the footer alone scoring
+0.85, with `/` and `/contact` the worst URLs. Root causes, each verified in the code and then in
+Chromium against a production build before the fix shipped:
+
+- **Home rendered nothing until the settings query returned.** `src/App.jsx` held the index
+  route on `settingsLoading` (the fix above for a late intro), so `<main>` was empty with the
+  footer directly under the header, then the whole page was inserted at once — the 0.85 footer
+  shift — and the hero image could not even start downloading until the query had completed,
+  the P99 LCP. Fix: the prerender now stamps the settings row into every route's head
+  (`<script type="application/json" id="site-settings">`), `src/lib/siteSettingsSnapshot.js`
+  reads it, and `useSiteSettings` starts from it, so Home and the intro mount on the first
+  frame with the real content; the hero is also preloaded from Home's head. The live query
+  still runs and overrides the snapshot. Measured after: Home CLS 0.005 (phone) / 0.001
+  (desktop), hero painted at first frame.
+- **The three full-width Home photographs had no reserved height**, so each grew from zero as
+  its bytes arrived (the 0.5 shifts on the video and image sections). `getSiteSettings` now
+  carries each slot's media `width`/`height` (uploads record them; a seeded row without them
+  reserves nothing rather than the wrong shape), `homeContent.js` records the shipped files',
+  and `Photo` puts them on the `<img>` (and the placeholder's `aspect-ratio`).
+- **The Turnstile container on `/contact` was an empty div until the script drew the widget**,
+  jumping the submit button by 65px. It reserves that height now.
+- **The header wordmark ran under the hamburger on phones** (not in the analytics; reported by
+  the owner). Measured live at 320/360/390/414px: the centered lockup — `text-2xl` with
+  `0.25em` tracking plus a 56px badge — is wider than a phone, and the hamburger is positioned
+  absolutely over it. The lockup row now keeps the hamburger's column clear on both sides until
+  `lg`, and the badge and wordmark are smaller until `sm`; on the narrowest phones the wordmark
+  wraps to two centered lines rather than overlap. Measured after: clear at every width.
+

@@ -105,6 +105,28 @@ describe('logo badge', () => {
   });
 });
 
+describe('Navbar on a phone', () => {
+  // Measured on the live site (2026-09-11): the centred lockup ran under the
+  // absolutely-positioned hamburger at every width from 320 to 414px — the
+  // wordmark at text-2xl with 0.25em tracking plus the 56px badge is wider
+  // than a phone. The lockup row keeps clear of the hamburger's column, and
+  // the wordmark and badge are smaller until sm.
+  it('keeps the wordmark lockup clear of the hamburger and shrinks it until sm', () => {
+    renderAt('/', { logo: '/images/logo.png' });
+    const wordmark = screen.getByRole('link', { name: 'Peak Story Studio' });
+    const lockup = wordmark.parentElement;
+    expect(lockup.className).toMatch(/\bpx-10\b/);
+    expect(lockup.className).toMatch(/\blg:px-0\b/);
+    expect(wordmark.className).toMatch(/\btext-lg\b/);
+    expect(wordmark.className).toMatch(/\bsm:text-3xl\b/);
+    expect(wordmark.className).not.toMatch(/\btext-2xl\b/);
+    expect(wordmark.className).toMatch(/\btext-center\b/);
+    const badge = document.querySelector('header [data-logo-badge]');
+    expect(badge.className).toMatch(/\bw-10\b/);
+    expect(badge.className).toMatch(/\bsm:w-16\b/);
+  });
+});
+
 describe('Navbar between tablet and desktop widths', () => {
   it('keeps the hamburger and drawer until the corner controls appear at lg', () => {
     // The Sign In / Book Date corner controls are `hidden lg:flex`. If the
