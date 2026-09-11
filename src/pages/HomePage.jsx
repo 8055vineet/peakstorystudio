@@ -16,11 +16,17 @@ export default function HomePage({
   return (
     <div data-testid="home-page">
 
-      {/* Hero */}
+      {/* Hero — the page's largest paint. width/height reserve its space
+          before the bytes arrive; h-auto lets those attributes size it
+          (a fixed height would fight them); fetchPriority puts it ahead of
+          everything else the bundle requests. */}
       <Photo
         src={images.hero.src}
         alt={images.hero.alt}
-        className="w-full max-h-[85vh] object-cover"
+        width={images.hero.width}
+        height={images.hero.height}
+        fetchPriority="high"
+        className="w-full h-auto max-h-[85vh] object-cover"
       />
 
       {/* Quote — no solid background of its own, so the petals layer shows through */}
@@ -76,7 +82,10 @@ export default function HomePage({
           <Photo
             src={images.brandStory.src}
             alt={images.brandStory.alt}
-            className="w-full max-h-[560px] object-cover"
+            width={images.brandStory.width}
+            height={images.brandStory.height}
+            loading="lazy"
+            className="w-full h-auto max-h-[560px] object-cover"
           />
           <div className="text-center space-y-6">
             <h2 className="font-garamond text-3xl tracking-[0.15em] text-pitch-700 font-semibold uppercase">
@@ -95,7 +104,10 @@ export default function HomePage({
       <Photo
         src={images.closing.src}
         alt={images.closing.alt}
-        className="w-full max-h-[70vh] object-cover"
+        width={images.closing.width}
+        height={images.closing.height}
+        loading="lazy"
+        className="w-full h-auto max-h-[70vh] object-cover"
       />
 
       {/* The page's one <h1>: who, what, where — for search engines and

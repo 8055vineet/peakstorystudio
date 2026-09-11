@@ -43,7 +43,7 @@ const FULL_ROW = {
   quote_font: 'Marcellus',
   surface_warmth: 0.75,
   logo: { storage_path: 'uploads/logo.webp' },
-  hero: { storage_path: 'uploads/hero.webp', alt_text: 'Uploaded hero' },
+  hero: { storage_path: 'uploads/hero.webp', alt_text: 'Uploaded hero', width: 2000, height: 765 },
   brand_story: { storage_path: '/images/home/brand-story.webp', alt_text: '' },
   closing: null,
 };
@@ -63,12 +63,19 @@ describe('getSiteSettings', () => {
     expect(settings.images.hero).toEqual({
       src: 'https://cdn.peakstorystudio.test/uploads/hero.webp',
       alt: 'Uploaded hero',
+      width: 2000,
+      height: 765,
     });
+    // A media row without dimensions (pre-Phase-5 seed rows) carries none —
+    // never the shipped file's, which would reserve the wrong shape.
+    expect(settings.images.brandStory.width).toBeNull();
+    expect(settings.images.brandStory.height).toBeNull();
     // static path passes through; blank alt falls back to the constant's alt
     expect(settings.images.brandStory.src).toBe('/images/home/brand-story.webp');
     expect(settings.images.brandStory.alt).toBeTruthy();
     // null media -> the shipped static slot
     expect(settings.images.closing.src).toBe('/images/home/closing.webp');
+    expect([settings.images.closing.width, settings.images.closing.height]).toEqual([1600, 800]);
     expect(settings.contact).toEqual({
       address: 'An address',
       email: 'studio@example.test',

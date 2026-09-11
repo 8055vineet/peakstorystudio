@@ -444,7 +444,10 @@ export default function BookingForm({ contact = SITE_SETTINGS_FALLBACK.contact, 
 
                     {isInquiryBackendConfigured && (
                       <div>
-                        <div ref={turnstileContainerRef} />
+                        {/* Cloudflare's normal widget is 300x65. Reserving the
+                            height keeps the submit button from jumping when
+                            the script draws it (Core Web Vitals CLS). */}
+                        <div ref={turnstileContainerRef} data-testid="turnstile-slot" className="min-h-[65px]" />
                         {turnstileError && (
                           <p role="alert" className="mt-2 text-xs font-semibold text-charcoal-700">
                             {turnstileError}

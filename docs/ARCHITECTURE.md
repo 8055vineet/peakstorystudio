@@ -237,6 +237,21 @@ about the render flow above changes at runtime. The decision and its alternative
 [docs/superpowers/specs/2026-09-08-seo-design.md](superpowers/specs/2026-09-08-seo-design.md).
 `npm run prerender` reruns only the second step against an existing `dist/`.
 
+**The settings snapshot, and why Home paints on the first frame.** Every prerendered head also
+carries the `site_settings` row as `<script type="application/json" id="site-settings">`.
+`src/lib/siteSettingsSnapshot.js` reads it once, merged over `SITE_SETTINGS_FALLBACK`, and
+`useSiteSettings` (`src/hooks/useContent.js`) uses it as the value shown *while the live query
+is in flight* — the query still runs and its answer replaces the snapshot, so an admin edit
+shows before the rebuild it also triggers has finished. The first render therefore already has
+the real hero, quote, contact and logo: `HomePage` mounts immediately, `IntroSplash` mounts on
+the same frame (nothing is ever visible beneath it), and the hero `<img>` — preloaded from the
+head, `fetchPriority="high"`, sized by the media row's `width`/`height` — is the page's largest
+paint. The previous arrangement held the Home route on `settingsLoading` (so the intro would not
+mount over a painted page), which left `<main>` empty with the footer directly under the
+header until the query returned, then inserted everything at once: Cloudflare's field data for
+10–11 September 2026 scored that as a 0.85 footer layout shift and a P99 hero paint of 15.8s.
+Only the dev server, whose `index.html` has no snapshot, still starts from the fallback.
+
 **What the script reads, and why under `vite-node`.** `scripts/prerender.mjs` imports the real
 query modules — `getPublishedWeddings` (`src/lib/queries/weddings.js`), `getCollections`,
 `getGalleryPhotos`, `getFilms`, `getSiteSettings` — with the anon key, so it sees exactly the
@@ -254,14 +269,18 @@ script runs under `vite-node` the same way `scripts/verify-admin.mjs` does, mapp
   is reported and skipped, never written, so the build cannot produce a filename the host would
   canonicalise to a different URL.
 - `metaFor(pathname, data, origin)` — title (`src/lib/documentTitle.js`), description and
-  share image (`src/data/seo.js`), canonical, `og:type`, JSON-LD (`src/lib/seo/jsonLd.js`) and
-  the Google Fonts link for non-default families. The client uses the same helpers for its tab
+  share image (`src/data/seo.js`), canonical, `og:type`, JSON-LD (`src/lib/seo/jsonLd.js`),
+  the Google Fonts link for non-default families, the settings row itself (`settings`), and on
+  Home the hero URL to preload (`preloadImage`). The client uses the same helpers for its tab
   titles, so the prerendered head and the runtime one cannot drift.
-- `buildHead(meta)` — `<title>`, `meta[name=description]`, `link[rel=canonical]` (no trailing
-  slash), the Open Graph set (`og:site_name`, `og:locale`, `og:type`, `og:url`, `og:title`,
-  `og:description`, `og:image` + alt/width/height when known), the Twitter card, one
-  `<script type="application/ld+json">`, and `<link id="site-fonts">` when needed. All values
-  HTML-escaped; `<` inside the JSON-LD is written as `\u003c`.
+- `buildHead(meta)` — `<title>`, `meta[name=description]`, on Home a
+  `<link rel="preload" as="image" fetchpriority="high">` for the hero, `link[rel=canonical]`
+  (no trailing slash), the Open Graph set (`og:site_name`, `og:locale`, `og:type`, `og:url`,
+  `og:title`, `og:description`, `og:image` + alt/width/height when known), the Twitter card,
+  one `<script type="application/ld+json">`, one
+  `<script type="application/json" id="site-settings">` (the settings snapshot, below), and
+  `<link id="site-fonts">` when needed. All values HTML-escaped; `<` inside either JSON
+  script is written as `\u003c`.
 - `buildShell(meta, { byline })` — the `<div data-prerender-shell>` a crawler (or a visitor
   before the bundle runs) sees inside `#root`: the page's `<h1>`, a wedding's
   couple · location · date byline, and the description, on the site's own Tailwind utilities.

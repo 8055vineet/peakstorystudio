@@ -140,6 +140,13 @@ describe('metaFor', () => {
     expect(metaFor('/stories/nope', empty, ORIGIN).jsonLd).toEqual([]);
   });
 
+  it('carries the settings snapshot for every route and the hero preload for Home alone', () => {
+    expect(metaFor('/', data, ORIGIN).settings).toEqual(settings);
+    expect(metaFor('/stories/a-royal-affair', data, ORIGIN).settings).toEqual(settings);
+    expect(metaFor('/', data, ORIGIN).preloadImage).toBe(settings.images.hero.src);
+    expect(metaFor('/about', data, ORIGIN).preloadImage).toBeNull();
+  });
+
   it('carries the Google Fonts link only when the settings choose a non-default family', () => {
     const custom = { ...data, settings: { ...settings, fonts: { ...settings.fonts, heading: 'Playfair Display' } } };
     const href = metaFor('/', custom, ORIGIN).fontsHref;
@@ -180,7 +187,25 @@ describe('buildHead', () => {
       `<meta name="twitter:description" content="${escapeHtml(meta.description)}">`,
       `<meta name="twitter:image" content="${ORIGIN}/images/w/cover.jpg">`,
       `<script type="application/ld+json">${JSON.stringify(meta.jsonLd)}</script>`,
+      `<script type="application/json" id="site-settings">${JSON.stringify(settings)}</script>`,
     ]);
+  });
+
+  it('embeds the settings snapshot on every route, with < escaped so a value can never close the tag', () => {
+    const hostile = { ...data, settings: { ...settings, quote: { text: '</script><b>', credit: 'x' } } };
+    const head = buildHead(metaFor('/gallery', hostile, ORIGIN));
+    expect(head).toContain('<script type="application/json" id="site-settings">{');
+    expect(head).toContain('"text":"\\u003c/script>\\u003cb>"');
+    expect(head).not.toContain('</script><b>');
+  });
+
+  it('preloads the hero image on Home only, at high priority, so its bytes arrive before the bundle runs', () => {
+    const home = buildHead(metaFor('/', data, ORIGIN));
+    expect(home).toContain(`<link rel="preload" as="image" href="${escapeHtml(settings.images.hero.src)}" fetchpriority="high">`);
+    expect(buildHead(metaFor('/gallery', data, ORIGIN))).not.toContain('rel="preload"');
+    // No hero (an unresolvable slot) means no preload, not a preload of "".
+    const noHero = { ...data, settings: { ...settings, images: { ...settings.images, hero: { src: '', alt: '' } } } };
+    expect(buildHead(metaFor('/', noHero, ORIGIN))).not.toContain('rel="preload"');
   });
 
   it('omits width/height without both numbers, and every image tag without an image', () => {

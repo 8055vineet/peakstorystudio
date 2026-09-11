@@ -23,4 +23,11 @@ describe('home page content', () => {
     expect(HOME_IMAGES.closing.src).toBe('/images/home/closing.webp');
     for (const slot of Object.values(HOME_IMAGES)) expect(slot.alt).toBeTruthy();
   });
+
+  it('records each shipped file\'s pixel size so the page can reserve its space before it loads', () => {
+    // These are the real dimensions of public/images/home/*.webp (sips -g pixelWidth).
+    expect([HOME_IMAGES.hero.width, HOME_IMAGES.hero.height]).toEqual([1800, 900]);
+    expect([HOME_IMAGES.brandStory.width, HOME_IMAGES.brandStory.height]).toEqual([1333, 2000]);
+    expect([HOME_IMAGES.closing.width, HOME_IMAGES.closing.height]).toEqual([1600, 800]);
+  });
 });

@@ -112,6 +112,12 @@ scripts/prerender.mjs
   non-default fonts, the head also carries the `<link id="site-fonts">` the client would
   otherwise add at runtime (`src/lib/googleFonts.js`), so the chosen fonts load in the first
   paint. No `<meta name="robots">` anywhere — `_headers` is the one control.
+  *Added 2026-09-11 (Core Web Vitals):* every head also carries the settings row as
+  `<script type="application/json" id="site-settings">` (same `<` escaping), which
+  `src/lib/siteSettingsSnapshot.js` reads so the first render has the real hero, quote and logo
+  while the live query runs; and Home's head carries a
+  `<link rel="preload" as="image" fetchpriority="high">` for the hero. See
+  `docs/ARCHITECTURE.md` (the settings snapshot).
 - **`injectHead`** replaces the existing `<title>` and `meta[name=description]`, inserts the
   rest inside a `<!-- prerender:start -->…<!-- prerender:end -->` block before `</head>`, and
   puts the shell inside `<div id="root">`. It strips any previous block first, so it is

@@ -13,18 +13,23 @@ const SETTINGS_SELECT = `
   heading_font, body_font, quote_font,
   surface_warmth,
   logo:logo_media_id (storage_path),
-  hero:hero_media_id (storage_path, alt_text),
-  brand_story:brand_story_media_id (storage_path, alt_text),
-  closing:closing_media_id (storage_path, alt_text)
+  hero:hero_media_id (storage_path, alt_text, width, height),
+  brand_story:brand_story_media_id (storage_path, alt_text, width, height),
+  closing:closing_media_id (storage_path, alt_text, width, height)
 `;
 
 // A slot with no media row yet falls back to the shipped static image —
-// the site looks identical until the owner changes something.
+// the site looks identical until the owner changes something. width/height
+// let the page reserve the photograph's space before it loads; an upload
+// records them, a seeded row may not, and then they are null rather than
+// the shipped file's (which would reserve the wrong shape).
 function slot(media, fallback) {
   if (!media?.storage_path) return { ...fallback };
   return {
     src: publicMediaUrl(media.storage_path),
     alt: media.alt_text || fallback.alt,
+    width: media.width ?? null,
+    height: media.height ?? null,
   };
 }
 

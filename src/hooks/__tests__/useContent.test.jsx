@@ -7,11 +7,24 @@ vi.mock('../../lib/queries/weddings', () => ({ getPublishedWeddings: vi.fn(), ge
 vi.mock('../../lib/queries/films', () => ({ getFilms: vi.fn() }));
 const getTestimonials = vi.fn();
 vi.mock('../../lib/queries/testimonials', () => ({ getTestimonials: (...a) => getTestimonials(...a) }));
+const getSiteSettings = vi.fn();
+vi.mock('../../lib/queries/siteSettings', () => ({ getSiteSettings: (...a) => getSiteSettings(...a) }));
+// The build-time snapshot the prerendered head carries (src/lib/siteSettingsSnapshot.js).
+let snapshot = null;
+vi.mock('../../lib/siteSettingsSnapshot', () => ({ readSiteSettingsSnapshot: () => snapshot }));
 
-const { useGalleryPhotos, useTestimonials } = await import('../useContent');
 const { INITIAL_PHOTOS, TESTIMONIALS } = await import('../../data/weddingData');
+const { SITE_SETTINGS_FALLBACK } = await import('../../data/siteSettingsFallback');
 
-beforeEach(() => { getGalleryPhotos.mockReset(); getTestimonials.mockReset(); });
+beforeEach(() => { getGalleryPhotos.mockReset(); getTestimonials.mockReset(); getSiteSettings.mockReset(); });
+
+// useContent is imported per test so the module-level snapshot read sees the
+// value each test sets up — the way a real page sees its own <head> once.
+async function importContent() {
+  vi.resetModules();
+  return import('../useContent');
+}
+const { useGalleryPhotos, useTestimonials } = await importContent();
 
 describe('useGalleryPhotos', () => {
   it('starts loading with an empty list — never the outage fallback — then resolves with real data', async () => {
@@ -59,5 +72,43 @@ describe('useTestimonials', () => {
     const { result } = renderHook(() => useTestimonials());
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.data).toEqual(TESTIMONIALS);
+  });
+});
+
+describe('useSiteSettings', () => {
+  const live = { ...SITE_SETTINGS_FALLBACK, quote: { text: 'Live words', credit: 'by the database' }, logo: '/live/logo.webp' };
+
+  it('starts from the prerendered snapshot while the query is in flight, so Home paints the real hero and logo at once', async () => {
+    snapshot = { ...SITE_SETTINGS_FALLBACK, quote: { text: 'Snapshot words', credit: 'by the build' }, logo: '/built/logo.webp' };
+    getSiteSettings.mockResolvedValue(live);
+    const { useSiteSettings } = await importContent();
+    const { result } = renderHook(() => useSiteSettings());
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.data.quote.text).toBe('Snapshot words');
+    expect(result.current.data.logo).toBe('/built/logo.webp');
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.data).toEqual(live);
+  });
+
+  it('starts from the shipped fallback when the page carries no snapshot (dev server, degraded build)', async () => {
+    snapshot = null;
+    getSiteSettings.mockResolvedValue(live);
+    const { useSiteSettings } = await importContent();
+    const { result } = renderHook(() => useSiteSettings());
+    expect(result.current.loading).toBe(true);
+    expect(result.current.data).toEqual(SITE_SETTINGS_FALLBACK);
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.data).toEqual(live);
+  });
+
+  it('keeps the fallback, not the snapshot, when the query rejects — the outage path is unchanged', async () => {
+    snapshot = { ...SITE_SETTINGS_FALLBACK, logo: '/built/logo.webp' };
+    getSiteSettings.mockRejectedValue(new Error('offline'));
+    const { useSiteSettings } = await importContent();
+    const { result } = renderHook(() => useSiteSettings());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.data).toEqual(SITE_SETTINGS_FALLBACK);
+    expect(result.current.error).toMatch(/offline/);
   });
 });

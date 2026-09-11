@@ -276,6 +276,18 @@ describe('BookingForm', () => {
   });
 });
 
+describe('BookingForm and the verification widget', () => {
+  it('reserves the widget\'s height before Cloudflare draws it, so the submit button does not jump', () => {
+    // Cloudflare's field data put /contact among the worst pages for layout
+    // shift. The widget's normal size is 300x65; its container was an empty
+    // div until the script injected the iframe.
+    const { container } = render(<BookingForm />);
+    const slot = container.querySelector('[data-testid="turnstile-slot"]');
+    expect(slot).not.toBeNull();
+    expect(slot.className.split(/\s+/)).toContain('min-h-[65px]');
+  });
+});
+
 describe('BookingForm after the first inquiry', () => {
   beforeEach(() => {
     turnstileToken = 'test-token';

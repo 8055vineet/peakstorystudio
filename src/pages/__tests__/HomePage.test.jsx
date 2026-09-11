@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import HomePage from '../HomePage';
-import { HOME_QUOTE, BRAND_STORY } from '../../data/homeContent';
+import { HOME_QUOTE, BRAND_STORY, HOME_IMAGES } from '../../data/homeContent';
 
 // Field names match the fixtures in src/components/__tests__/FilmsGallery.test.jsx
 // and PhotoGallery.test.jsx — the page consumes the same shapes the section
@@ -45,6 +45,31 @@ describe('HomePage', () => {
     const page = screen.getByTestId('home-page');
     const h1 = screen.getByRole('heading', { level: 1 });
     expect(page.lastElementChild).toBe(h1);
+  });
+
+  // Cloudflare's field data scored Home's shifts at 0.5 per section: the
+  // three full-width photographs had no reserved height, so each one grew
+  // from zero as its bytes arrived and pushed everything below it down.
+  it('reserves each full-width photograph\'s space from its stored dimensions, and fetches the hero first', () => {
+    renderPage({
+      images: {
+        hero: { src: '/images/h.webp', alt: 'hero', width: 2000, height: 765 },
+        brandStory: { src: '/images/b.webp', alt: 'portrait', width: 1500, height: 2000 },
+        closing: { src: '/images/c.webp', alt: 'closing', width: 2000, height: 833 },
+      },
+    });
+    const hero = screen.getByRole('img', { name: 'hero' });
+    expect(hero).toHaveAttribute('width', '2000');
+    expect(hero).toHaveAttribute('height', '765');
+    expect(hero).toHaveAttribute('fetchpriority', 'high');
+    expect(hero.className).toMatch(/\bh-auto\b/); // the attributes size it; CSS must not fight them
+    expect(screen.getByRole('img', { name: 'portrait' })).toHaveAttribute('height', '2000');
+    expect(screen.getByRole('img', { name: 'closing' })).toHaveAttribute('width', '2000');
+  });
+
+  it('reserves the shipped slots\' space too, so the fallback never shifts either', () => {
+    renderPage();
+    expect(screen.getByRole('img', { name: HOME_IMAGES.hero.alt })).toHaveAttribute('width', '1800');
   });
 
   it('renders the quote and credit verbatim', () => {

@@ -6,6 +6,7 @@ import {
   TESTIMONIALS,
 } from '../data/weddingData';
 import { SITE_SETTINGS_FALLBACK } from '../data/siteSettingsFallback';
+import { readSiteSettingsSnapshot } from '../lib/siteSettingsSnapshot';
 import { GALLERY_CATEGORY_FALLBACK } from '../data/galleryCategories';
 import { SERVICES } from '@shared/inquiry-validation.js';
 import { getPublishedWeddings } from '../lib/queries/weddings';
@@ -64,8 +65,12 @@ export const useTestimonials = () => useContent(TESTIMONIALS, getTestimonials, N
 
 // The site's singular content (Phase 3c): quote, Brand Story, Home images,
 // contact, socials — one settings row, same stale-beats-blank fallback as
-// the collections above.
-export const useSiteSettings = () => useContent(SITE_SETTINGS_FALLBACK, getSiteSettings);
+// the collections above. While the query is in flight it shows the
+// build-time snapshot the prerendered head carries (see
+// src/lib/siteSettingsSnapshot.js), read once so its identity is stable.
+const SITE_SETTINGS_SNAPSHOT = readSiteSettingsSnapshot() ?? SITE_SETTINGS_FALLBACK;
+
+export const useSiteSettings = () => useContent(SITE_SETTINGS_FALLBACK, getSiteSettings, SITE_SETTINGS_SNAPSHOT);
 
 // Phase 3e: the admin-extensible lists. Fallbacks are module-level
 // constants on purpose — useContent's effect re-runs when `staticData`

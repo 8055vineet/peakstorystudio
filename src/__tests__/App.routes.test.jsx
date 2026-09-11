@@ -231,11 +231,17 @@ describe('stories lightbox', () => {
 });
 
 describe('home while settings load', () => {
-  it('holds the Home page until the site settings resolve, so the intro never covers an already-painted page', () => {
+  // The hook starts from the build-time snapshot (src/lib/siteSettingsSnapshot.js),
+  // so the hero, quote and logo are already the real ones. Holding the page back
+  // until the query resolved was what made Cloudflare's field data score the
+  // footer's layout shift at 0.85 and the hero's paint at P99 15.8s: an empty
+  // <main> with the footer directly under the header, then everything at once.
+  it('paints the Home page and the intro at first render rather than waiting for the settings query', () => {
     settingsLoading = true;
     renderAt('/');
-    expect(screen.queryByTestId('home-page')).toBeNull();
-    expect(screen.queryByTestId('intro-splash')).toBeNull();
+    expect(screen.getByTestId('home-page')).toBeInTheDocument();
+    expect(screen.getByTestId('intro-splash')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'hero' })).toHaveAttribute('src', '/images/home/hero.jpg');
   });
 });
 
